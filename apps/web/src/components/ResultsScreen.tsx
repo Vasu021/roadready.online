@@ -1,6 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
 import type { ScenarioPhase } from '../store/gameStore'
+import { useUserStore } from '../store/userStore'
+import { api } from '../utils/api'
 
 const FEEDBACK: Record<'passed' | 'failed', { heading: string; body: string }> = {
   passed: {
@@ -8,8 +11,8 @@ const FEEDBACK: Record<'passed' | 'failed', { heading: string; body: string }> =
     body: 'You completed all objectives. Your control of the vehicle was correct.',
   },
   failed: {
-    heading: 'Time\'s up',
-    body: 'You ran out of time before completing all objectives. Try again — there\'s no rush.',
+    heading: "Time's up",
+    body: "You ran out of time before completing all objectives. Try again — there's no rush.",
   },
 }
 
@@ -19,7 +22,27 @@ export default function ResultsScreen() {
   const elapsed = useGameStore((s) => s.elapsedSeconds)
   const scenario = useGameStore((s) => s.activeScenario)
   const resetScenario = useGameStore((s) => s.resetScenario)
+  const user = useUserStore((s) => s.user)
   const navigate = useNavigate()
+
+  // Prevent saving the same attempt more than once per run
+  const hasSaved = useRef(false)
+  useEffect(() => {
+    if (phase === 'running') hasSaved.current = false
+  }, [phase])
+
+  // Save the attempt once when the scenario ends, if the user is signed in
+  useEffect(() => {
+    if ((phase !== 'passed' && phase !== 'failed') || !user || !scenario || hasSaved.current) return
+    hasSaved.current = true
+    api.progress
+      .save({
+        scenarioId: scenario.id,
+        passed: phase === 'passed',
+        timeSeconds: Math.floor(elapsed),
+      })
+      .catch(console.error)
+  }, [phase, user, scenario, elapsed])
 
   if (phase !== 'passed' && phase !== 'failed') return null
 
@@ -80,6 +103,13 @@ export default function ResultsScreen() {
             </li>
           ))}
         </ul>
+
+        {/* Auth nudge for guests */}
+        {!user && (
+          <p className="mb-4 text-center text-xs text-gray-500">
+            Sign in to save your results across sessions.
+          </p>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3">

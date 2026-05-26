@@ -89,23 +89,34 @@
 
 ## 📋 Todo
 
-### Express API — Complete Route Implementations
-- [ ] `GET /api/scenarios` — seed or query scenario configs from DB (not just `[]`)
-- [ ] `GET /api/scenarios/:id` — return real scenario config by ID
-- [ ] `POST /api/users` — create or upsert `Profile` record linked to Supabase auth UID
-- [ ] `GET /api/users/:id` — fetch profile + aggregate progress stats
+### Express API — Complete Route Implementations ✅ Done
+- [x] `GET /api/health` — health check at `/api/health`
+- [x] `GET /api/scenarios` — returns all 3 scenario configs from `src/data/scenarios.ts`
+- [x] `GET /api/scenarios/:id` — returns scenario by ID or 404
+- [x] `POST /api/auth/register` — bcryptjs hash, creates `User`, returns JWT
+- [x] `POST /api/auth/login` — verifies password hash, returns JWT
+- [x] `GET /api/users/me` — returns authenticated user profile + attempt count
+- [x] `GET /api/progress/:userId` — protected, returns all `ScenarioAttempt` rows
+- [x] `POST /api/progress` — protected, creates `ScenarioAttempt` from JWT userId
+- [x] `helmet` added to Express middleware stack
+- [x] `requireAuth` middleware in `src/middleware/auth.ts` — verifies Bearer JWT
+- [x] `src/lib/jwt.ts` — `signToken` / `verifyToken` helpers (7-day expiry)
+- [x] Prisma schema updated: `User` model (`users` table) + `ScenarioAttempt` model (`scenario_attempts` table)
 - [ ] Add request validation middleware (e.g., zod) for all POST routes
-- [ ] Add auth middleware to protect private routes (verify Supabase JWT)
 
-### Supabase Auth
-- [ ] Install `@supabase/supabase-js` in `apps/web`
-- [ ] Create `src/lib/supabase.ts` client using `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
-- [ ] Build `LoginPage.tsx` — email/password sign-in and sign-up form
-- [ ] Wire `useUserStore` to Supabase `onAuthStateChange` — set/clear user on session change
-- [ ] Protect `/dashboard` and `/simulation/:id` routes — redirect to `/login` if not authenticated
-- [ ] After scenario completion, call `POST /api/progress` with the user's JWT in Authorization header
-- [ ] Install `@supabase/supabase-js` in `apps/api` (service role client for server-side auth verification)
-- [ ] Implement `verifyToken` middleware in `apps/api/src/middleware/auth.ts`
+### Supabase Auth ✅ Done
+- [x] Install `@supabase/supabase-js` in `apps/web` and `apps/api`
+- [x] `src/lib/supabase.ts` — browser Supabase client (anon key)
+- [x] `apps/api/src/lib/supabaseAdmin.ts` — service-role client for server-side token verification
+- [x] `requireAuth` middleware updated to verify tokens via `supabaseAdmin.auth.getUser(token)`
+- [x] `AuthModal.tsx` — sign in / sign up modal (email+password, confirmation-sent state, error display)
+- [x] `App.tsx` listens to `supabase.auth.onAuthStateChange` — updates `userStore` for the app lifetime
+- [x] `useUserStore` has `user`, `showAuthModal`, `setShowAuthModal`, `logout`
+- [x] Sign In / Sign Out buttons in `Home.tsx` header; modal rendered at root in `App.tsx`
+- [x] `ResultsScreen` saves attempt via `POST /api/progress` on pass/fail (once per run, only if signed in)
+- [x] Guest users see a "Sign in to save results" nudge on the results screen
+- [ ] Protect `/dashboard` and `/simulation/:id` — redirect to home if not authenticated
+- [ ] `Dashboard.tsx` — fetch and display user's attempt history from `GET /api/progress/:userId`
 
 ### Roundabout Scenario
 - [ ] Design roundabout road mesh in `simulation/scene/` (circular geometry with entry/exit lanes)

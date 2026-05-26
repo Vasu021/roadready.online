@@ -1,9 +1,11 @@
-import { lazy, Suspense } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
+import AuthModal from './components/AuthModal'
+import { supabase } from './lib/supabase'
+import { useUserStore } from './store/userStore'
 
-// Lazy-load Simulation so the heavy Three.js bundle doesn't block initial paint
 const Simulation = lazy(() => import('./pages/Simulation'))
 
 function PageLoader() {
@@ -15,6 +17,23 @@ function PageLoader() {
 }
 
 export default function App() {
+  const setUser = useUserStore((s) => s.setUser)
+  const showAuthModal = useUserStore((s) => s.showAuthModal)
+
+  // Listen for Supabase auth state changes for the lifetime of the app
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({ id: session.user.id, email: session.user.email! })
+      } else {
+        setUser(null)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [setUser])
+
   return (
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
@@ -24,6 +43,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </Suspense>
+      {showAuthModal && <AuthModal />}
     </BrowserRouter>
   )
 }

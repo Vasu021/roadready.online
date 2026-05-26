@@ -1,25 +1,22 @@
 import { create } from 'zustand'
-import type { UserProgress } from '@roadready/shared'
 
-interface User {
+export interface AuthUser {
   id: string
   email: string
 }
 
 interface UserStore {
-  user: User | null
-  progress: UserProgress[]
-  isLoading: boolean
-  setUser: (user: User | null) => void
-  setProgress: (progress: UserProgress[]) => void
-  setLoading: (loading: boolean) => void
+  user: AuthUser | null
+  showAuthModal: boolean
+  setUser: (user: AuthUser | null) => void
+  setShowAuthModal: (show: boolean) => void
+  logout: () => void
 }
 
 export const useUserStore = create<UserStore>((set) => ({
   user: null,
-  progress: [],
-  isLoading: false,
+  showAuthModal: false,
   setUser: (user) => set({ user }),
-  setProgress: (progress) => set({ progress }),
-  setLoading: (isLoading) => set({ isLoading }),
+  setShowAuthModal: (showAuthModal) => set({ showAuthModal }),
+  logout: () => set({ user: null }),
 }))

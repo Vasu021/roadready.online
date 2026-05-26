@@ -6,16 +6,9 @@ datasource db {
   provider = "postgresql"
 }
 
-model Profile {
-  id        String         @id
-  email     String         @unique
-  createdAt DateTime       @default(now()) @map("created_at")
-  progress  UserProgress[]
-
-  @@map("profiles")
-}
-
-model UserProgress {
+// Users are owned by Supabase Auth — we store only attempt records here.
+// userId holds the Supabase UUID from the verified JWT.
+model ScenarioAttempt {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
   scenarioId  String   @map("scenario_id")
@@ -23,9 +16,8 @@ model UserProgress {
   score       Int      @default(0)
   timeSeconds Int      @default(0) @map("time_seconds")
   completedAt DateTime @default(now()) @map("completed_at")
-  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([scenarioId])
-  @@map("user_progress")
+  @@map("scenario_attempts")
 }

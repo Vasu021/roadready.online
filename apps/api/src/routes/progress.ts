@@ -1,12 +1,18 @@
 import { Router } from 'express'
 import prisma from '../lib/prisma'
+import { requireAuth, type AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
-// GET /api/progress/:userId — fetch all completed scenarios for a user
-router.get('/:userId', async (req, res) => {
+// GET /api/progress/:userId
+router.get('/:userId', requireAuth, async (req: AuthRequest, res) => {
+  if (req.userId !== req.params.userId) {
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+
   try {
-    const rows = await prisma.userProgress.findMany({
+    const rows = await prisma.scenarioAttempt.findMany({
       where: { userId: req.params.userId },
       orderBy: { completedAt: 'desc' },
     })
@@ -17,24 +23,29 @@ router.get('/:userId', async (req, res) => {
   }
 })
 
-// POST /api/progress — record a completed scenario attempt
-router.post('/', async (req, res) => {
-  const { userId, scenarioId, passed, score, timeSeconds } = req.body as {
-    userId: string
+// POST /api/progress
+router.post('/', requireAuth, async (req: AuthRequest, res) => {
+  const { scenarioId, passed, score, timeSeconds } = req.body as {
     scenarioId: string
     passed: boolean
     score?: number
     timeSeconds?: number
   }
 
-  if (!userId || !scenarioId || passed === undefined) {
-    res.status(400).json({ error: 'userId, scenarioId, and passed are required' })
+  if (!scenarioId || passed === undefined) {
+    res.status(400).json({ error: 'scenarioId and passed are required' })
     return
   }
 
   try {
-    const row = await prisma.userProgress.create({
-      data: { userId, scenarioId, passed, score: score ?? 0, timeSeconds: timeSeconds ?? 0 },
+    const row = await prisma.scenarioAttempt.create({
+      data: {
+        userId: req.userId!,
+        scenarioId,
+        passed,
+        score: score ?? 0,
+        timeSeconds: timeSeconds ?? 0,
+      },
     })
     res.status(201).json(row)
   } catch (err) {
