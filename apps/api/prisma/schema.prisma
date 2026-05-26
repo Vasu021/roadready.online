@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Profile {
+  id        String         @id
+  email     String         @unique
+  createdAt DateTime       @default(now()) @map("created_at")
+  progress  UserProgress[]
+
+  @@map("profiles")
+}
+
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  scenarioId  String   @map("scenario_id")
+  passed      Boolean
+  score       Int      @default(0)
+  timeSeconds Int      @default(0) @map("time_seconds")
+  completedAt DateTime @default(now()) @map("completed_at")
+  user        Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scenarioId])
+  @@map("user_progress")
+}
