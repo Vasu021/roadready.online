@@ -10,28 +10,31 @@ Everything you need to go from zero to a running local environment, contribute f
 2. [Cloning the repo](#2-cloning-the-repo)
 3. [Installing dependencies](#3-installing-dependencies)
 4. [Environment variables](#4-environment-variables)
-5. [Setting up Supabase](#5-setting-up-supabase)
+5. [Setting up the local database](#5-setting-up-the-local-database)
 6. [Running locally](#6-running-locally)
 7. [Project structure](#7-project-structure)
-8. [Git workflow](#8-git-workflow)
-9. [Adding a new scenario](#9-adding-a-new-scenario)
-10. [Common errors and fixes](#10-common-errors-and-fixes)
+8. [Auth architecture](#8-auth-architecture)
+9. [Git workflow](#9-git-workflow)
+10. [Adding a new scenario](#10-adding-a-new-scenario)
+11. [Common errors and fixes](#11-common-errors-and-fixes)
 
 ---
 
 ## 1. Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| **Node.js** | 20 or later | Includes npm 10+. Download from [nodejs.org](https://nodejs.org). |
-| **npm** | 10 or later | Bundled with Node 20. This project uses **npm workspaces** — do not use pnpm or yarn. |
-| **Git** | Any recent | For cloning and branching. |
+| Tool           | Version     | Notes                                                                                 |
+| -------------- | ----------- | ------------------------------------------------------------------------------------- |
+| **Node.js**    | 20 or later | Includes npm 10+. Download from [nodejs.org](https://nodejs.org).                     |
+| **npm**        | 10 or later | Bundled with Node 20. This project uses **npm workspaces** — do not use pnpm or yarn. |
+| **PostgreSQL** | 14 or later | Local install or Docker. The API connects via `DATABASE_URL`.                         |
+| **Git**        | Any recent  | For cloning and branching.                                                            |
 
 Verify your setup:
 
 ```bash
-node -v   # v20.x.x or higher
-npm -v    # 10.x.x or higher
+node -v     # v20.x.x or higher
+npm -v      # 10.x.x or higher
+psql --version
 git --version
 ```
 
@@ -40,7 +43,7 @@ git --version
 ## 2. Cloning the repo
 
 ```bash
-git clone https://github.com/<your-org>/roadready.online.git
+git clone https://github.com/Vasu021/roadready.online.git
 cd roadready.online
 ```
 
@@ -60,123 +63,80 @@ npm install
 
 ## 4. Environment variables
 
-There are two `.env` files to create. Neither is committed to git. Use the `.env.example` template in `apps/api/` as a reference.
+Neither file is committed to git. The `.env.example` in `apps/api/` is the reference template.
 
 ### `apps/api/.env`
 
 ```env
-# PostgreSQL connection string — use the Session Pooler URL from Supabase
-# Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres?schema=public&sslmode=require
-# IMPORTANT: URL-encode any special characters in the password (@ → %40, # → %23, ! → %21, etc.)
-DATABASE_URL=
+# PostgreSQL connection string
+DATABASE_URL=postgresql://roadready_user:roadready_pass@localhost:5432/roadready
 
-# Direct (non-pooled) connection — required by Prisma for migrations and db push
-# Format: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres?schema=public&sslmode=require
-DIRECT_URL=
+# Secret used to sign JWTs — use a long random string in production
+JWT_SECRET=your_jwt_secret_here
 
-# Secret used to sign JWTs for custom auth routes — pick any long random string
-JWT_SECRET=
-
-# Port the Express API listens on locally
+# Port the Express API listens on
 PORT=3001
-
-# Supabase project URL — found in Supabase → Settings → API
-SUPABASE_URL=
-
-# Supabase service-role key — found in Supabase → Settings → API → service_role
-# This key has admin access; never expose it on the frontend
-SUPABASE_SERVICE_KEY=
 ```
 
 ### `apps/web/.env.local`
 
 ```env
-# Base URL of the running API (change port if you edited PORT above)
+# Base URL of the running API
 VITE_API_URL=http://localhost:3001
-
-# Supabase project URL — same value as SUPABASE_URL in apps/api/.env
-VITE_SUPABASE_URL=
-
-# Supabase anonymous / publishable key — found in Supabase → Settings → API → anon / public
-# Safe to expose in client-side code
-VITE_SUPABASE_ANON_KEY=
 ```
 
-> **Password encoding:** If your Supabase database password contains special characters (e.g. `@`, `#`, `!`), they must be percent-encoded in the URL. The most common case is `@` → `%40`. For example, the password `Pass@Word#1` becomes `Pass%40Word%231` in the connection string.
+> The frontend does **not** talk to the database directly. All data flows through the Express API at `VITE_API_URL`.
 
 ---
 
-## 5. Setting up Supabase
+## 5. Setting up the local database
 
-### 5.1 Create a project
+### 5.1 Create the database and user
 
-1. Go to [supabase.com](https://supabase.com) and sign in.
-2. Click **New project** and fill in a name and database password. Save the password — you will need it for `DATABASE_URL` and `DIRECT_URL`.
-3. Choose the region closest to your users.
+Connect to PostgreSQL as a superuser and run:
 
-### 5.2 Collect credentials
-
-In your Supabase dashboard go to **Settings → API**:
-
-| Credential | Where to find it | Which `.env` variable |
-|---|---|---|
-| Project URL | "Project URL" field | `SUPABASE_URL`, `VITE_SUPABASE_URL` |
-| Anon / public key | "Project API keys → anon public" | `VITE_SUPABASE_ANON_KEY` |
-| Service-role key | "Project API keys → service_role" | `SUPABASE_SERVICE_KEY` |
-
-For the database connection strings, go to **Settings → Database → Connection string**:
-
-- **Session Pooler** (port 5432) → `DATABASE_URL`
-- **Direct connection** (host `db.[project-ref].supabase.co`, port 5432) → `DIRECT_URL`
-
-The direct connection URL is not shown in one place; construct it as:
-
-```
-postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres?schema=public&sslmode=require
+```sql
+CREATE USER roadready_user WITH PASSWORD 'roadready_pass';
+CREATE DATABASE roadready OWNER roadready_user;
+GRANT ALL ON SCHEMA public TO roadready_user;
+ALTER USER roadready_user CREATEDB;
 ```
 
-### 5.3 Apply the database schema
+> `CREATEDB` is required so Prisma can create the shadow database used during `migrate dev`.
 
-All database work runs from the `apps/api` directory:
+### 5.2 Apply the schema
+
+All Prisma commands run from `apps/api/`:
 
 ```bash
 cd apps/api
+npx prisma migrate dev --name init_tables
 ```
 
-**Option A — `db push` (recommended for development)**
+This creates the migration file in `prisma/migrations/` and applies it to your local database. The following tables will be created:
 
-Pushes the current schema to the database without creating migration files. Fast for iteration.
+| Table                | Description                                       |
+| -------------------- | ------------------------------------------------- |
+| `users`              | Registered users (email + bcrypt password hash)   |
+| `scenario_attempts`  | One row per scenario run (pass/fail, score, time) |
+| `user_progress`      | Best score/time per user+scenario, attempt counts |
+| `_prisma_migrations` | Prisma migration history                          |
 
-```bash
-npx prisma db push
-```
-
-**Option B — `migrate dev` (recommended once schema is stable)**
-
-Creates a versioned migration file in `prisma/migrations/` and applies it. Use this when you want a tracked history of schema changes.
-
-```bash
-npx prisma migrate dev --name init
-```
-
-After running either command, the `scenario_attempts` table will exist in your Supabase database.
-
-### 5.4 Enable email auth in Supabase
-
-1. In the Supabase dashboard go to **Authentication → Providers → Email**.
-2. Make sure **Enable Email provider** is on.
-3. For local development, disable **Confirm email** so users can sign in immediately without checking their inbox.
-
-### 5.5 Generate the Prisma client
-
-Run this any time you change `prisma/schema.prisma`:
+### 5.3 Generate the Prisma client
 
 ```bash
 cd apps/api
 npx prisma generate
 ```
 
-> `prisma generate` also runs automatically via the `postinstall` script when you run `npm install`.
+> This also runs automatically via the `postinstall` script whenever you run `npm install` from the root.
+
+### 5.4 Inspect the database (optional)
+
+```bash
+cd apps/api
+npm run db:studio    # opens Prisma Studio at http://localhost:5555
+```
 
 ---
 
@@ -188,55 +148,50 @@ From the repo root, one command starts both the frontend and the API in parallel
 npm run dev
 ```
 
-| Service | URL | Description |
-|---------|-----|-------------|
-| Frontend (Vite) | http://localhost:5173 | React app with HMR |
-| Backend (Express) | http://localhost:3001 | REST API |
-| Health check | http://localhost:3001/api/health | Returns `{ "status": "ok" }` |
+| Service           | URL                              | Description                  |
+| ----------------- | -------------------------------- | ---------------------------- |
+| Frontend (Vite)   | http://localhost:5173            | React app with HMR           |
+| Backend (Express) | http://localhost:3001            | REST API                     |
+| Health check      | http://localhost:3001/api/health | Returns `{ "status": "ok" }` |
 
 To run them separately:
 
 ```bash
-npm run dev:web   # frontend only
-npm run dev:api   # backend only
+npm run dev:web   # frontend only  → http://localhost:5173
+npm run dev:api   # backend only   → http://localhost:3001
 ```
 
-To open Prisma Studio (a database GUI):
-
-```bash
-cd apps/api
-npm run db:studio
-```
+> Vite is pinned to port **5173** with `strictPort: true`. If 5173 is busy the process will error rather than silently stealing the API's port. The API is always on **3001**.
 
 ---
 
 ## 7. Project structure
 
-The full structure is documented in [`CLAUDE.md`](./CLAUDE.md). Here is a quick orientation:
-
 ```
 roadready.online/
 ├── apps/
-│   ├── web/                   # React + Vite frontend
+│   ├── web/                   # React + Vite frontend (port 5173)
 │   │   └── src/
-│   │       ├── components/    # UI components (HUD, modals, results)
+│   │       ├── components/    # UI components (AuthModal, HUD, ResultsScreen)
 │   │       ├── pages/         # Route pages: Home, Simulation, Dashboard
 │   │       ├── simulation/    # All 3D + physics code
 │   │       │   ├── scene/     # Canvas, ground, road, lighting
 │   │       │   ├── vehicles/  # Car controller + Rapier physics
 │   │       │   └── scenarios/ # Scenario definitions + pass/fail logic
+│   │       │       └── rules/ # German traffic rule implementations
 │   │       ├── store/         # Zustand stores (gameStore, userStore)
-│   │       ├── lib/           # External client setup (supabase.ts)
 │   │       └── utils/         # api.ts — central fetch client
 │   │
-│   └── api/                   # Node.js + Express backend
+│   └── api/                   # Node.js + Express backend (port 3001)
 │       ├── src/
+│       │   ├── index.ts       # App entry — dotenv/config imported first
 │       │   ├── data/          # Static data (scenarios.ts)
-│       │   ├── lib/           # prisma.ts, supabaseAdmin.ts
+│       │   ├── lib/           # prisma.ts (singleton), jwt.ts
 │       │   ├── middleware/    # auth.ts — JWT verification
-│       │   └── routes/        # scenarios, users, progress, auth
+│       │   └── routes/        # auth, scenarios, users, progress
 │       └── prisma/
-│           └── schema.prisma  # Database schema
+│           ├── schema.prisma  # Database schema (Prisma 6.0.0)
+│           └── migrations/    # Applied migration files (committed to git)
 │
 └── packages/
     └── shared/src/
@@ -245,14 +200,63 @@ roadready.online/
 
 **Key architectural decisions:**
 
-- `apps/web/src/simulation/scenarios/` holds the **game logic** (physics checkers, stop zones). This code never reaches the server.
+- `apps/web/src/simulation/scenarios/` holds the **game logic** (physics checkers, stop zones). This code runs entirely in the browser — it is never sent to the server.
 - `apps/api/src/data/scenarios.ts` holds the **metadata** served to the frontend scenario list. These two must stay in sync when you add a new scenario.
-- `packages/shared/src/types.ts` defines types used in both. Import from `@roadready/shared`.
-- Supabase Auth owns user identity — there is no `users` table in Prisma. The `scenario_attempts` table stores the Supabase UUID as a plain string.
+- `packages/shared/src/types.ts` defines types used by both apps. Import them as `@roadready/shared`.
+- User identity is managed by our own `users` table (bcrypt + JWT). There is no external auth provider.
+- Prisma is pinned to **6.0.0** — do not upgrade to 7.x, which requires a driver adapter we don't use.
 
 ---
 
-## 8. Git workflow
+## 8. Auth architecture
+
+Authentication is fully self-contained — no third-party auth service.
+
+### Flow
+
+```
+Register/Login
+  → POST /api/auth/register  or  POST /api/auth/login
+  → API bcrypt-hashes password, creates/verifies User row in DB
+  → API returns { token: "<JWT>", user: { id, email } }
+  → Frontend stores token in localStorage as "rr_token"
+
+Subsequent requests
+  → api.ts reads "rr_token" from localStorage
+  → Sets  Authorization: Bearer <token>  on every API request
+  → requireAuth middleware calls verifyToken(), sets req.userId + req.userEmail
+
+Session restore
+  → App.tsx reads "rr_token" from localStorage on mount
+  → Decodes payload with parseJwt() to get { sub, email }
+  → Restores userStore without an API call
+
+Logout
+  → userStore.logout() removes "rr_token" from localStorage
+  → userStore.user set to null
+```
+
+### Token details
+
+- Signed with `JWT_SECRET` from `apps/api/.env`
+- 7-day expiry
+- Payload: `{ sub: userId, email }`
+
+### API endpoints
+
+| Method | Path                    | Auth | Description                          |
+| ------ | ----------------------- | ---- | ------------------------------------ |
+| POST   | `/api/auth/register`    | —    | Create account, returns JWT          |
+| POST   | `/api/auth/login`       | —    | Sign in, returns JWT                 |
+| GET    | `/api/users/me`         | ✓    | Current user profile + attempt count |
+| GET    | `/api/scenarios`        | —    | List all scenario configs            |
+| GET    | `/api/scenarios/:id`    | —    | Single scenario config               |
+| GET    | `/api/progress/:userId` | ✓    | All attempts for a user              |
+| POST   | `/api/progress`         | ✓    | Save attempt + upsert best progress  |
+
+---
+
+## 9. Git workflow
 
 ### Branch naming
 
@@ -268,7 +272,7 @@ Examples:
 ```
 feature/roundabout-scenario
 fix/car-physics-lateral-drift
-chore/upgrade-prisma-v8
+chore/downgrade-prisma-6
 docs/add-deployment-guide
 ```
 
@@ -278,27 +282,29 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
 feat: add roundabout scenario with yield detection
-fix: URL-encode password in DATABASE_URL
-chore: upgrade @supabase/supabase-js to v3
-docs: add environment variable descriptions
+fix: correct lateral grip impulse calculation
+chore: pin prisma to 6.0.0
+docs: update developer guide for custom auth
 ```
 
 ### Before pushing
 
-Always run the TypeScript compiler from each app directory before pushing to `main`:
+Run the TypeScript compiler from each app to catch errors before CI does:
 
 ```bash
-cd apps/api  && npx tsc --noEmit
-cd apps/web  && npx tsc --noEmit
+cd apps/api && npx tsc --noEmit
+cd apps/web && npx tsc --noEmit
 ```
 
-Never commit `.env` files. Check `.gitignore` is correct with `git status` before staging.
+**Never commit `.env` files.** The `.env.example` files are safe and should stay committed.
+
+**Always commit migration files.** `apps/api/prisma/migrations/` tracks schema history — do not add it to `.gitignore`.
 
 ---
 
-## 9. Adding a new scenario
+## 10. Adding a new scenario
 
-A scenario has two parts: **metadata** (served by the API, shown in the menu) and **game logic** (runs in the browser, never sent to the server). Both must be added.
+A scenario has two parts: **metadata** (served by the API, shown in the menu) and **game logic** (runs in the browser). Both must be added.
 
 ### Step 1 — Add metadata to the API
 
@@ -325,81 +331,82 @@ Open `apps/api/src/data/scenarios.ts` and add an entry to the `SCENARIOS` array:
 Create `apps/web/src/simulation/scenarios/yourScenarioId.ts`:
 
 ```typescript
-import type { ScenarioDef, ScenarioChecker } from './types'
+import type { ScenarioDef, ScenarioChecker } from "./types";
 
-// Optional: define a stop zone the car must enter
-const STOP_ZONE = { cx: 0, cz: -30, hw: 6, hd: 6 }
+const STOP_ZONE = { cx: 0, cz: -30, hw: 6, hd: 6 };
 
 const check: ScenarioChecker = (carState, completed, _elapsed) => {
-  const newlyCompleted: string[] = []
-  const done = (id: string) => completed[id] || newlyCompleted.includes(id)
+  const newlyCompleted: string[] = [];
+  const done = (id: string) => completed[id] || newlyCompleted.includes(id);
 
-  const [x, , z] = carState.position
-  const speed = carState.velocity   // km/h
-  const yaw = carState.rotation[1]  // radians, positive = left turn
+  const [x, , z] = carState.position;
+  const speed = carState.velocity; // km/h
+  const yaw = carState.rotation[1]; // radians, positive = left turn
 
-  // Implement your pass conditions here.
-  // Push objective IDs into newlyCompleted when their condition is met.
-  if (!completed['obj-one'] && /* your condition */ z <= -20) {
-    newlyCompleted.push('obj-one')
+  if (!completed["obj-one"] && z <= -20) {
+    newlyCompleted.push("obj-one");
   }
 
   const inZone =
     Math.abs(x - STOP_ZONE.cx) <= STOP_ZONE.hw &&
-    Math.abs(z - STOP_ZONE.cz) <= STOP_ZONE.hd
-  if (done('obj-one') && !completed['obj-two'] && inZone && speed < 3) {
-    newlyCompleted.push('obj-two')
+    Math.abs(z - STOP_ZONE.cz) <= STOP_ZONE.hd;
+  if (done("obj-one") && !completed["obj-two"] && inZone && speed < 3) {
+    newlyCompleted.push("obj-two");
   }
 
   return {
     newlyCompleted,
-    passed: done('obj-one') && done('obj-two'),
-    failed: false,   // set true if the user violated a traffic rule
-  }
-}
+    passed: done("obj-one") && done("obj-two"),
+    failed: false,
+  };
+};
 
 const yourScenario: ScenarioDef = {
   config: {
-    id: 'your-scenario-id',       // must match Step 1
-    name: 'Your Scenario Name',
-    city: 'Aachen',
-    country: 'Germany',
-    difficulty: 'easy',
-    description: 'One sentence shown in the scenario list.',
+    id: "your-scenario-id",
+    name: "Your Scenario Name",
+    city: "Aachen",
+    country: "Germany",
+    difficulty: "easy",
+    description: "One sentence shown in the scenario list.",
     timeLimit: 180,
     objectives: [
-      { id: 'obj-one', description: 'First thing the user must do', completed: false },
-      { id: 'obj-two', description: 'Second thing', completed: false },
+      {
+        id: "obj-one",
+        description: "First thing the user must do",
+        completed: false,
+      },
+      { id: "obj-two", description: "Second thing", completed: false },
     ],
   },
   check,
-  stopZone: STOP_ZONE,  // omit this field if your scenario has no stop zone
-}
+  stopZone: STOP_ZONE,
+};
 
-export default yourScenario
+export default yourScenario;
 ```
 
-> **Key physics facts:** Three.js uses a right-handed coordinate system where **−Z is forward**, **Y is up**. The car spawns at `z = 40` and drives toward `z = 0, -10, -20…`. A positive Euler Y rotation is a **left turn** (counter-clockwise viewed from above). `carState.velocity` is in km/h.
+> **Key physics facts:** Three.js uses a right-handed coordinate system where **−Z is forward** and **Y is up**. The car spawns at `z = 40` and drives toward decreasing Z. A positive Euler Y rotation is a **left turn**. `carState.velocity` is in km/h.
 
 ### Step 3 — Register the scenario
 
 Open `apps/web/src/simulation/scenarios/index.ts` and add your import and registry entry:
 
 ```typescript
-import basicControls from './basicControls'
-import yourScenario from './yourScenarioId'   // add this
+import basicControls from "./basicControls";
+import yourScenario from "./yourScenarioId"; // add this
 
 const registry: Record<string, ScenarioDef> = {
-  'basic-controls': basicControls,
-  'your-scenario-id': yourScenario,           // add this
-}
+  "basic-controls": basicControls,
+  "your-scenario-id": yourScenario, // add this
+};
 ```
 
-Once registered, the scenario is immediately **playable** — `Home.tsx` filters the API response against the registry to decide what shows as locked vs available.
+Once registered the scenario is immediately **playable** — `Home.tsx` filters the API response against the registry to decide what shows as locked vs available.
 
 ### Step 4 — Add a road mesh (if needed)
 
-If your scenario takes place in a different environment, add a new scene component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx` based on `scenarioId`. Reuse the existing `<Ground />` and `<Lighting />` components.
+Add a new scene component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx` based on `scenarioId`. Reuse the existing `<Ground />` and `<Lighting />` components.
 
 ### Step 5 — Add traffic rules (if needed)
 
@@ -410,57 +417,100 @@ Put rule-checking logic in `apps/web/src/simulation/scenarios/rules/yourRule.ts`
 - [ ] `apps/api/src/data/scenarios.ts` — metadata added
 - [ ] `apps/web/src/simulation/scenarios/yourScenarioId.ts` — checker + config
 - [ ] `apps/web/src/simulation/scenarios/index.ts` — registered in registry
-- [ ] TypeScript compiles cleanly: `npx tsc --noEmit` in both `apps/web` and `apps/api`
+- [ ] `npx tsc --noEmit` passes in both `apps/web` and `apps/api`
 
 ---
 
-## 10. Common errors and fixes
+## 11. Common errors and fixes
 
-### "The datasource property 'url' is no longer supported in schema files"
+### "PrismaClientInitializationError: PrismaClient needs to be constructed with valid options"
 
-**Cause:** Prisma 7 removed the `url` field from `schema.prisma`. You may see this if you copied a Prisma 6 schema.
+**Cause:** Prisma 7 is installed. It requires a driver adapter that this project does not use.
 
-**Fix:** Move the URL to `prisma.config.ts`. The file already exists in `apps/api/` — do not add a `url` field back to `schema.prisma`.
+**Fix:** Prisma must be pinned to `6.0.0`. In `apps/api/package.json`:
 
----
+```json
+"@prisma/client": "6.0.0",
+"prisma": "6.0.0"
+```
 
-### "The datasource.url property is required in your Prisma config file"
-
-**Cause:** `DIRECT_URL` is not set in `apps/api/.env`, so `prisma.config.ts` receives `undefined`.
-
-**Fix:** Add `DIRECT_URL=postgresql://...` to `apps/api/.env`. The direct connection URL uses the host `db.[project-ref].supabase.co` (not the pooler host).
-
----
-
-### "P1001: Can't reach database server" or connection timeout
-
-**Cause:** Either the connection string is wrong, the password contains un-encoded special characters, or SSL is missing.
-
-**Fix:**
-1. URL-encode special characters in the password (`@` → `%40`, `#` → `%23`, `!` → `%21`).
-2. Append `?schema=public&sslmode=require` to both `DATABASE_URL` and `DIRECT_URL`.
-3. Confirm the Supabase project is not paused (free-tier projects pause after 1 week of inactivity).
-
----
-
-### "Cannot resolve environment variable: DIRECT_URL"
-
-**Cause:** Running `prisma db push` from the repo root instead of `apps/api/`, so `prisma.config.ts`'s dotenv path resolves incorrectly.
-
-**Fix:** Always run Prisma CLI commands from `apps/api/`:
+Then reinstall and regenerate:
 
 ```bash
-cd apps/api
-npx prisma db push
+rm -rf node_modules/.prisma node_modules/@prisma
+npm install
+cd apps/api && npx prisma generate
+```
+
+---
+
+### "permission denied to create database" during `prisma migrate dev`
+
+**Cause:** The database user lacks `CREATEDB` privilege (needed for Prisma's shadow database).
+
+**Fix:** Grant the privilege as a superuser:
+
+```bash
+psql -U postgres -c "ALTER USER roadready_user CREATEDB;"
+# or if postgres role doesn't exist, use your OS username:
+psql -c "ALTER USER roadready_user CREATEDB;"
+```
+
+---
+
+### "permission denied for schema public" during `prisma db push` or migrate
+
+**Cause:** PostgreSQL 15+ removed default `CREATE` privilege on the `public` schema.
+
+**Fix:**
+
+```bash
+psql -d roadready -c "GRANT ALL ON SCHEMA public TO roadready_user;"
+```
+
+---
+
+### "P1001: Can't reach database server"
+
+**Cause:** PostgreSQL isn't running, or `DATABASE_URL` is wrong.
+
+**Fix:**
+
+1. Confirm PostgreSQL is running: `pg_isready`
+2. Verify `DATABASE_URL` in `apps/api/.env` matches your local user/password/db name.
+3. Test the connection directly: `psql -U roadready_user -d roadready`
+
+---
+
+### Port 5173 already in use
+
+**Cause:** Another Vite process is running (Vite is set to `strictPort: true` — it won't silently move to another port).
+
+**Fix:**
+
+```bash
+lsof -ti:5173 | xargs kill
+```
+
+---
+
+### Port 3001 already in use
+
+**Cause:** A previous API process is still running.
+
+**Fix:**
+
+```bash
+lsof -ti:3001 | xargs kill
 ```
 
 ---
 
 ### "File '../../packages/shared/src/index.ts' is not under rootDir"
 
-**Cause:** `tsconfig.json` in an app has `rootDir` set to `./src` instead of `../../`, preventing cross-package imports.
+**Cause:** `tsconfig.json` in an app has `rootDir` set to `./src` instead of `../../`.
 
-**Fix:** In `apps/api/tsconfig.json` and `apps/web/tsconfig.json`, ensure:
+**Fix:** In both `apps/api/tsconfig.json` and `apps/web/tsconfig.json`:
 
 ```json
 {
@@ -474,40 +524,17 @@ npx prisma db push
 
 ---
 
-### Port 3001 already in use
+### Scenario shows as "Coming soon" after I added it
 
-**Cause:** A previous API process is still running.
+**Cause:** Metadata added to `apps/api/src/data/scenarios.ts` but not registered in the frontend registry.
 
-**Fix:**
-
-```bash
-# Find and kill the process on port 3001
-lsof -ti:3001 | xargs kill
-```
-
-Or change `PORT=3002` in `apps/api/.env` and update `VITE_API_URL=http://localhost:3002` in `apps/web/.env.local`.
-
----
-
-### Scenario shows as "Coming soon" (locked) after I added it
-
-**Cause:** The scenario config was added to `apps/api/src/data/scenarios.ts` but not registered in the frontend registry.
-
-**Fix:** Add the import and registry entry in `apps/web/src/simulation/scenarios/index.ts`. The `Home` page determines playability by checking whether a local simulation definition exists — if it is not in the registry, it shows as locked.
-
----
-
-### Supabase auth: "Email not confirmed"
-
-**Cause:** Supabase requires email confirmation by default.
-
-**Fix for local development:** In the Supabase dashboard go to **Authentication → Providers → Email** and disable **Confirm email**. Do not disable this in production.
+**Fix:** Add the import and registry entry in `apps/web/src/simulation/scenarios/index.ts`. `Home.tsx` determines playability by checking whether a local simulation definition exists — if it is not in the registry, it shows as locked.
 
 ---
 
 ### TypeScript: "Property 'X' does not exist on type 'PrismaClient'"
 
-**Cause:** The Prisma client is out of sync with `schema.prisma` — usually after a schema change without regenerating.
+**Cause:** The Prisma client is out of sync with `schema.prisma` after a schema change.
 
 **Fix:**
 
@@ -520,6 +547,6 @@ npx prisma generate
 
 ### `npm run dev` starts only one app
 
-**Cause:** `concurrently` is not installed at the root, or the root `package.json` scripts are wrong.
+**Cause:** `concurrently` is not installed at the root.
 
-**Fix:** Run `npm install` from the repo root (not from an app directory) to ensure root devDependencies like `concurrently` are installed.
+**Fix:** Run `npm install` from the repo root (not from an app directory) to ensure root devDependencies are installed.
