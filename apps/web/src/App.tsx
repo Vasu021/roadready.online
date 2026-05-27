@@ -3,7 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import AuthModal from './components/AuthModal'
-import { supabase } from './lib/supabase'
+import { getStoredToken } from './utils/api'
 import { useUserStore } from './store/userStore'
 
 const Simulation = lazy(() => import('./pages/Simulation'))
@@ -16,22 +16,27 @@ function PageLoader() {
   )
 }
 
+function parseJwt(token: string): { sub: string; email: string } | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const setUser = useUserStore((s) => s.setUser)
   const showAuthModal = useUserStore((s) => s.showAuthModal)
 
-  // Listen for Supabase auth state changes for the lifetime of the app
+  // Restore session from localStorage token on app load
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser({ id: session.user.id, email: session.user.email! })
-      } else {
-        setUser(null)
-      }
-    })
-    return () => subscription.unsubscribe()
+    const token = getStoredToken()
+    if (!token) return
+    const payload = parseJwt(token)
+    if (payload?.sub && payload?.email) {
+      setUser({ id: payload.sub, email: payload.email })
+    }
   }, [setUser])
 
   return (

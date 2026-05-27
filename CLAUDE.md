@@ -13,8 +13,8 @@ MVP: Aachen, Germany. Expanding to more cities and countries over time.
 - **Styling:** Tailwind CSS
 - **Backend:** Node.js + Express + TypeScript
 - **ORM:** Prisma
-- **Database:** PostgreSQL (Supabase)
-- **Auth:** Supabase Auth
+- **Database:** PostgreSQL — local during dev, swap `DATABASE_URL` for production (AWS RDS, Google Cloud SQL, etc.)
+- **Auth:** Custom JWT (bcryptjs + jsonwebtoken)
 - **Payments:** Stripe (later)
 - **Hosting:** Vercel (frontend), Railway (backend)
 
@@ -117,17 +117,13 @@ interface Objective {
 ### Frontend (apps/web/.env.local)
 ```
 VITE_API_URL=http://localhost:3001
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
 ```
 
 ### Backend (apps/api/.env)
 ```
-DATABASE_URL=
-JWT_SECRET=
+DATABASE_URL=postgresql://roadready_user:roadready_pass@localhost:5432/roadready
+JWT_SECRET=your_jwt_secret_here
 PORT=3001
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
 ```
 
 ## Development Commands

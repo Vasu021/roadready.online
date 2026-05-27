@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import type { Difficulty, ScenarioConfig } from '@roadready/shared'
 import { getAllScenarios, getScenario } from '../simulation/scenarios'
 import { api } from '../utils/api'
-import { supabase } from '../lib/supabase'
 import { useUserStore } from '../store/userStore'
 
 const DIFFICULTY_STYLES: Record<Difficulty, string> = {
@@ -15,6 +14,7 @@ const DIFFICULTY_STYLES: Record<Difficulty, string> = {
 
 export default function Home() {
   const user = useUserStore((s) => s.user)
+  const logout = useUserStore((s) => s.logout)
   const setShowAuthModal = useUserStore((s) => s.setShowAuthModal)
 
   const [scenarios, setScenarios] = useState<ScenarioConfig[]>([])
@@ -33,8 +33,8 @@ export default function Home() {
   const available = scenarios.filter((s) => !!getScenario(s.id))
   const locked = scenarios.filter((s) => !getScenario(s.id))
 
-  async function handleSignOut() {
-    await supabase.auth.signOut()
+  function handleSignOut() {
+    logout()
   }
 
   return (

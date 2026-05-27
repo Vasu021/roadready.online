@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { clearStoredToken } from '../utils/api'
 
 export interface AuthUser {
   id: string
@@ -18,5 +19,8 @@ export const useUserStore = create<UserStore>((set) => ({
   showAuthModal: false,
   setUser: (user) => set({ user }),
   setShowAuthModal: (showAuthModal) => set({ showAuthModal }),
-  logout: () => set({ user: null }),
+  logout: () => {
+    clearStoredToken()
+    set({ user: null })
+  },
 }))
