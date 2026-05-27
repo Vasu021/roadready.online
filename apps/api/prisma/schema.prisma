@@ -4,20 +4,49 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Users are owned by Supabase Auth — we store only attempt records here.
-// userId holds the Supabase UUID from the verified JWT.
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  attempts ScenarioAttempt[]
+  progress UserProgress[]
+
+  @@map("users")
+}
+
 model ScenarioAttempt {
   id          String   @id @default(cuid())
   userId      String   @map("user_id")
   scenarioId  String   @map("scenario_id")
   passed      Boolean
   score       Int      @default(0)
-  timeSeconds Int      @default(0) @map("time_seconds")
+  timeSeconds Int      @map("time_seconds")
   completedAt DateTime @default(now()) @map("completed_at")
 
-  @@index([userId])
-  @@index([scenarioId])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("scenario_attempts")
+}
+
+model UserProgress {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  scenarioId      String    @map("scenario_id")
+  bestScore       Int       @default(0) @map("best_score")
+  bestTimeSeconds Int?      @map("best_time_seconds")
+  attemptCount    Int       @default(0) @map("attempt_count")
+  passCount       Int       @default(0) @map("pass_count")
+  lastAttemptAt   DateTime? @map("last_attempt_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scenarioId])
+  @@map("user_progress")
 }

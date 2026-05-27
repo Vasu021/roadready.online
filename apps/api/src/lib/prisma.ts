@@ -1,7 +1,10 @@
 import { PrismaClient } from '@prisma/client'
 
-// Prisma 7: no constructor options needed — reads DATABASE_URL from process.env
-// dotenv/config is imported first in src/index.ts so DATABASE_URL is already set
-const prisma = new PrismaClient()
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+
+export const prisma =
+  globalForPrisma.prisma ?? new PrismaClient()
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
 export default prisma

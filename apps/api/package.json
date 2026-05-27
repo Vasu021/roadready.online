@@ -14,16 +14,15 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^7.8.0",
+    "@prisma/client": "6.0.0",
     "@roadready/shared": "*",
-    "@supabase/supabase-js": "^2.106.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "prisma": "^7.8.0"
+    "prisma": "6.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

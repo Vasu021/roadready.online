@@ -1,16 +1,12 @@
 import type { Request, Response, NextFunction } from 'express'
-import supabaseAdmin from '../lib/supabaseAdmin'
+import { verifyToken } from '../lib/jwt'
 
 export interface AuthRequest extends Request {
   userId?: string
   userEmail?: string
 }
 
-export async function requireAuth(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
   const header = req.headers.authorization
   if (!header?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Missing or invalid Authorization header' })
@@ -19,20 +15,11 @@ export async function requireAuth(
 
   const token = header.slice(7)
   try {
-    const {
-      data: { user },
-      error,
-    } = await supabaseAdmin.auth.getUser(token)
-
-    if (error || !user) {
-      res.status(401).json({ error: 'Invalid or expired token' })
-      return
-    }
-
-    req.userId = user.id
-    req.userEmail = user.email
+    const payload = verifyToken(token)
+    req.userId = payload.sub
+    req.userEmail = payload.email
     next()
   } catch {
-    res.status(500).json({ error: 'Authentication service unavailable' })
+    res.status(401).json({ error: 'Invalid or expired token' })
   }
 }
