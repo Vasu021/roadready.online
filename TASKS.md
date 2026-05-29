@@ -80,12 +80,39 @@
 
 ### Database
 - PostgreSQL via Prisma **6.0.0** (downgraded from 7.x — Prisma 7 requires a driver adapter which we don't need)
-- `prisma/schema.prisma`: datasource has `url = env("DATABASE_URL")`; 3 models — `User` (`users`), `ScenarioAttempt` (`scenario_attempts`), `UserProgress` (`user_progress`) — all with cascade delete on User
+- `prisma/schema.prisma`: full redesigned schema with 12 models — see CLAUDE.md Database Schema section
 - `src/lib/prisma.ts` uses globalThis singleton pattern to prevent multiple PrismaClient instances during hot reload
-- `prisma migrate dev --name init_tables` applied — migration file at `prisma/migrations/20260527124701_init_tables/migration.sql`
-- Tables confirmed live: `users`, `scenario_attempts`, `user_progress`, `_prisma_migrations`
-- `POST /api/progress` runs in a Prisma transaction: creates `ScenarioAttempt` + upserts `UserProgress` (best score, best time, attempt/pass counts, lastAttemptAt)
+- Migrations: `20260527124701_init_tables` + `20260529155259_redesign_core_schema`
+- Seed file at `prisma/seed.ts` — inserts Germany, 3 categories, 10 scenarios, 1 question+4 options each
+- `npm run db:seed` script added to `apps/api/package.json`
+- Seed confirmed applied: Germany + all 10 scenarios live in DB
 - `.env.example`: safe template for `DATABASE_URL`, `JWT_SECRET`, `PORT` only
+
+### Core Data Model Redesign (2026-05-29)
+- New simulation workflow: car moves automatically, pauses for MCQ questions
+- `Country`, `ScenarioCategory`, `Scenario`, `Question`, `Option` content tables
+- `UserCountryAccess`, `UserScenarioProgress` new progress tables
+- `TestSession` + `TestSessionAnswer` power test-mode grading
+- `ScenarioAttempt` extended with `mode` enum (PRACTICE | TEST)
+- `UserProgress` kept as legacy model for existing API routes
+- Enums: `ScenarioType`, `AttemptMode`, `ProgressStatus`
+
+### Express API — Complete Route Implementations
+- `GET /api/health`, `GET /api/scenarios`, `GET /api/scenarios/:id` — implemented
+- `POST /api/auth/register` — bcryptjs hash (cost 12), creates `User`, returns JWT
+- `POST /api/auth/login` — verifies password hash, returns JWT
+- `GET /api/users/me` — returns authenticated user profile + attempt count
+- `GET /api/progress/:userId` — protected, returns all `ScenarioAttempt` rows
+- `POST /api/progress` — protected; creates `ScenarioAttempt` + upserts `UserProgress` in a Prisma transaction
+- `helmet`, `requireAuth` middleware, `src/lib/jwt.ts` (`signToken` / `verifyToken`, 7-day expiry)
+
+### Custom JWT Auth — verified working end-to-end
+- `@supabase/supabase-js` removed from both apps; Supabase files deleted
+- `requireAuth` uses `verifyToken()` from `src/lib/jwt.ts` — no Supabase dependency
+- `apps/web/src/utils/api.ts` reads JWT from `localStorage` (`rr_token`) for all authenticated requests
+- `AuthModal.tsx` calls `api.auth.login` / `api.auth.register`; stores JWT via `setStoredToken`
+- `App.tsx` restores `userStore` on mount via `parseJwt()` from localStorage
+- Signup and login confirmed working end-to-end
 
 ### Port & Proxy Fix
 - Vite set to `port: 5173, strictPort: true` — no longer conflicts with API on 3001
@@ -95,38 +122,29 @@
 
 ## 📋 Todo
 
-### Express API — Complete Route Implementations ✅ Done
-- [x] `GET /api/health` — health check at `/api/health`
-- [x] `GET /api/scenarios` — returns all 3 scenario configs from `src/data/scenarios.ts`
-- [x] `GET /api/scenarios/:id` — returns scenario by ID or 404
-- [x] `POST /api/auth/register` — bcryptjs hash, creates `User`, returns JWT
-- [x] `POST /api/auth/login` — verifies password hash, returns JWT
-- [x] `GET /api/users/me` — returns authenticated user profile + attempt count
-- [x] `GET /api/progress/:userId` — protected, returns all `ScenarioAttempt` rows
-- [x] `POST /api/progress` — protected; creates `ScenarioAttempt` + upserts `UserProgress` (best score/time, attempt/pass counts) in a single Prisma transaction
-- [x] `helmet` added to Express middleware stack
-- [x] `requireAuth` middleware in `src/middleware/auth.ts` — verifies Bearer JWT
-- [x] `src/lib/jwt.ts` — `signToken` / `verifyToken` helpers (7-day expiry)
-- [x] Prisma schema updated: `User` model (`users` table) + `ScenarioAttempt` model (`scenario_attempts` table)
-- [ ] Add request validation middleware (e.g., zod) for all POST routes
+### API — Scenario & Content Routes ✅ Done
+- `GET /api/countries` — active countries with category + scenario counts (`routes/countries.ts`)
+- `GET /api/countries/:code/scenarios` — scenarios grouped by category for a country
+- `GET /api/scenarios` — DB-backed, replaces hardcoded `src/data/scenarios.ts`
+- `GET /api/scenarios/:slug` — single scenario by slug
+- `GET /api/scenarios/:slug/questions` — questions with shuffled options, `isCorrect` hidden (`routes/scenarios.ts`)
+- `POST /api/test-sessions` — creates `TestSession`, sets `maxScore` from live question count (`routes/testSessions.ts`)
+- `POST /api/test-sessions/:id/answers` — records `TestSessionAnswer`, returns `{ isCorrect, explanation }`
+- `PATCH /api/test-sessions/:id/complete` — computes `totalScore`, `grade` (A/B/C/F at 90/75/60%), `passed` (≥75%), marks `completedAt`
+- `GET /api/test-sessions/:id` — full session with answers, question text, selected option
+- `POST /api/progress` — now also upserts `UserScenarioProgress` (status COMPLETED/IN_PROGRESS, bestScore); resolves scenarioId by slug or DB id for FK safety
 
-### Custom JWT Auth ✅ Done — verified working end-to-end
-- [x] `@supabase/supabase-js` uninstalled from both `apps/web` and `apps/api`
-- [x] `apps/web/src/lib/supabase.ts` deleted
-- [x] `apps/api/src/lib/supabaseAdmin.ts` deleted
-- [x] `requireAuth` middleware uses `verifyToken()` from `src/lib/jwt.ts` — no Supabase dependency
-- [x] `POST /api/auth/register` — bcryptjs hash (cost 12), creates `User` row, returns signed JWT
-- [x] `POST /api/auth/login` — finds user by email, bcrypt compare, returns JWT
-- [x] `apps/web/src/utils/api.ts` — reads JWT from `localStorage` (`rr_token`) for all authenticated requests; exports `getStoredToken`, `setStoredToken`, `clearStoredToken`
-- [x] `AuthModal.tsx` calls `api.auth.login` / `api.auth.register` directly; stores JWT in localStorage via `setStoredToken`
-- [x] `App.tsx` reads localStorage token on load, decodes payload with `parseJwt()`, restores `userStore` — no external auth listener
-- [x] `userStore.logout()` clears localStorage token via `clearStoredToken()`
-- [x] Sign In / Sign Out buttons in `Home.tsx` header; modal rendered at root in `App.tsx`
-- [x] `ResultsScreen` saves attempt via `POST /api/progress` on pass/fail (once per run, only if signed in)
-- [x] Guest users see a "Sign in to save results" nudge on the results screen
-- [x] **Signup and login confirmed working end-to-end** — users created in `users` table, JWT stored in localStorage, session restored on page reload
-- [ ] Protect `/dashboard` and `/simulation/:id` — redirect to home if not authenticated
-- [ ] `Dashboard.tsx` — fetch and display user's attempt history from `GET /api/progress/:userId`
+### Frontend — MCQ Simulation Overlay
+- [ ] `MCQOverlay.tsx` component — shown when simulation pauses; renders question text + 4 option buttons
+- [ ] Correct answer: show green highlight + explanation panel → resume button
+- [ ] Wrong answer: show red highlight + explanation panel → retry or continue button
+- [ ] Wire into `gameStore` — add `pausedForQuestion`, `currentQuestion`, `questionResult` state
+- [ ] `useScenarioQuestions.ts` hook — fetches questions for current scenario from API
+
+### Frontend — Test Mode
+- [ ] `TestSession` flow: create session → iterate all active scenarios → show MCQ → accumulate answers → show final grade
+- [ ] `TestResultsScreen.tsx` — shows per-question breakdown, total score, grade (A/B/C/F), pass/fail
+- [ ] Wire `POST /api/test-sessions`, `POST /api/test-sessions/:id/answers`, `PATCH /api/test-sessions/:id/complete`
 
 ### Roundabout Scenario
 - [ ] Design roundabout road mesh in `simulation/scene/` (circular geometry with entry/exit lanes)
