@@ -45,6 +45,7 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### Phase 1 — Launch (MVP)
 
 - 🇩🇪 **Aachen, Germany** — First city. German traffic rules, road signs, Autobahn scenarios.
+- 🇫🇷 **France** — Second country. Priorité à droite, radar cameras, motorway rules.
 
 ### Phase 2 — Germany Expansion
 
@@ -53,7 +54,7 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### Phase 3 — Europe
 
 - 🇬🇧 UK — Left-hand traffic, roundabout rules
-- 🇫🇷 France, 🇳🇱 Netherlands, 🇦🇹 Austria
+- 🇳🇱 Netherlands, 🇦🇹 Austria
 
 ### Phase 4 — Global
 
@@ -66,41 +67,59 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### MVP (Aachen Launch)
 
 - ✅ 3D browser-based driving simulation (no download required)
-- ✅ Realistic Aachen city roads using OpenStreetMap data
-- ✅ German traffic signs and road markings
-- ✅ Scenario selection system (choose what to practice)
-- ✅ Pass/fail feedback with explanations
+- ✅ Multi-country: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice modules + 1 full theory test
+- ✅ Three-state UI: marketing landing page → country selector with facts → scenario list
+- ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium
+- ✅ MCQ-pause workflow: car moves automatically, pauses at key moments to ask questions
+- ✅ Immediate right/wrong feedback with rule explanation after each question
+- ✅ Full test mode: all scenarios back-to-back, graded (A/B/C/F) at the end
 - ✅ Basic car physics (steering, acceleration, braking)
-- ✅ User accounts and progress tracking
+- ✅ User accounts and progress tracking (JWT auth, no third-party provider)
 
 ### Planned Features
 
-- 🔜 Multiple scenarios per city (roundabout, priority road, Autobahn, school zone, parking)
-- 🔜 Day/night and weather conditions
 - 🔜 AI traffic — other cars, pedestrians, cyclists
+- 🔜 Day/night and weather conditions
 - 🔜 Leaderboards and scoring system
-- 🔜 Theory test integration
 - 🔜 Mobile support
 - 🔜 Multilingual UI (German, English, Turkish, Arabic, Hindi, etc.)
+- 🔜 More cities: Berlin, Munich, Hamburg
 
 ---
 
-## 🧩 Scenario Library (Germany)
+## 🧩 Scenario Library
 
-Each scenario is a self-contained practice module:
+Scenarios are database-driven. Each pauses the car at a key moment and asks an MCQ question about the relevant rule.
 
-| Scenario                    | Difficulty    | Description                                         |
-| --------------------------- | ------------- | --------------------------------------------------- |
-| Basic Controls              | ⭐ Beginner   | Get familiar with throttle, braking, steering       |
-| Intersection — Right of Way | ⭐⭐ Easy     | Rechts vor Links — right-before-left rule           |
-| Roundabout                  | ⭐⭐ Easy     | Enter, navigate, and exit a roundabout correctly    |
-| Traffic Lights              | ⭐⭐ Easy     | React correctly to all light states including amber |
-| Pedestrian Crossing         | ⭐⭐ Easy     | Yield to pedestrians at zebra crossings             |
-| Priority Road               | ⭐⭐⭐ Medium | Identify and follow priority road signs             |
-| Overtaking                  | ⭐⭐⭐ Medium | Safe overtaking on country roads                    |
-| Autobahn Merge              | ⭐⭐⭐⭐ Hard | Merge onto motorway at correct speed                |
-| Parking                     | ⭐⭐⭐ Medium | Parallel parking, bay parking                       |
-| Emergency Corridor          | ⭐⭐⭐⭐ Hard | Form Rettungsgasse on a congested Autobahn          |
+### 🇩🇪 Germany
+
+| Scenario                                   | Category      | Type     |
+| ------------------------------------------ | ------------- | -------- |
+| Basic Controls                             | Basic Skills  | PRACTICE |
+| Rechts vor Links — Right before Left       | Traffic Rules | PRACTICE |
+| Roundabout                                 | Traffic Rules | PRACTICE |
+| Traffic Lights                             | Traffic Rules | PRACTICE |
+| Priority Road Signs (Vorfahrtstraße)       | Road Signs    | PRACTICE |
+| Vorfahrt — Priority at Next Intersection   | Road Signs    | PRACTICE |
+| Emergency Vehicle                          | Traffic Rules | PRACTICE |
+| Pedestrian Crossing                        | Traffic Rules | PRACTICE |
+| Autobahn Rules                             | Traffic Rules | PRACTICE |
+| Full Test — Germany                        | Traffic Rules | TEST     |
+
+### 🇫🇷 France
+
+| Scenario                                   | Category      | Type     |
+| ------------------------------------------ | ------------- | -------- |
+| Basic Controls                             | Basic Skills  | PRACTICE |
+| Priorité à droite                          | Traffic Rules | PRACTICE |
+| Roundabout — French Style                  | Traffic Rules | PRACTICE |
+| Speed Limits                               | Traffic Rules | PRACTICE |
+| Radar Cameras                              | Traffic Rules | PRACTICE |
+| Motorway Rules                             | Traffic Rules | PRACTICE |
+| Pedestrian Crossing                        | Traffic Rules | PRACTICE |
+| Traffic Lights                             | Traffic Rules | PRACTICE |
+| Parking Rules                              | Basic Skills  | PRACTICE |
+| Full Test — France                         | Traffic Rules | TEST     |
 
 ---
 
@@ -129,14 +148,12 @@ Each scenario is a self-contained practice module:
 
 ### Infrastructure & Services
 
-| Service                       | Purpose                                     | Cost                |
-| ----------------------------- | ------------------------------------------- | ------------------- |
-| **Vercel**                    | Frontend hosting + CDN                      | Free                |
-| **Railway**                   | Backend API hosting                         | Free tier           |
-| **Supabase**                  | Managed PostgreSQL + Auth                   | Free tier           |
-| **Cloudflare**                | DNS, DDoS protection, CDN                   | Free                |
-| **Clerk** / **Supabase Auth** | User authentication (Google, GitHub, email) | Free tier           |
-| **Stripe**                    | Payments and subscriptions                  | Pay per transaction |
+| Service        | Purpose                            | Cost                |
+| -------------- | ---------------------------------- | ------------------- |
+| **Vercel**     | Frontend hosting + CDN             | Free                |
+| **Railway**    | Backend API + PostgreSQL hosting   | Free tier           |
+| **Cloudflare** | DNS, DDoS protection, CDN          | Free                |
+| **Stripe**     | Payments and subscriptions         | Pay per transaction |
 
 ### Map & Road Data
 
@@ -272,7 +289,7 @@ PORT=3001
 | **DNS**       | Cloudflare                                |
 | **Frontend**  | Vercel (roadready.online)                 |
 | **API**       | Railway (api.roadready.online)            |
-| **Database**  | Supabase (Frankfurt region)               |
+| **Database**  | Railway PostgreSQL (Frankfurt region)     |
 
 ---
 

@@ -66,37 +66,92 @@ src/
 ├── middleware/
 │   └── auth.ts       # requireAuth — verifies Bearer JWT, sets req.userId + req.userEmail
 └── routes/
-    ├── auth.ts       # POST /api/auth/register, POST /api/auth/login
-    ├── scenarios.ts  # GET /api/scenarios, GET /api/scenarios/:id
-    ├── users.ts      # GET /api/users/me
-    └── progress.ts   # GET /api/progress/:userId, POST /api/progress
+    ├── auth.ts               # POST /api/auth/register, POST /api/auth/login
+    ├── countries.ts          # GET /api/countries, GET /api/countries/:code/facts, GET /api/countries/:code/scenarios
+    ├── scenarios.ts          # GET /api/scenarios, GET /api/scenarios/:slug, GET /api/scenarios/:slug/questions,
+    │                         #   GET /api/scenarios/progress/:userId/:countryCode
+    ├── userCountryAccess.ts  # POST /api/user-country-access
+    ├── testSessions.ts       # POST /api/test-sessions, POST …/:id/answers, PATCH …/:id/complete, GET …/:id
+    ├── users.ts              # GET /api/users/me
+    └── progress.ts           # GET /api/progress/:userId, POST /api/progress
 ```
+
+## Simulation Workflow (New Design)
+
+The car moves automatically through a scenario. At key moments the simulation **pauses** and shows an MCQ question:
+- **Correct answer** → simulation resumes with a brief explanation shown.
+- **Wrong answer** → simulation stays paused; explanation shown; user retries or skips.
+
+**Practice mode** — individual scenario, no final grade.  
+**Test mode** — all scenarios in sequence; answers accumulated; grade and pass/fail shown at the end.
 
 ## Database Schema (Prisma 6.0.0)
 
-Three tables in PostgreSQL — `users`, `scenario_attempts`, `user_progress`.
+Twelve tables — see `apps/api/prisma/schema.prisma` for full definitions.
 
 ```
-User            → users
+── Content layer ──────────────────────────────────────────────
+Country              → countries
+  id, code (unique, e.g. "DE"), name, flagEmoji, isActive, facts?, createdAt
+
+ScenarioCategory     → scenario_categories
+  id, countryId (FK Country), name, order
+
+Scenario             → scenarios
+  id, countryId (FK Country), categoryId? (FK ScenarioCategory),
+  slug (unique), name, description, order, isActive, isPremium,
+  type (PRACTICE | TEST), videoUrl?, createdAt
+
+Question             → questions
+  id, scenarioId (FK Scenario), questionText, order, explanation, createdAt
+
+Option               → options
+  id, questionId (FK Question), optionText, isCorrect, order
+
+── User progress layer ────────────────────────────────────────
+User                 → users
   id, email (unique), password (bcrypt), name?, createdAt, updatedAt
 
-ScenarioAttempt → scenario_attempts
-  id, userId (FK→users cascade), scenarioId, passed, score, timeSeconds, completedAt
+UserCountryAccess    → user_country_access
+  id, userId (FK User), countryId (FK Country), unlockedAt
+  UNIQUE(userId, countryId)
 
-UserProgress    → user_progress
-  id, userId (FK→users cascade), scenarioId, bestScore, bestTimeSeconds?,
-  attemptCount, passCount, lastAttemptAt?
+UserScenarioProgress → user_scenario_progress  ← primary progress model
+  id, userId (FK User), scenarioId (FK Scenario),
+  status (NOT_STARTED | IN_PROGRESS | COMPLETED),
+  lastAttemptAt?, bestScore, attemptCount, passCount
   UNIQUE(userId, scenarioId)
+
+UserProgress         → user_progress  ← legacy, kept for existing routes
+  id, userId (FK User), scenarioId (plain String), bestScore,
+  bestTimeSeconds?, attemptCount, passCount, lastAttemptAt?
+  UNIQUE(userId, scenarioId)
+
+ScenarioAttempt      → scenario_attempts
+  id, userId (FK User), scenarioId (FK Scenario, nullable on delete),
+  mode (PRACTICE | TEST), passed, score, timeSeconds, completedAt
+
+TestSession          → test_sessions
+  id, userId (FK User), countryId (FK Country),
+  startedAt, completedAt?, totalScore, maxScore, passed?, grade?
+
+TestSessionAnswer    → test_session_answers
+  id, testSessionId (FK TestSession), questionId (FK Question),
+  selectedOptionId (FK Option), isCorrect, answeredAt
 ```
 
-`POST /api/progress` runs in a transaction: creates `ScenarioAttempt` + upserts `UserProgress`.
+**Seeded data** (`apps/api/prisma/seed.ts`):
+- Germany (code: `DE`, isActive: true) + France (code: `FR`, isActive: true) — both with `facts` HTML
+- Each country has categories: Basic Skills, Traffic Rules, Road Signs
+- Germany: 9 PRACTICE + 1 TEST scenario; France: 9 PRACTICE + 1 TEST scenario
+- All scenarios `isActive: true`, each with one 4-option MCQ question
 
 **Prisma notes:**
-
 - Schema file: `apps/api/prisma/schema.prisma` — datasource has `url = env("DATABASE_URL")`
 - No `prisma.config.ts` — it was removed; Prisma 6 reads `DATABASE_URL` from env automatically
 - `src/lib/prisma.ts` uses globalThis singleton to avoid multiple connections during hot reload
 - Migrations live in `apps/api/prisma/migrations/` and are committed to git
+- New code should use `UserScenarioProgress`; `UserProgress` is legacy
 
 ## Auth Architecture
 
@@ -126,37 +181,57 @@ UserProgress    → user_progress
 - Utils: camelCase (`formatScore.ts`, `osmParser.ts`)
 - Types/Interfaces: PascalCase with descriptive names (`ScenarioConfig`, `CarState`)
 
-## Current MVP Scope (Aachen, Germany)
+## Current MVP Scope
 
 1. A 3D scene with a basic road environment (Aachen-inspired)
 2. A drivable car with keyboard controls (WASD or arrow keys)
-3. A scenario selection screen
-4. At least 3 scenarios: Basic Controls, Intersection (Rechts vor Links), Roundabout
-5. Pass/fail detection with feedback
-6. User auth (sign up / login) — ✅ working
-7. Progress saved to database — ✅ working
+3. Multi-country support — Germany 🇩🇪 and France 🇫🇷 seeded; each with 9 PRACTICE + 1 TEST scenario
+4. Three-state UI flow in `Home.tsx`:
+   - **State A** (logged out): marketing landing page with CTA buttons
+   - **State B** (logged in, no country): country selector with facts panel
+   - **State C** (logged in, country chosen): scenario list grouped by category
+5. Car moves automatically; simulation pauses at key moments for MCQ
+6. Pass/fail/explanation shown per question; final grade shown after test mode
+7. User auth (sign up / login) — ✅ working
+8. Progress saved to database — ✅ working
+9. Free tier: first 3 scenarios unlocked; rest require Premium (dev toggle available)
 
 ## Scenarios Architecture
 
-Each scenario is a self-contained module:
+Scenarios are stored in PostgreSQL and loaded via the API. Each `Scenario` row has a `slug` that maps to a frontend simulation module. Questions and options are loaded from the `questions` / `options` tables.
 
-```typescript
-interface ScenarioConfig {
-  id: string;
-  name: string;
-  city: string;
-  country: string;
-  difficulty: "beginner" | "easy" | "medium" | "hard";
-  description: string;
-  objectives: Objective[];
-  timeLimit: number; // seconds
-}
+Frontend simulation modules live in `src/simulation/scenarios/<slug>.ts` and handle the 3D scripted path. MCQ questions are fetched from the API and rendered as overlays on top of the paused simulation.
 
-interface Objective {
-  id: string;
-  description: string;
-  completed: boolean;
-}
+**Scenario types:**
+- `PRACTICE` — single scenario, no final grade, immediate explanation on each question
+- `TEST` — all questions across all active scenarios, graded at end via `TestSession`
+
+**Seeded Germany scenarios (slug → name):**
+```
+basic-controls                  → Basic Controls
+rechts-vor-links                → Rechts vor Links — Right before Left
+roundabout                      → Roundabout
+traffic-lights                  → Traffic Lights
+priority-road-signs             → Priority Road Signs
+vorfahrt-priority-intersection  → Vorfahrt — Priority at Next Intersection
+emergency-vehicle               → Emergency Vehicle
+pedestrian-crossing             → Pedestrian Crossing
+autobahn-rules                  → Autobahn Rules
+full-test-germany               → Full Test — Germany  (type: TEST)
+```
+
+**Seeded France scenarios (slug → name):**
+```
+fr-basic-controls               → Basic Controls
+fr-priorite-a-droite            → Priorité à droite
+fr-roundabout                   → Roundabout — French Style
+fr-speed-limits                 → Speed Limits
+fr-radar-cameras                → Radar Cameras
+fr-motorway-rules               → Motorway Rules
+fr-pedestrian-crossing          → Pedestrian Crossing
+fr-traffic-lights               → Traffic Lights
+fr-parking-rules                → Parking Rules
+full-test-france                → Full Test — France  (type: TEST)
 ```
 
 ## Car Controls
@@ -209,6 +284,7 @@ cd apps/api
 npx prisma studio          # GUI at localhost:5555
 npx prisma migrate dev     # create + apply a new migration
 npx prisma generate        # regenerate client after schema changes
+npm run db:seed            # seed countries, categories, scenarios, questions, options
 
 # Build all
 npm run build
@@ -225,7 +301,13 @@ npm run build
 - Keep Three.js/R3F code performant — use `useMemo` and `useRef` for 3D objects
 - Physics bodies must be cleaned up on component unmount
 - Never hardcode German traffic rule logic inline — put it in `src/simulation/scenarios/rules/`
-- When adding a new scenario, create a new file in `src/simulation/scenarios/` and register it in `src/simulation/scenarios/index.ts`
+- When adding a new scenario, add a row to the DB (via seed or migration), create a simulation module in `src/simulation/scenarios/<slug>.ts`, and register it in `src/simulation/scenarios/index.ts`
+- Use `UserScenarioProgress` (not `UserProgress`) for all new progress tracking code; `UserProgress` is legacy
+- `Home.tsx` has three states: logged-out landing page / logged-in country select / logged-in scenario list — do not collapse these into separate routes
+- `userStore` holds `selectedCountry`, `isPremium`, `scenarioProgress`, `authModalMode` — update these when user changes country or completes a scenario
+- `isPremium` is a dev-only toggle (default false); free users get first 3 scenarios (order 1–3) unlocked per country
+- `setShowAuthModal(show, mode?)` sets both `showAuthModal` and `authModalMode` atomically — always pass `'login'` or `'register'` so AuthModal opens on the right tab
+- `TestSession` + `TestSessionAnswer` power the test-mode grading — create a `TestSession` at start, upsert `TestSessionAnswer` per question, mark `completedAt` + `passed` + `grade` when done
 - The simulation canvas must be responsive — works on all screen sizes
 - All user-facing text should support i18n from the start (use a `t()` function wrapper even if translations aren't wired up yet)
 

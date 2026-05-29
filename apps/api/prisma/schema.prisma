@@ -7,6 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ScenarioType {
+  PRACTICE
+  TEST
+}
+
+enum AttemptMode {
+  PRACTICE
+  TEST
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -15,26 +31,127 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  attempts ScenarioAttempt[]
-  progress UserProgress[]
+  attempts         ScenarioAttempt[]
+  progress         UserProgress[]
+  countryAccess    UserCountryAccess[]
+  scenarioProgress UserScenarioProgress[]
+  testSessions     TestSession[]
 
   @@map("users")
 }
 
-model ScenarioAttempt {
-  id          String   @id @default(cuid())
-  userId      String   @map("user_id")
-  scenarioId  String   @map("scenario_id")
-  passed      Boolean
-  score       Int      @default(0)
-  timeSeconds Int      @map("time_seconds")
-  completedAt DateTime @default(now()) @map("completed_at")
+model Country {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  flagEmoji String   @map("flag_emoji")
+  isActive  Boolean  @default(false) @map("is_active")
+  facts     String?
+  createdAt DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categories   ScenarioCategory[]
+  scenarios    Scenario[]
+  userAccess   UserCountryAccess[]
+  testSessions TestSession[]
 
-  @@map("scenario_attempts")
+  @@map("countries")
 }
 
+model ScenarioCategory {
+  id        String @id @default(cuid())
+  countryId String @map("country_id")
+  name      String
+  order     Int
+
+  country   Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  scenarios Scenario[]
+
+  @@map("scenario_categories")
+}
+
+model Scenario {
+  id          String       @id @default(cuid())
+  countryId   String       @map("country_id")
+  categoryId  String?      @map("category_id")
+  slug        String       @unique
+  name        String
+  description String
+  order       Int
+  isActive    Boolean      @default(false) @map("is_active")
+  isPremium   Boolean      @default(false) @map("is_premium")
+  type        ScenarioType
+  videoUrl    String?      @map("video_url")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  country          Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  category         ScenarioCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  questions        Question[]
+  scenarioAttempts ScenarioAttempt[]
+  userProgress     UserScenarioProgress[]
+
+  @@map("scenarios")
+}
+
+model Question {
+  id           String   @id @default(cuid())
+  scenarioId   String   @map("scenario_id")
+  questionText String   @map("question_text")
+  order        Int
+  explanation  String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  scenario           Scenario            @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  options            Option[]
+  testSessionAnswers TestSessionAnswer[]
+
+  @@map("questions")
+}
+
+model Option {
+  id         String  @id @default(cuid())
+  questionId String  @map("question_id")
+  optionText String  @map("option_text")
+  isCorrect  Boolean @map("is_correct")
+  order      Int
+
+  question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  testSessionAnswers TestSessionAnswer[]
+
+  @@map("options")
+}
+
+model UserCountryAccess {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  countryId  String   @map("country_id")
+  unlockedAt DateTime @default(now()) @map("unlocked_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, countryId])
+  @@map("user_country_access")
+}
+
+model UserScenarioProgress {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  scenarioId    String         @map("scenario_id")
+  status        ProgressStatus @default(NOT_STARTED)
+  lastAttemptAt DateTime?      @map("last_attempt_at")
+  bestScore     Int            @default(0) @map("best_score")
+  attemptCount  Int            @default(0) @map("attempt_count")
+  passCount     Int            @default(0) @map("pass_count")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scenarioId])
+  @@map("user_scenario_progress")
+}
+
+// Legacy progress model — kept for backwards compat with existing API routes.
+// New code should use UserScenarioProgress.
 model UserProgress {
   id              String    @id @default(cuid())
   userId          String    @map("user_id")
@@ -49,4 +166,53 @@ model UserProgress {
 
   @@unique([userId, scenarioId])
   @@map("user_progress")
+}
+
+model ScenarioAttempt {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  scenarioId  String      @map("scenario_id")
+  mode        AttemptMode @default(PRACTICE)
+  passed      Boolean
+  score       Int         @default(0)
+  timeSeconds Int         @map("time_seconds")
+  completedAt DateTime    @default(now()) @map("completed_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario Scenario? @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+
+  @@map("scenario_attempts")
+}
+
+model TestSession {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  countryId   String    @map("country_id")
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  totalScore  Int       @default(0) @map("total_score")
+  maxScore    Int       @map("max_score")
+  passed      Boolean?
+  grade       String?
+
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country             @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  answers TestSessionAnswer[]
+
+  @@map("test_sessions")
+}
+
+model TestSessionAnswer {
+  id               String   @id @default(cuid())
+  testSessionId    String   @map("test_session_id")
+  questionId       String   @map("question_id")
+  selectedOptionId String   @map("selected_option_id")
+  isCorrect        Boolean  @map("is_correct")
+  answeredAt       DateTime @default(now()) @map("answered_at")
+
+  testSession    TestSession @relation(fields: [testSessionId], references: [id], onDelete: Cascade)
+  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+
+  @@map("test_session_answers")
 }
