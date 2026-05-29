@@ -106,23 +106,45 @@ ALTER USER roadready_user CREATEDB;
 
 ### 5.2 Apply the schema
 
-All Prisma commands run from `apps/api/`:
+All Prisma commands run from `apps/api/`. Migrations are already committed — apply them with:
 
 ```bash
 cd apps/api
-npx prisma migrate dev --name init_tables
+npx prisma migrate deploy
 ```
 
-This creates the migration file in `prisma/migrations/` and applies it to your local database. The following tables will be created:
+> During active development you can also use `npx prisma migrate dev` to create and apply new migrations interactively.
 
-| Table                | Description                                       |
-| -------------------- | ------------------------------------------------- |
-| `users`              | Registered users (email + bcrypt password hash)   |
-| `scenario_attempts`  | One row per scenario run (pass/fail, score, time) |
-| `user_progress`      | Best score/time per user+scenario, attempt counts |
-| `_prisma_migrations` | Prisma migration history                          |
+This applies all committed migrations and creates the following tables:
 
-### 5.3 Generate the Prisma client
+| Table                       | Description                                                |
+| --------------------------- | ---------------------------------------------------------- |
+| `users`                     | Registered users (email + bcrypt password hash)            |
+| `countries`                 | Country records (DE, etc.) with active flag                |
+| `scenario_categories`       | Named groups within a country (Basic Skills, Traffic Rules…)|
+| `scenarios`                 | Individual scenarios — slug, type (PRACTICE/TEST), order   |
+| `questions`                 | MCQ questions linked to a scenario                         |
+| `options`                   | Answer options for a question (one marked `is_correct`)    |
+| `scenario_attempts`         | One row per scenario run (mode, pass/fail, score, time)    |
+| `user_progress`             | Legacy best score/time per user+scenario (kept for compat) |
+| `user_scenario_progress`    | Current progress status per user+scenario                  |
+| `user_country_access`       | Which countries a user has unlocked                        |
+| `test_sessions`             | Full test session (score, grade, pass/fail)                |
+| `test_session_answers`      | Per-question answer within a test session                  |
+| `_prisma_migrations`        | Prisma migration history                                   |
+
+### 5.3 Seed reference data
+
+After applying migrations, seed Germany and all its scenarios:
+
+```bash
+cd apps/api
+npm run db:seed
+```
+
+This inserts: Germany country record, 3 categories (Basic Skills, Traffic Rules, Road Signs), 10 scenarios (9 PRACTICE + 1 TEST), and one MCQ question with 4 options per scenario.
+
+### 5.4 Generate the Prisma client
 
 ```bash
 cd apps/api
@@ -131,7 +153,7 @@ npx prisma generate
 
 > This also runs automatically via the `postinstall` script whenever you run `npm install` from the root.
 
-### 5.4 Inspect the database (optional)
+### 5.5 Inspect the database (optional)
 
 ```bash
 cd apps/api
@@ -185,12 +207,12 @@ roadready.online/
 │   └── api/                   # Node.js + Express backend (port 3001)
 │       ├── src/
 │       │   ├── index.ts       # App entry — dotenv/config imported first
-│       │   ├── data/          # Static data (scenarios.ts)
 │       │   ├── lib/           # prisma.ts (singleton), jwt.ts
 │       │   ├── middleware/    # auth.ts — JWT verification
-│       │   └── routes/        # auth, scenarios, users, progress
+│       │   └── routes/        # auth, countries, scenarios, testSessions, users, progress
 │       └── prisma/
-│           ├── schema.prisma  # Database schema (Prisma 6.0.0)
+│           ├── schema.prisma  # Database schema (Prisma 6.0.0) — 12 models
+│           ├── seed.ts        # Reference data (countries, categories, scenarios, questions)
 │           └── migrations/    # Applied migration files (committed to git)
 │
 └── packages/
@@ -200,8 +222,9 @@ roadready.online/
 
 **Key architectural decisions:**
 
-- `apps/web/src/simulation/scenarios/` holds the **game logic** (physics checkers, stop zones). This code runs entirely in the browser — it is never sent to the server.
-- `apps/api/src/data/scenarios.ts` holds the **metadata** served to the frontend scenario list. These two must stay in sync when you add a new scenario.
+- `apps/web/src/simulation/scenarios/` holds the **3D game logic** (physics path, stop zones). This runs entirely in the browser. Each file maps to a scenario `slug`.
+- **Scenario metadata** (name, description, questions, options) is stored in the database and served by the API — not hardcoded in frontend files.
+- The simulation **pauses at key moments** and shows an MCQ question. The frontend submits the selected option to `POST /api/test-sessions/:id/answers`, which returns `{ isCorrect, explanation }`.
 - `packages/shared/src/types.ts` defines types used by both apps. Import them as `@roadready/shared`.
 - User identity is managed by our own `users` table (bcrypt + JWT). There is no external auth provider.
 - Prisma is pinned to **6.0.0** — do not upgrade to 7.x, which requires a driver adapter we don't use.
@@ -244,15 +267,22 @@ Logout
 
 ### API endpoints
 
-| Method | Path                    | Auth | Description                          |
-| ------ | ----------------------- | ---- | ------------------------------------ |
-| POST   | `/api/auth/register`    | —    | Create account, returns JWT          |
-| POST   | `/api/auth/login`       | —    | Sign in, returns JWT                 |
-| GET    | `/api/users/me`         | ✓    | Current user profile + attempt count |
-| GET    | `/api/scenarios`        | —    | List all scenario configs            |
-| GET    | `/api/scenarios/:id`    | —    | Single scenario config               |
-| GET    | `/api/progress/:userId` | ✓    | All attempts for a user              |
-| POST   | `/api/progress`         | ✓    | Save attempt + upsert best progress  |
+| Method | Path                               | Auth | Description                                          |
+| ------ | ---------------------------------- | ---- | ---------------------------------------------------- |
+| POST   | `/api/auth/register`               | —    | Create account, returns JWT                          |
+| POST   | `/api/auth/login`                  | —    | Sign in, returns JWT                                 |
+| GET    | `/api/users/me`                    | ✓    | Current user profile + attempt count                 |
+| GET    | `/api/countries`                   | —    | Active countries with categories + scenario counts   |
+| GET    | `/api/countries/:code/scenarios`   | —    | Scenarios grouped by category for a country          |
+| GET    | `/api/scenarios`                   | —    | All active scenarios (flat list)                     |
+| GET    | `/api/scenarios/:slug`             | —    | Single scenario by slug                              |
+| GET    | `/api/scenarios/:slug/questions`   | —    | Questions + shuffled options (`isCorrect` hidden)    |
+| POST   | `/api/test-sessions`               | ✓    | Create a test session for a country                  |
+| POST   | `/api/test-sessions/:id/answers`   | ✓    | Submit an answer — returns `{ isCorrect, explanation }` |
+| PATCH  | `/api/test-sessions/:id/complete`  | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail |
+| GET    | `/api/test-sessions/:id`           | ✓    | Full session with per-question answer breakdown      |
+| GET    | `/api/progress/:userId`            | ✓    | All `ScenarioAttempt` rows for a user                |
+| POST   | `/api/progress`                    | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
 
 ---
 
@@ -304,66 +334,75 @@ cd apps/web && npx tsc --noEmit
 
 ## 10. Adding a new scenario
 
-A scenario has two parts: **metadata** (served by the API, shown in the menu) and **game logic** (runs in the browser). Both must be added.
+A scenario has two parts: **database content** (metadata + MCQ questions, served by the API) and a **3D simulation module** (the scripted car path that runs in the browser). Both must be added.
 
-### Step 1 — Add metadata to the API
+### Step 1 — Seed the scenario into the database
 
-Open `apps/api/src/data/scenarios.ts` and add an entry to the `SCENARIOS` array:
+Add an entry to the scenarios array in `apps/api/prisma/seed.ts`, then run the seed:
 
 ```typescript
 {
-  id: 'your-scenario-id',         // kebab-case, must be unique
-  name: 'Your Scenario Name',
-  city: 'Aachen',
-  country: 'Germany',
-  difficulty: 'easy',             // 'beginner' | 'easy' | 'medium' | 'hard'
-  description: 'One sentence shown in the scenario list.',
-  timeLimit: 180,                 // seconds
-  objectives: [
-    { id: 'obj-one', description: 'First thing the user must do', completed: false },
-    { id: 'obj-two', description: 'Second thing', completed: false },
-  ],
+  id: "scen-de-your-slug",
+  slug: "your-slug",                  // kebab-case, must be unique
+  name: "Your Scenario Name",
+  description: "One sentence shown in the scenario list.",
+  order: 11,                          // position in the list
+  type: ScenarioType.PRACTICE,        // or ScenarioType.TEST
+  categoryId: trafficRules.id,        // basicSkills | trafficRules | roadSigns
+  question: {
+    text: "Your question text?",
+    explanation: "Why the correct answer is correct.",
+    options: [
+      { text: "Correct answer", correct: true },
+      { text: "Wrong answer A", correct: false },
+      { text: "Wrong answer B", correct: false },
+      { text: "Wrong answer C", correct: false },
+    ],
+  },
 },
 ```
 
-### Step 2 — Create the game logic file
+Then apply:
 
-Create `apps/web/src/simulation/scenarios/yourScenarioId.ts`:
+```bash
+cd apps/api
+npm run db:seed
+```
+
+The seed uses `upsert` — re-running it is safe and won't create duplicates.
+
+### Step 2 — Create the 3D simulation module
+
+Create `apps/web/src/simulation/scenarios/your-slug.ts`. The simulation drives the car along a scripted path; the MCQ is fetched from the API and shown as an overlay when the simulation pauses.
 
 ```typescript
 import type { ScenarioDef, ScenarioChecker } from "./types";
 
-const STOP_ZONE = { cx: 0, cz: -30, hw: 6, hd: 6 };
+const PAUSE_ZONE = { cx: 0, cz: -20, hw: 5, hd: 5 }; // where the car pauses for the MCQ
 
 const check: ScenarioChecker = (carState, completed, _elapsed) => {
   const newlyCompleted: string[] = [];
-  const done = (id: string) => completed[id] || newlyCompleted.includes(id);
-
   const [x, , z] = carState.position;
-  const speed = carState.velocity; // km/h
-  const yaw = carState.rotation[1]; // radians, positive = left turn
 
-  if (!completed["obj-one"] && z <= -20) {
-    newlyCompleted.push("obj-one");
-  }
-
+  // Trigger question when car enters the pause zone
   const inZone =
-    Math.abs(x - STOP_ZONE.cx) <= STOP_ZONE.hw &&
-    Math.abs(z - STOP_ZONE.cz) <= STOP_ZONE.hd;
-  if (done("obj-one") && !completed["obj-two"] && inZone && speed < 3) {
-    newlyCompleted.push("obj-two");
+    Math.abs(x - PAUSE_ZONE.cx) <= PAUSE_ZONE.hw &&
+    Math.abs(z - PAUSE_ZONE.cz) <= PAUSE_ZONE.hd;
+
+  if (!completed["question-1"] && inZone) {
+    newlyCompleted.push("question-1"); // gameStore handles the MCQ pause
   }
 
   return {
     newlyCompleted,
-    passed: done("obj-one") && done("obj-two"),
+    passed: completed["question-1"] === true,
     failed: false,
   };
 };
 
 const yourScenario: ScenarioDef = {
   config: {
-    id: "your-scenario-id",
+    id: "your-slug",
     name: "Your Scenario Name",
     city: "Aachen",
     country: "Germany",
@@ -371,16 +410,10 @@ const yourScenario: ScenarioDef = {
     description: "One sentence shown in the scenario list.",
     timeLimit: 180,
     objectives: [
-      {
-        id: "obj-one",
-        description: "First thing the user must do",
-        completed: false,
-      },
-      { id: "obj-two", description: "Second thing", completed: false },
+      { id: "question-1", description: "Answer the MCQ correctly", completed: false },
     ],
   },
   check,
-  stopZone: STOP_ZONE,
 };
 
 export default yourScenario;
@@ -388,25 +421,22 @@ export default yourScenario;
 
 > **Key physics facts:** Three.js uses a right-handed coordinate system where **−Z is forward** and **Y is up**. The car spawns at `z = 40` and drives toward decreasing Z. A positive Euler Y rotation is a **left turn**. `carState.velocity` is in km/h.
 
-### Step 3 — Register the scenario
+### Step 3 — Register the simulation module
 
 Open `apps/web/src/simulation/scenarios/index.ts` and add your import and registry entry:
 
 ```typescript
-import basicControls from "./basicControls";
-import yourScenario from "./yourScenarioId"; // add this
+import yourScenario from "./your-slug"; // add this
 
 const registry: Record<string, ScenarioDef> = {
   "basic-controls": basicControls,
-  "your-scenario-id": yourScenario, // add this
+  "your-slug": yourScenario, // add this
 };
 ```
 
-Once registered the scenario is immediately **playable** — `Home.tsx` filters the API response against the registry to decide what shows as locked vs available.
-
 ### Step 4 — Add a road mesh (if needed)
 
-Add a new scene component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx` based on `scenarioId`. Reuse the existing `<Ground />` and `<Lighting />` components.
+Add a scene component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx` based on `scenarioId`. Reuse the existing `<Ground />` and `<Lighting />` components.
 
 ### Step 5 — Add traffic rules (if needed)
 
@@ -414,8 +444,8 @@ Put rule-checking logic in `apps/web/src/simulation/scenarios/rules/yourRule.ts`
 
 ### Checklist
 
-- [ ] `apps/api/src/data/scenarios.ts` — metadata added
-- [ ] `apps/web/src/simulation/scenarios/yourScenarioId.ts` — checker + config
+- [ ] `apps/api/prisma/seed.ts` — scenario + question + options added and seed re-run
+- [ ] `apps/web/src/simulation/scenarios/your-slug.ts` — 3D checker + config created
 - [ ] `apps/web/src/simulation/scenarios/index.ts` — registered in registry
 - [ ] `npx tsc --noEmit` passes in both `apps/web` and `apps/api`
 
@@ -526,9 +556,9 @@ lsof -ti:3001 | xargs kill
 
 ### Scenario shows as "Coming soon" after I added it
 
-**Cause:** Metadata added to `apps/api/src/data/scenarios.ts` but not registered in the frontend registry.
+**Cause:** The scenario was added to the database (via seed) but has no matching simulation module in the frontend registry.
 
-**Fix:** Add the import and registry entry in `apps/web/src/simulation/scenarios/index.ts`. `Home.tsx` determines playability by checking whether a local simulation definition exists — if it is not in the registry, it shows as locked.
+**Fix:** Add the import and registry entry in `apps/web/src/simulation/scenarios/index.ts`. The scenario selector determines playability by checking whether a local simulation module exists for the slug — if it is not in the registry, it shows as locked.
 
 ---
 

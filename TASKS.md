@@ -118,11 +118,7 @@
 - Vite set to `port: 5173, strictPort: true` — no longer conflicts with API on 3001
 - Vite proxy: `/api` → `http://localhost:3001` (frontend can call `/api/...` directly in dev)
 
----
-
-## 📋 Todo
-
-### API — Scenario & Content Routes ✅ Done
+### API — Scenario & Content Routes
 - `GET /api/countries` — active countries with category + scenario counts (`routes/countries.ts`)
 - `GET /api/countries/:code/scenarios` — scenarios grouped by category for a country
 - `GET /api/scenarios` — DB-backed, replaces hardcoded `src/data/scenarios.ts`
@@ -133,6 +129,10 @@
 - `PATCH /api/test-sessions/:id/complete` — computes `totalScore`, `grade` (A/B/C/F at 90/75/60%), `passed` (≥75%), marks `completedAt`
 - `GET /api/test-sessions/:id` — full session with answers, question text, selected option
 - `POST /api/progress` — now also upserts `UserScenarioProgress` (status COMPLETED/IN_PROGRESS, bestScore); resolves scenarioId by slug or DB id for FK safety
+
+---
+
+## 📋 Todo
 
 ### Frontend — MCQ Simulation Overlay
 - [ ] `MCQOverlay.tsx` component — shown when simulation pauses; renders question text + 4 option buttons
