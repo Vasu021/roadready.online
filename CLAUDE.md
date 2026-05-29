@@ -66,14 +66,14 @@ src/
 ├── middleware/
 │   └── auth.ts       # requireAuth — verifies Bearer JWT, sets req.userId + req.userEmail
 └── routes/
-    ├── auth.ts                # POST /api/auth/register, POST /api/auth/login
-    ├── countries.ts           # GET /api/countries, GET /api/countries/:code/scenarios, GET /api/countries/:code/facts
-    ├── scenarios.ts           # GET /api/scenarios, GET /api/scenarios/:slug, GET /api/scenarios/:slug/questions
-                               # GET /api/scenarios/progress/:userId/:countryCode
-    ├── userCountryAccess.ts   # POST /api/user-country-access
-    ├── testSessions.ts        # POST/GET /api/test-sessions
-    ├── users.ts               # GET /api/users/me
-    └── progress.ts            # GET /api/progress/:userId, POST /api/progress
+    ├── auth.ts               # POST /api/auth/register, POST /api/auth/login
+    ├── countries.ts          # GET /api/countries, GET /api/countries/:code/facts, GET /api/countries/:code/scenarios
+    ├── scenarios.ts          # GET /api/scenarios, GET /api/scenarios/:slug, GET /api/scenarios/:slug/questions,
+    │                         #   GET /api/scenarios/progress/:userId/:countryCode
+    ├── userCountryAccess.ts  # POST /api/user-country-access
+    ├── testSessions.ts       # POST /api/test-sessions, POST …/:id/answers, PATCH …/:id/complete, GET …/:id
+    ├── users.ts              # GET /api/users/me
+    └── progress.ts           # GET /api/progress/:userId, POST /api/progress
 ```
 
 ## Simulation Workflow (New Design)

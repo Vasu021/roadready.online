@@ -54,7 +54,7 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### Phase 3 — Europe
 
 - 🇬🇧 UK — Left-hand traffic, roundabout rules
-- 🇫🇷 France, 🇳🇱 Netherlands, 🇦🇹 Austria
+- 🇳🇱 Netherlands, 🇦🇹 Austria
 
 ### Phase 4 — Global
 

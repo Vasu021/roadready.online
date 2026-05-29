@@ -120,7 +120,7 @@ This applies all committed migrations and creates the following tables:
 | Table                       | Description                                                |
 | --------------------------- | ---------------------------------------------------------- |
 | `users`                     | Registered users (email + bcrypt password hash)            |
-| `countries`                 | Country records (DE, etc.) with active flag                |
+| `countries`                 | Country records (DE, FR, etc.) with active flag and HTML facts |
 | `scenario_categories`       | Named groups within a country (Basic Skills, Traffic Rules…)|
 | `scenarios`                 | Individual scenarios — slug, type (PRACTICE/TEST), order   |
 | `questions`                 | MCQ questions linked to a scenario                         |
@@ -271,25 +271,25 @@ Logout
 
 ### API endpoints
 
-| Method | Path                               | Auth | Description                                          |
-| ------ | ---------------------------------- | ---- | ---------------------------------------------------- |
-| POST   | `/api/auth/register`               | —    | Create account, returns JWT                          |
-| POST   | `/api/auth/login`                  | —    | Sign in, returns JWT                                 |
-| GET    | `/api/users/me`                    | ✓    | Current user profile + attempt count                 |
-| GET    | `/api/countries`                                    | —    | Active countries with categories + scenario counts   |
-| GET    | `/api/countries/:code/scenarios`                    | —    | Scenarios grouped by category for a country          |
-| GET    | `/api/countries/:code/facts`                        | —    | HTML facts string for a country                      |
-| POST   | `/api/user-country-access`                          | ✓    | Record that user accessed a country (body: `{ countryCode }`) |
-| GET    | `/api/scenarios`                                    | —    | All active scenarios (flat list)                     |
-| GET    | `/api/scenarios/:slug`                              | —    | Single scenario by slug                              |
-| GET    | `/api/scenarios/:slug/questions`                    | —    | Questions + shuffled options (`isCorrect` hidden)    |
-| GET    | `/api/scenarios/progress/:userId/:countryCode`      | ✓    | `UserScenarioProgress[]` for all scenarios in a country; creates NOT_STARTED rows on first call |
-| POST   | `/api/test-sessions`                                | ✓    | Create a test session for a country                  |
-| POST   | `/api/test-sessions/:id/answers`                    | ✓    | Submit an answer — returns `{ isCorrect, explanation }` |
-| PATCH  | `/api/test-sessions/:id/complete`                   | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail |
-| GET    | `/api/test-sessions/:id`                            | ✓    | Full session with per-question answer breakdown      |
-| GET    | `/api/progress/:userId`                             | ✓    | All `ScenarioAttempt` rows for a user                |
-| POST   | `/api/progress`                                     | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
+| Method | Path | Auth | Description |
+| ------ | ---- | ---- | ----------- |
+| POST   | `/api/auth/register` | — | Create account, returns JWT |
+| POST   | `/api/auth/login` | — | Sign in, returns JWT |
+| GET    | `/api/users/me` | ✓ | Current user profile + attempt count |
+| GET    | `/api/countries` | — | Active countries with categories + scenario counts |
+| GET    | `/api/countries/:code/facts` | — | HTML facts string for a country |
+| GET    | `/api/countries/:code/scenarios` | — | Scenarios grouped by category for a country |
+| POST   | `/api/user-country-access` | ✓ | Record that user accessed a country — body: `{ countryCode }` |
+| GET    | `/api/scenarios` | — | All active scenarios (flat list) |
+| GET    | `/api/scenarios/:slug` | — | Single scenario by slug |
+| GET    | `/api/scenarios/:slug/questions` | — | Questions + shuffled options (`isCorrect` hidden) |
+| GET    | `/api/scenarios/progress/:userId/:countryCode` | ✓ | `UserScenarioProgress[]` for all scenarios in a country; creates `NOT_STARTED` rows on first call |
+| POST   | `/api/test-sessions` | ✓ | Create a test session for a country |
+| POST   | `/api/test-sessions/:id/answers` | ✓ | Submit an answer — returns `{ isCorrect, explanation }` |
+| PATCH  | `/api/test-sessions/:id/complete` | ✓ | Finish session — computes score, grade (A/B/C/F), pass/fail |
+| GET    | `/api/test-sessions/:id` | ✓ | Full session with per-question answer breakdown |
+| GET    | `/api/progress/:userId` | ✓ | All `ScenarioAttempt` rows for a user |
+| POST   | `/api/progress` | ✓ | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
 
 ---
 
@@ -349,13 +349,14 @@ Add an entry to the scenarios array in `apps/api/prisma/seed.ts`, then run the s
 
 ```typescript
 {
-  id: "scen-de-your-slug",
-  slug: "your-slug",                  // kebab-case, must be unique
+  id: "scen-de-your-slug",           // unique stable ID
+  slug: "your-slug",                  // kebab-case, unique across all countries
   name: "Your Scenario Name",
   description: "One sentence shown in the scenario list.",
-  order: 11,                          // position in the list
+  order: 11,                          // position within this country's scenario list
   type: ScenarioType.PRACTICE,        // or ScenarioType.TEST
-  categoryId: trafficRules.id,        // basicSkills | trafficRules | roadSigns
+  countryId: germany.id,              // or france.id — must match the country object
+  categoryId: trafficRulesDe.id,      // e.g. basicSkillsDe | trafficRulesDe | roadSignsDe
   question: {
     text: "Your question text?",
     explanation: "Why the correct answer is correct.",
