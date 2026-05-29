@@ -46,6 +46,7 @@ model Country {
   name      String
   flagEmoji String   @map("flag_emoji")
   isActive  Boolean  @default(false) @map("is_active")
+  facts     String?
   createdAt DateTime @default(now()) @map("created_at")
 
   categories   ScenarioCategory[]

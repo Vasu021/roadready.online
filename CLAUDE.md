@@ -66,10 +66,14 @@ src/
 ├── middleware/
 │   └── auth.ts       # requireAuth — verifies Bearer JWT, sets req.userId + req.userEmail
 └── routes/
-    ├── auth.ts       # POST /api/auth/register, POST /api/auth/login
-    ├── scenarios.ts  # GET /api/scenarios, GET /api/scenarios/:id
-    ├── users.ts      # GET /api/users/me
-    └── progress.ts   # GET /api/progress/:userId, POST /api/progress
+    ├── auth.ts                # POST /api/auth/register, POST /api/auth/login
+    ├── countries.ts           # GET /api/countries, GET /api/countries/:code/scenarios, GET /api/countries/:code/facts
+    ├── scenarios.ts           # GET /api/scenarios, GET /api/scenarios/:slug, GET /api/scenarios/:slug/questions
+                               # GET /api/scenarios/progress/:userId/:countryCode
+    ├── userCountryAccess.ts   # POST /api/user-country-access
+    ├── testSessions.ts        # POST/GET /api/test-sessions
+    ├── users.ts               # GET /api/users/me
+    └── progress.ts            # GET /api/progress/:userId, POST /api/progress
 ```
 
 ## Simulation Workflow (New Design)
@@ -88,7 +92,7 @@ Twelve tables — see `apps/api/prisma/schema.prisma` for full definitions.
 ```
 ── Content layer ──────────────────────────────────────────────
 Country              → countries
-  id, code (unique, e.g. "DE"), name, flagEmoji, isActive, createdAt
+  id, code (unique, e.g. "DE"), name, flagEmoji, isActive, facts?, createdAt
 
 ScenarioCategory     → scenario_categories
   id, countryId (FK Country), name, order
@@ -137,9 +141,10 @@ TestSessionAnswer    → test_session_answers
 ```
 
 **Seeded data** (`apps/api/prisma/seed.ts`):
-- Germany (code: `DE`, isActive: true)
-- Categories: Basic Skills, Traffic Rules, Road Signs
-- 9 PRACTICE scenarios + 1 TEST scenario, all `isActive: true`, each with 4-option MCQ
+- Germany (code: `DE`, isActive: true) + France (code: `FR`, isActive: true) — both with `facts` HTML
+- Each country has categories: Basic Skills, Traffic Rules, Road Signs
+- Germany: 9 PRACTICE + 1 TEST scenario; France: 9 PRACTICE + 1 TEST scenario
+- All scenarios `isActive: true`, each with one 4-option MCQ question
 
 **Prisma notes:**
 - Schema file: `apps/api/prisma/schema.prisma` — datasource has `url = env("DATABASE_URL")`
@@ -176,16 +181,20 @@ TestSessionAnswer    → test_session_answers
 - Utils: camelCase (`formatScore.ts`, `osmParser.ts`)
 - Types/Interfaces: PascalCase with descriptive names (`ScenarioConfig`, `CarState`)
 
-## Current MVP Scope (Aachen, Germany)
+## Current MVP Scope
 
 1. A 3D scene with a basic road environment (Aachen-inspired)
 2. A drivable car with keyboard controls (WASD or arrow keys)
-3. A scenario selection screen (sourced from DB via `GET /api/scenarios`)
-4. 9 practice scenarios + 1 full test (all seeded in DB) — scenarios driven by MCQ questions
+3. Multi-country support — Germany 🇩🇪 and France 🇫🇷 seeded; each with 9 PRACTICE + 1 TEST scenario
+4. Three-state UI flow in `Home.tsx`:
+   - **State A** (logged out): marketing landing page with CTA buttons
+   - **State B** (logged in, no country): country selector with facts panel
+   - **State C** (logged in, country chosen): scenario list grouped by category
 5. Car moves automatically; simulation pauses at key moments for MCQ
 6. Pass/fail/explanation shown per question; final grade shown after test mode
 7. User auth (sign up / login) — ✅ working
 8. Progress saved to database — ✅ working
+9. Free tier: first 3 scenarios unlocked; rest require Premium (dev toggle available)
 
 ## Scenarios Architecture
 
@@ -209,6 +218,20 @@ emergency-vehicle               → Emergency Vehicle
 pedestrian-crossing             → Pedestrian Crossing
 autobahn-rules                  → Autobahn Rules
 full-test-germany               → Full Test — Germany  (type: TEST)
+```
+
+**Seeded France scenarios (slug → name):**
+```
+fr-basic-controls               → Basic Controls
+fr-priorite-a-droite            → Priorité à droite
+fr-roundabout                   → Roundabout — French Style
+fr-speed-limits                 → Speed Limits
+fr-radar-cameras                → Radar Cameras
+fr-motorway-rules               → Motorway Rules
+fr-pedestrian-crossing          → Pedestrian Crossing
+fr-traffic-lights               → Traffic Lights
+fr-parking-rules                → Parking Rules
+full-test-france                → Full Test — France  (type: TEST)
 ```
 
 ## Car Controls
@@ -280,6 +303,10 @@ npm run build
 - Never hardcode German traffic rule logic inline — put it in `src/simulation/scenarios/rules/`
 - When adding a new scenario, add a row to the DB (via seed or migration), create a simulation module in `src/simulation/scenarios/<slug>.ts`, and register it in `src/simulation/scenarios/index.ts`
 - Use `UserScenarioProgress` (not `UserProgress`) for all new progress tracking code; `UserProgress` is legacy
+- `Home.tsx` has three states: logged-out landing page / logged-in country select / logged-in scenario list — do not collapse these into separate routes
+- `userStore` holds `selectedCountry`, `isPremium`, `scenarioProgress`, `authModalMode` — update these when user changes country or completes a scenario
+- `isPremium` is a dev-only toggle (default false); free users get first 3 scenarios (order 1–3) unlocked per country
+- `setShowAuthModal(show, mode?)` sets both `showAuthModal` and `authModalMode` atomically — always pass `'login'` or `'register'` so AuthModal opens on the right tab
 - `TestSession` + `TestSessionAnswer` power the test-mode grading — create a `TestSession` at start, upsert `TestSessionAnswer` per question, mark `completedAt` + `passed` + `grade` when done
 - The simulation canvas must be responsive — works on all screen sizes
 - All user-facing text should support i18n from the start (use a `t()` function wrapper even if translations aren't wired up yet)

@@ -130,6 +130,42 @@
 - `GET /api/test-sessions/:id` — full session with answers, question text, selected option
 - `POST /api/progress` — now also upserts `UserScenarioProgress` (status COMPLETED/IN_PROGRESS, bestScore); resolves scenarioId by slug or DB id for FK safety
 
+### 404 Route Fixes (2026-05-29)
+- **Root cause identified**: the tsx API server process had loaded an old version of `countries.ts` (pre-`/:code/facts`) and was never reloaded. Code was always correct; a stale process was serving old routes.
+- Killed PID 30540 (stale tsx process on :3001), restarted clean with `npx tsx src/index.ts`.
+- Verified all routes now respond correctly:
+  - `GET /api/countries/DE/facts` → 200, returns Germany facts HTML ✓
+  - `GET /api/countries/FR/facts` → 200, returns France facts HTML ✓
+  - `POST /api/user-country-access` → 401 without auth (correct behaviour) ✓
+  - `GET /api/scenarios/progress/:userId/:countryCode` → 401 without auth ✓
+  - `GET /api/countries/DE/scenarios` → 200, returns categories + scenarios ✓
+- **Note for future**: if routes return 404 after code changes, kill the port-3001 process and restart. `tsx watch` sometimes misses reloads on macOS.
+
+### Bug Fixes — Auth Modal Mode + Country Select (2026-05-29)
+- **Bug 1 fixed** — `AuthModal` always opened in login mode regardless of which button was clicked
+  - `userStore`: added `authModalMode: 'login' | 'register'`; updated `setShowAuthModal(show, mode?)` signature
+  - `AuthModal.tsx`: reads `authModalMode` from store and uses it as initial `useState` value
+  - `Home.tsx`: "Get Started" buttons call `setShowAuthModal(true, 'register')`; "Sign In" buttons call `setShowAuthModal(true, 'login')`
+- **Bug 2 confirmed resolved** — `facts` column exists in DB (migration `20260529174004_add_country_facts` was applied); both Germany and France rows have facts data; seed re-verified
+- **Bug 3 fixed** — Continue button did not navigate to State C on API failure
+  - `CountrySelect` refactored: uses `chosenCountry: CountryRow | null` state object instead of `selectedCode: string`; eliminates `countries.find()` call that could silently fail
+  - API errors now shown to the user via `continueError` state (red text below button)
+  - `setSelectedCountry` is still called last to guarantee the State B → C render switch only happens after all API calls succeed
+
+### UI Flow Redesign + Multi-Country (2026-05-29)
+- `facts String?` column added to `Country` table — migration `20260529174004_add_country_facts` applied
+- France (code: `FR`) seeded with facts, 3 categories, 9 PRACTICE + 1 TEST scenario, each with MCQ question
+- Germany facts string added to existing Germany seed record
+- `GET /api/countries/:code/facts` route added — returns `{ facts: string | null }`
+- `POST /api/user-country-access` route added (protected) — upserts `UserCountryAccess`; returns `{ alreadyExisted }`
+- `GET /api/scenarios/progress/:userId/:countryCode` route added (protected) — returns/creates `UserScenarioProgress[]` for all active scenarios in a country
+- `userStore.ts` updated: added `selectedCountry`, `isPremium`, `scenarioProgress`, their setters; `logout` clears all three
+- `api.ts` updated: added `countries.list`, `countries.facts`, `countries.scenarios`, `userCountryAccess.record`, `scenarios.progress`
+- `Home.tsx` fully rewritten into three conditional states:
+  - **State A** (user null): marketing landing page — hero, CTA buttons, features grid, how-it-works steps, footer
+  - **State B** (user set, no selectedCountry): country dropdown from API, facts panel via `dangerouslySetInnerHTML`, "Continue →" button that calls `user-country-access` + fetches progress
+  - **State C** (user set, country set): scenarios grouped by category, free/premium gating (order ≤3 free), ✅ completions from `scenarioProgress`, gold TEST card, "Change Country" link, dev-only isPremium toggle
+
 ---
 
 ## 📋 Todo

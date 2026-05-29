@@ -45,6 +45,7 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### Phase 1 — Launch (MVP)
 
 - 🇩🇪 **Aachen, Germany** — First city. German traffic rules, road signs, Autobahn scenarios.
+- 🇫🇷 **France** — Second country. Priorité à droite, radar cameras, motorway rules.
 
 ### Phase 2 — Germany Expansion
 
@@ -66,8 +67,9 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 ### MVP (Aachen Launch)
 
 - ✅ 3D browser-based driving simulation (no download required)
-- ✅ German traffic rules enforced (Rechts vor Links, roundabout, speed limits, red lights)
-- ✅ Scenario selection system — 9 practice modules + 1 full theory test
+- ✅ Multi-country: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice modules + 1 full theory test
+- ✅ Three-state UI: marketing landing page → country selector with facts → scenario list
+- ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium
 - ✅ MCQ-pause workflow: car moves automatically, pauses at key moments to ask questions
 - ✅ Immediate right/wrong feedback with rule explanation after each question
 - ✅ Full test mode: all scenarios back-to-back, graded (A/B/C/F) at the end
@@ -85,9 +87,11 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 
 ---
 
-## 🧩 Scenario Library (Germany)
+## 🧩 Scenario Library
 
 Scenarios are database-driven. Each pauses the car at a key moment and asks an MCQ question about the relevant rule.
+
+### 🇩🇪 Germany
 
 | Scenario                                   | Category      | Type     |
 | ------------------------------------------ | ------------- | -------- |
@@ -101,6 +105,21 @@ Scenarios are database-driven. Each pauses the car at a key moment and asks an M
 | Pedestrian Crossing                        | Traffic Rules | PRACTICE |
 | Autobahn Rules                             | Traffic Rules | PRACTICE |
 | Full Test — Germany                        | Traffic Rules | TEST     |
+
+### 🇫🇷 France
+
+| Scenario                                   | Category      | Type     |
+| ------------------------------------------ | ------------- | -------- |
+| Basic Controls                             | Basic Skills  | PRACTICE |
+| Priorité à droite                          | Traffic Rules | PRACTICE |
+| Roundabout — French Style                  | Traffic Rules | PRACTICE |
+| Speed Limits                               | Traffic Rules | PRACTICE |
+| Radar Cameras                              | Traffic Rules | PRACTICE |
+| Motorway Rules                             | Traffic Rules | PRACTICE |
+| Pedestrian Crossing                        | Traffic Rules | PRACTICE |
+| Traffic Lights                             | Traffic Rules | PRACTICE |
+| Parking Rules                              | Basic Skills  | PRACTICE |
+| Full Test — France                         | Traffic Rules | TEST     |
 
 ---
 

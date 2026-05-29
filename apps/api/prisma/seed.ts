@@ -2,24 +2,44 @@ import { PrismaClient, ScenarioType } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const DE_FACTS =
+  "<p>Germany is home to the famous <strong>Autobahn</strong> — sections with no speed limit, though 130 km/h is recommended. The <strong>Rechts vor Links</strong> rule gives priority to traffic from the right at unmarked intersections. Driving licenses are among the most expensive in Europe, averaging <strong>€2,000–€4,000</strong>. The blood alcohol limit is <strong>0.5 g/L</strong> (0.0 for new drivers). Emergency vehicles require a <strong>Rettungsgasse</strong> (rescue lane) on motorways.</p>";
+
+const FR_FACTS =
+  "<p>France drives on the <strong>right side</strong> of the road. The <strong>Priorité à droite</strong> rule gives priority to vehicles coming from the right at unmarked intersections — the opposite of what many expect. Speed limits are strictly enforced via radar cameras (radars automatiques). The BAC limit is <strong>0.5 g/L</strong> (lower than many countries). Wearing a seatbelt is mandatory for all passengers.</p>";
+
 async function main() {
   console.log("Seeding database...");
 
-  // ── Country ──────────────────────────────────────────────────────────────
+  // ── Countries ─────────────────────────────────────────────────────────────
   const germany = await prisma.country.upsert({
     where: { code: "DE" },
-    update: {},
+    update: { facts: DE_FACTS },
     create: {
       code: "DE",
       name: "Germany",
       flagEmoji: "🇩🇪",
       isActive: true,
+      facts: DE_FACTS,
     },
   });
   console.log(`Country: ${germany.name}`);
 
-  // ── Categories ────────────────────────────────────────────────────────────
-  const [basicSkills, trafficRules, roadSigns] = await Promise.all([
+  const france = await prisma.country.upsert({
+    where: { code: "FR" },
+    update: { facts: FR_FACTS },
+    create: {
+      code: "FR",
+      name: "France",
+      flagEmoji: "🇫🇷",
+      isActive: true,
+      facts: FR_FACTS,
+    },
+  });
+  console.log(`Country: ${france.name}`);
+
+  // ── Germany Categories ────────────────────────────────────────────────────
+  const [basicSkillsDe, trafficRulesDe, roadSignsDe] = await Promise.all([
     prisma.scenarioCategory.upsert({
       where: { id: "cat-de-basic" },
       update: {},
@@ -36,9 +56,29 @@ async function main() {
       create: { id: "cat-de-signs", countryId: germany.id, name: "Road Signs", order: 3 },
     }),
   ]);
-  console.log("Categories: Basic Skills, Traffic Rules, Road Signs");
+  console.log("Germany categories: Basic Skills, Traffic Rules, Road Signs");
 
-  // ── Scenarios ─────────────────────────────────────────────────────────────
+  // ── France Categories ─────────────────────────────────────────────────────
+  const [basicSkillsFr, trafficRulesFr, roadSignsFr] = await Promise.all([
+    prisma.scenarioCategory.upsert({
+      where: { id: "cat-fr-basic" },
+      update: {},
+      create: { id: "cat-fr-basic", countryId: france.id, name: "Basic Skills", order: 1 },
+    }),
+    prisma.scenarioCategory.upsert({
+      where: { id: "cat-fr-traffic" },
+      update: {},
+      create: { id: "cat-fr-traffic", countryId: france.id, name: "Traffic Rules", order: 2 },
+    }),
+    prisma.scenarioCategory.upsert({
+      where: { id: "cat-fr-signs" },
+      update: {},
+      create: { id: "cat-fr-signs", countryId: france.id, name: "Road Signs", order: 3 },
+    }),
+  ]);
+  console.log("France categories: Basic Skills, Traffic Rules, Road Signs");
+
+  // ── Scenario seed type ────────────────────────────────────────────────────
   type ScenarioSeed = {
     id: string;
     slug: string;
@@ -47,6 +87,7 @@ async function main() {
     order: number;
     type: ScenarioType;
     categoryId: string;
+    countryId: string;
     question: {
       text: string;
       explanation: string;
@@ -54,7 +95,8 @@ async function main() {
     };
   };
 
-  const scenarios: ScenarioSeed[] = [
+  // ── Germany Scenarios ─────────────────────────────────────────────────────
+  const deScenarios: ScenarioSeed[] = [
     {
       id: "scen-de-basic-controls",
       slug: "basic-controls",
@@ -63,7 +105,8 @@ async function main() {
         "Learn the fundamental controls of the vehicle: accelerating, braking, and steering safely on an open road.",
       order: 1,
       type: ScenarioType.PRACTICE,
-      categoryId: basicSkills.id,
+      categoryId: basicSkillsDe.id,
+      countryId: germany.id,
       question: {
         text: "What is the correct procedure before moving off from a parked position?",
         explanation:
@@ -84,7 +127,8 @@ async function main() {
         "Practice the core German right-of-way rule at unmarked intersections: traffic from the right has priority.",
       order: 2,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "At an unmarked intersection with no signs or signals, which rule applies in Germany?",
         explanation:
@@ -108,7 +152,8 @@ async function main() {
         "Master roundabout entry, circulation, and exit. Yield to traffic already in the circle and signal correctly when leaving.",
       order: 3,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "When approaching a German roundabout marked with a 'Vorfahrt gewähren' (yield) sign, what must you do?",
         explanation:
@@ -119,14 +164,8 @@ async function main() {
             correct: true,
           },
           { text: "You have priority over roundabout traffic and may enter freely", correct: false },
-          {
-            text: "Stop completely regardless of whether traffic is present",
-            correct: false,
-          },
-          {
-            text: "Flash your headlights to signal your intention to enter",
-            correct: false,
-          },
+          { text: "Stop completely regardless of whether traffic is present", correct: false },
+          { text: "Flash your headlights to signal your intention to enter", correct: false },
         ],
       },
     },
@@ -138,7 +177,8 @@ async function main() {
         "Understand the full sequence of German traffic light phases including the red-yellow combination before green.",
       order: 4,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "What does a solid yellow traffic light mean in Germany?",
         explanation:
@@ -165,7 +205,8 @@ async function main() {
         "Recognise and respond correctly to German priority signs: the yellow diamond (Vorfahrtstraße) and the yield triangle.",
       order: 5,
       type: ScenarioType.PRACTICE,
-      categoryId: roadSigns.id,
+      categoryId: roadSignsDe.id,
+      countryId: germany.id,
       question: {
         text: "What does the yellow diamond sign (Zeichen 306 — Vorfahrtstraße) indicate?",
         explanation:
@@ -189,7 +230,8 @@ async function main() {
         "React to the 'right of way at next intersection' sign (Zeichen 301) and understand when priority ends.",
       order: 6,
       type: ScenarioType.PRACTICE,
-      categoryId: roadSigns.id,
+      categoryId: roadSignsDe.id,
+      countryId: germany.id,
       question: {
         text: "What does the yellow diamond sign with a white border and a black diagonal bar through it (Zeichen 307) mean?",
         explanation:
@@ -219,7 +261,8 @@ async function main() {
         "Learn how to respond when emergency vehicles with blue lights and sirens approach from any direction.",
       order: 7,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "What must you do when an emergency vehicle with activated blue lights and siren approaches?",
         explanation:
@@ -252,7 +295,8 @@ async function main() {
         "Identify marked zebra crossings (Zebrastreifen) and apply the correct right-of-way rules for pedestrians.",
       order: 8,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "A pedestrian is standing at a marked zebra crossing (Fußgängerüberweg) and clearly intending to cross. What must you do?",
         explanation:
@@ -285,7 +329,8 @@ async function main() {
         "Understand Autobahn-specific rules: minimum speed, lane discipline, overtaking, and the Rettungsgasse.",
       order: 9,
       type: ScenarioType.PRACTICE,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "On an unrestricted section of German Autobahn (no speed limit signs posted), what is the official guidance?",
         explanation:
@@ -315,7 +360,8 @@ async function main() {
         "Complete theory test covering all German traffic rules, signs, and driving laws. All scenarios tested back-to-back, graded at the end.",
       order: 10,
       type: ScenarioType.TEST,
-      categoryId: trafficRules.id,
+      categoryId: trafficRulesDe.id,
+      countryId: germany.id,
       question: {
         text: "What is the legal blood alcohol concentration (BAC) limit for fully licensed drivers in Germany?",
         explanation:
@@ -330,13 +376,256 @@ async function main() {
     },
   ];
 
-  for (const s of scenarios) {
+  // ── France Scenarios ──────────────────────────────────────────────────────
+  const frScenarios: ScenarioSeed[] = [
+    {
+      id: "scen-fr-basic-controls",
+      slug: "fr-basic-controls",
+      name: "Basic Controls",
+      description:
+        "Learn the fundamental controls of the vehicle and the required documents every French driver must carry.",
+      order: 1,
+      type: ScenarioType.PRACTICE,
+      categoryId: basicSkillsFr.id,
+      countryId: france.id,
+      question: {
+        text: "Which documents must a driver carry at all times when driving in France?",
+        explanation:
+          "French law requires drivers to carry their driving licence (permis de conduire), vehicle registration document (carte grise / certificat d'immatriculation), proof of insurance (attestation d'assurance), and a valid ID. Failure to produce these on demand is an offence.",
+        options: [
+          {
+            text: "Driving licence, vehicle registration, proof of insurance, and ID",
+            correct: true,
+          },
+          { text: "Only a driving licence is legally required", correct: false },
+          { text: "Insurance documents are optional if the vehicle has a vignette", correct: false },
+          { text: "A passport is the only accepted form of identification", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-priorite-a-droite",
+      slug: "fr-priorite-a-droite",
+      name: "Priorité à droite",
+      description:
+        "Understand the French right-of-way rule at unmarked intersections — vehicles from the right have priority.",
+      order: 2,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "At an unmarked intersection with no signs or signals in France, which rule applies?",
+        explanation:
+          "France applies the 'Priorité à droite' (priority to the right) rule at unmarked intersections. Any vehicle approaching from your right has absolute priority, even on smaller roads. This rule is cancelled by signs such as 'Passage protégé' (yellow diamond) or yield triangles.",
+        options: [
+          {
+            text: "Priorité à droite — the vehicle from the right always has priority",
+            correct: true,
+          },
+          { text: "The vehicle on the wider road always has priority", correct: false },
+          { text: "The vehicle travelling at higher speed has priority", correct: false },
+          { text: "All vehicles must stop and negotiate at unmarked crossings", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-roundabout",
+      slug: "fr-roundabout",
+      name: "Roundabout — French Style",
+      description:
+        "Learn the modern French roundabout rule — entering traffic yields to vehicles already circulating inside.",
+      order: 3,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "At a modern French roundabout (marked with yield signs at the entry), who has priority?",
+        explanation:
+          "Since 1984 French roundabouts use the 'Cédez le passage' (yield) sign at every entry point. Vehicles already circulating inside the roundabout have priority over entering vehicles. This replaced the old rule where entering traffic had priority, which caused many accidents.",
+        options: [
+          {
+            text: "Vehicles already inside the roundabout — entering drivers must yield",
+            correct: true,
+          },
+          { text: "Entering vehicles always have priority under Priorité à droite", correct: false },
+          { text: "The vehicle with the highest speed inside the roundabout", correct: false },
+          { text: "Vehicles entering from the right of the roundabout entry point", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-speed-limits",
+      slug: "fr-speed-limits",
+      name: "Speed Limits",
+      description:
+        "Master the French speed limit system across different road types and weather conditions.",
+      order: 4,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "What is the default speed limit on French undivided rural roads (routes nationales / départementales) in dry conditions?",
+        explanation:
+          "France reduced the default speed limit on undivided rural roads from 90 km/h to 80 km/h in 2018. The limits are: 50 km/h in built-up areas, 80 km/h on undivided rural roads, 110 km/h on dual carriageways, 130 km/h on motorways. In rain, limits drop by 10–20 km/h.",
+        options: [
+          { text: "80 km/h", correct: true },
+          { text: "90 km/h", correct: false },
+          { text: "100 km/h", correct: false },
+          { text: "70 km/h", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-radar-cameras",
+      slug: "fr-radar-cameras",
+      name: "Radar Cameras",
+      description:
+        "Understand how French fixed and mobile radar cameras work and how to respond to warning signs.",
+      order: 5,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "You see a sign warning of a radar camera (radar de contrôle) ahead. What is the correct response?",
+        explanation:
+          "The correct response to a radar warning sign is to check your speed and ensure you are within the posted limit. France operates thousands of fixed radars (radars fixes) and mobile radars. Fines are automatic and point deductions are applied to your licence. The radar detects your speed at the point it is passed, not just before it.",
+        options: [
+          {
+            text: "Check and adjust your speed to comply with the posted speed limit",
+            correct: true,
+          },
+          {
+            text: "Brake sharply just before the camera and accelerate immediately after",
+            correct: false,
+          },
+          { text: "Speed limits are advisory — radar fines can be contested", correct: false },
+          { text: "Only slow down if you are more than 20 km/h over the limit", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-motorway-rules",
+      slug: "fr-motorway-rules",
+      name: "Motorway Rules",
+      description:
+        "Learn French motorway (autoroute) rules including speed limits, lane discipline, and toll behaviour.",
+      order: 6,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "What is the speed limit on French motorways (autoroutes) in dry conditions for a standard car?",
+        explanation:
+          "The speed limit on French motorways is 130 km/h in dry conditions. In rain it drops to 110 km/h. In fog with visibility below 50 metres, the limit drops to 50 km/h. New licence holders (within 2 years) are limited to 110 km/h on motorways regardless of weather.",
+        options: [
+          { text: "130 km/h", correct: true },
+          { text: "120 km/h", correct: false },
+          { text: "110 km/h", correct: false },
+          { text: "150 km/h", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-pedestrian-crossing",
+      slug: "fr-pedestrian-crossing",
+      name: "Pedestrian Crossing",
+      description:
+        "Apply the correct rules at French pedestrian crossings (passages piétons) and school zones.",
+      order: 7,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "A pedestrian is waiting at a marked pedestrian crossing (passage piéton) in France. What must you do?",
+        explanation:
+          "Since 2010, French law (Code de la route Article R415-11) requires drivers to yield to pedestrians who are on or clearly about to step onto a pedestrian crossing. Failure to yield carries a fine and licence points. You must stop and wait until the pedestrian has completely crossed.",
+        options: [
+          {
+            text: "Stop and yield — pedestrians have absolute priority at marked crossings",
+            correct: true,
+          },
+          { text: "Proceed if no pedestrian has yet stepped onto the crossing", correct: false },
+          { text: "Flash your headlights to warn the pedestrian you are passing", correct: false },
+          { text: "Slow to 20 km/h and pass in front of the pedestrian", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-traffic-lights",
+      slug: "fr-traffic-lights",
+      name: "Traffic Lights",
+      description:
+        "Master French traffic light sequences including the flashing amber phase and tram signals.",
+      order: 8,
+      type: ScenarioType.PRACTICE,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "What does a flashing amber light at a French traffic signal mean?",
+        explanation:
+          "A flashing amber light in France means you may proceed but must do so with extreme caution, giving way to pedestrians and other vehicles. It is commonly used at night or when the full signal sequence is suspended. Unlike a steady amber, it does not mean stop.",
+        options: [
+          { text: "Proceed with caution, giving way to all other road users", correct: true },
+          { text: "Stop immediately as if it were a red light", correct: false },
+          { text: "You have right of way and may proceed at normal speed", correct: false },
+          { text: "The signal is broken — treat the junction as uncontrolled", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-parking-rules",
+      slug: "fr-parking-rules",
+      name: "Parking Rules",
+      description:
+        "Understand alternating parking (stationnement alterné) and French urban parking regulations.",
+      order: 9,
+      type: ScenarioType.PRACTICE,
+      categoryId: basicSkillsFr.id,
+      countryId: france.id,
+      question: {
+        text: "In a French town with alternating parking (stationnement alterné semi-mensuel), where must you park from the 1st to the 15th of the month?",
+        explanation:
+          "Alternating parking (stationnement alterné semi-mensuel) is used in many French towns. From the 1st to the 15th you park on the odd-numbered side of the street. From the 16th to the end of the month you park on the even-numbered side. Between midnight and 12:30 you may park on either side to allow the change.",
+        options: [
+          { text: "On the odd-numbered (impair) side of the street", correct: true },
+          { text: "On the even-numbered (pair) side of the street", correct: false },
+          { text: "On whichever side has the most available space", correct: false },
+          { text: "Parking is prohibited on both sides during changeover days", correct: false },
+        ],
+      },
+    },
+    {
+      id: "scen-fr-full-test",
+      slug: "full-test-france",
+      name: "Full Test — France",
+      description:
+        "Complete theory test covering all French traffic rules, signs, and driving laws. All scenarios tested back-to-back, graded at the end.",
+      order: 10,
+      type: ScenarioType.TEST,
+      categoryId: trafficRulesFr.id,
+      countryId: france.id,
+      question: {
+        text: "What is the legal blood alcohol concentration (BAC) limit for fully licensed drivers in France?",
+        explanation:
+          "The BAC limit for fully licensed drivers in France is 0.5 g/L (grams per litre of blood), equivalent to 0.25 mg/L in breath. For new drivers (within the first 3 years of holding a licence) and professional drivers, the limit is 0.2 g/L. Exceeding 0.8 g/L is a criminal offence.",
+        options: [
+          { text: "0.5 g/L for fully licensed drivers", correct: true },
+          { text: "0.8 g/L — the same as the old UK limit", correct: false },
+          { text: "0.0 g/L — zero tolerance for all drivers", correct: false },
+          { text: "0.3 g/L", correct: false },
+        ],
+      },
+    },
+  ];
+
+  // ── Upsert all scenarios ───────────────────────────────────────────────────
+  for (const s of [...deScenarios, ...frScenarios]) {
     const scenario = await prisma.scenario.upsert({
       where: { slug: s.slug },
       update: {},
       create: {
         id: s.id,
-        countryId: germany.id,
+        countryId: s.countryId,
         categoryId: s.categoryId,
         slug: s.slug,
         name: s.name,
@@ -375,7 +664,7 @@ async function main() {
       });
     }
 
-    console.log(`  Scenario: ${s.name}`);
+    console.log(`  Scenario: ${s.name} (${s.slug})`);
   }
 
   console.log("\nSeed complete.");

@@ -1,4 +1,5 @@
 import type { ScenarioConfig } from '@roadready/shared'
+import type { ProgressStatus } from '../store/userStore'
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3001'
 
@@ -53,6 +54,39 @@ export interface SaveAttemptPayload {
   timeSeconds?: number
 }
 
+export interface CountryRow {
+  id: string
+  code: string
+  name: string
+  flagEmoji: string
+  isActive: boolean
+  scenarioCount: number
+  categories: { id: string; name: string; order: number; scenarioCount: number }[]
+}
+
+export interface ScenarioRow {
+  id: string
+  slug: string
+  name: string
+  description: string
+  order: number
+  isActive: boolean
+  isPremium: boolean
+  type: 'PRACTICE' | 'TEST'
+  videoUrl: string | null
+  questionCount: number
+}
+
+export interface CountryScenariosResponse {
+  country: { id: string; code: string; name: string; flagEmoji: string }
+  categories: { id: string; name: string; order: number; scenarios: ScenarioRow[] }[]
+}
+
+export interface ScenarioProgressRow {
+  scenarioId: string
+  status: ProgressStatus
+}
+
 export const api = {
   auth: {
     register: (payload: AuthPayload) =>
@@ -66,8 +100,24 @@ export const api = {
         body: JSON.stringify(payload),
       }),
   },
+  countries: {
+    list: () => request<CountryRow[]>('/api/countries'),
+    facts: (code: string) =>
+      request<{ facts: string | null }>(`/api/countries/${code}/facts`),
+    scenarios: (code: string) =>
+      request<CountryScenariosResponse>(`/api/countries/${code}/scenarios`),
+  },
   scenarios: {
     list: () => request<ScenarioConfig[]>('/api/scenarios'),
+    progress: (userId: string, countryCode: string) =>
+      request<ScenarioProgressRow[]>(`/api/scenarios/progress/${userId}/${countryCode}`),
+  },
+  userCountryAccess: {
+    record: (countryCode: string) =>
+      request<{ alreadyExisted: boolean }>('/api/user-country-access', {
+        method: 'POST',
+        body: JSON.stringify({ countryCode }),
+      }),
   },
   progress: {
     save: (payload: SaveAttemptPayload) =>

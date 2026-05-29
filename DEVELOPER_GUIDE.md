@@ -142,7 +142,7 @@ cd apps/api
 npm run db:seed
 ```
 
-This inserts: Germany country record, 3 categories (Basic Skills, Traffic Rules, Road Signs), 10 scenarios (9 PRACTICE + 1 TEST), and one MCQ question with 4 options per scenario.
+This inserts: Germany and France country records (each with HTML `facts`), 3 categories per country, 10 scenarios per country (9 PRACTICE + 1 TEST), and one MCQ question with 4 options per scenario.
 
 ### 5.4 Generate the Prisma client
 
@@ -235,6 +235,10 @@ roadready.online/
 
 Authentication is fully self-contained — no third-party auth service.
 
+### Opening the modal
+
+Call `setShowAuthModal(true, 'login')` to open on the Sign In tab, or `setShowAuthModal(true, 'register')` to open on the Create Account tab. `AuthModal` reads `authModalMode` from the store as its initial `useState` value on mount. The user can always switch tabs manually inside the modal.
+
 ### Flow
 
 ```
@@ -272,17 +276,20 @@ Logout
 | POST   | `/api/auth/register`               | —    | Create account, returns JWT                          |
 | POST   | `/api/auth/login`                  | —    | Sign in, returns JWT                                 |
 | GET    | `/api/users/me`                    | ✓    | Current user profile + attempt count                 |
-| GET    | `/api/countries`                   | —    | Active countries with categories + scenario counts   |
-| GET    | `/api/countries/:code/scenarios`   | —    | Scenarios grouped by category for a country          |
-| GET    | `/api/scenarios`                   | —    | All active scenarios (flat list)                     |
-| GET    | `/api/scenarios/:slug`             | —    | Single scenario by slug                              |
-| GET    | `/api/scenarios/:slug/questions`   | —    | Questions + shuffled options (`isCorrect` hidden)    |
-| POST   | `/api/test-sessions`               | ✓    | Create a test session for a country                  |
-| POST   | `/api/test-sessions/:id/answers`   | ✓    | Submit an answer — returns `{ isCorrect, explanation }` |
-| PATCH  | `/api/test-sessions/:id/complete`  | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail |
-| GET    | `/api/test-sessions/:id`           | ✓    | Full session with per-question answer breakdown      |
-| GET    | `/api/progress/:userId`            | ✓    | All `ScenarioAttempt` rows for a user                |
-| POST   | `/api/progress`                    | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
+| GET    | `/api/countries`                                    | —    | Active countries with categories + scenario counts   |
+| GET    | `/api/countries/:code/scenarios`                    | —    | Scenarios grouped by category for a country          |
+| GET    | `/api/countries/:code/facts`                        | —    | HTML facts string for a country                      |
+| POST   | `/api/user-country-access`                          | ✓    | Record that user accessed a country (body: `{ countryCode }`) |
+| GET    | `/api/scenarios`                                    | —    | All active scenarios (flat list)                     |
+| GET    | `/api/scenarios/:slug`                              | —    | Single scenario by slug                              |
+| GET    | `/api/scenarios/:slug/questions`                    | —    | Questions + shuffled options (`isCorrect` hidden)    |
+| GET    | `/api/scenarios/progress/:userId/:countryCode`      | ✓    | `UserScenarioProgress[]` for all scenarios in a country; creates NOT_STARTED rows on first call |
+| POST   | `/api/test-sessions`                                | ✓    | Create a test session for a country                  |
+| POST   | `/api/test-sessions/:id/answers`                    | ✓    | Submit an answer — returns `{ isCorrect, explanation }` |
+| PATCH  | `/api/test-sessions/:id/complete`                   | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail |
+| GET    | `/api/test-sessions/:id`                            | ✓    | Full session with per-question answer breakdown      |
+| GET    | `/api/progress/:userId`                             | ✓    | All `ScenarioAttempt` rows for a user                |
+| POST   | `/api/progress`                                     | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
 
 ---
 
@@ -532,6 +539,19 @@ lsof -ti:5173 | xargs kill
 
 ```bash
 lsof -ti:3001 | xargs kill
+```
+
+---
+
+### Routes return 404 after adding new routes to a route file
+
+**Cause:** The tsx process loaded the route file at startup and cached the old module. `tsx watch` sometimes misses file-change events on macOS, so the running server never reloaded.
+
+**Fix:** Kill the stale process and restart the API server:
+
+```bash
+lsof -ti:3001 | xargs kill
+npm run dev:api
 ```
 
 ---

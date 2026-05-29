@@ -40,6 +40,26 @@ router.get('/', async (_req, res) => {
   }
 })
 
+// GET /api/countries/:code/facts
+router.get('/:code/facts', async (req, res) => {
+  try {
+    const country = await prisma.country.findUnique({
+      where: { code: req.params.code.toUpperCase() },
+      select: { facts: true },
+    })
+
+    if (!country) {
+      res.status(404).json({ error: 'Country not found' })
+      return
+    }
+
+    res.json({ facts: country.facts ?? null })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch country facts' })
+  }
+})
+
 // GET /api/countries/:code/scenarios
 router.get('/:code/scenarios', async (req, res) => {
   try {

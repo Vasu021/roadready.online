@@ -7,7 +7,9 @@ type Mode = 'login' | 'signup'
 export default function AuthModal() {
   const setShowAuthModal = useUserStore((s) => s.setShowAuthModal)
   const setUser = useUserStore((s) => s.setUser)
-  const [mode, setMode] = useState<Mode>('login')
+  const authModalMode = useUserStore((s) => s.authModalMode)
+  // Initialise the tab from the store so "Get Started" opens register, "Sign In" opens login
+  const [mode, setMode] = useState<Mode>(authModalMode === 'register' ? 'signup' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')

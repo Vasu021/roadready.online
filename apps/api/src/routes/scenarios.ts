@@ -1,5 +1,7 @@
 import { Router } from 'express'
 import prisma from '../lib/prisma'
+import { requireAuth } from '../middleware/auth'
+import type { AuthRequest } from '../middleware/auth'
 
 const router = Router()
 
@@ -40,6 +42,63 @@ router.get('/', async (_req, res) => {
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'Failed to fetch scenarios' })
+  }
+})
+
+// GET /api/scenarios/progress/:userId/:countryCode — protected
+// Returns UserScenarioProgress[] for all active scenarios in that country for that user.
+// Creates NOT_STARTED rows if none exist yet.
+router.get('/progress/:userId/:countryCode', requireAuth, async (req: AuthRequest, res) => {
+  const { userId, countryCode } = req.params
+
+  if (req.userId !== userId) {
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+
+  try {
+    const country = await prisma.country.findUnique({
+      where: { code: countryCode.toUpperCase() },
+    })
+
+    if (!country) {
+      res.status(404).json({ error: 'Country not found' })
+      return
+    }
+
+    const activeScenarios = await prisma.scenario.findMany({
+      where: { countryId: country.id, isActive: true },
+      select: { id: true },
+    })
+
+    if (activeScenarios.length === 0) {
+      res.json([])
+      return
+    }
+
+    // Ensure a progress row exists for every active scenario
+    await prisma.$transaction(
+      activeScenarios.map((s) =>
+        prisma.userScenarioProgress.upsert({
+          where: { userId_scenarioId: { userId, scenarioId: s.id } },
+          update: {},
+          create: { userId, scenarioId: s.id },
+        }),
+      ),
+    )
+
+    const progress = await prisma.userScenarioProgress.findMany({
+      where: {
+        userId,
+        scenario: { countryId: country.id, isActive: true },
+      },
+      select: { scenarioId: true, status: true },
+    })
+
+    res.json(progress)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Failed to fetch scenario progress' })
   }
 })
 
