@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Developer Guide (setup, conventions, common errors)
+    url: https://github.com/Vasu021/roadready.online/blob/main/DEVELOPER_GUIDE.md
+    about: Read this before opening a bug report. Section 11 covers the most common issues.

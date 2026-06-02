@@ -295,6 +295,20 @@ Logout
 
 ## 9. Git workflow
 
+### Opening an issue
+
+Use the templates under `.github/ISSUE_TEMPLATE/` — GitHub shows a picker when you click **New Issue**:
+
+| Template | Use when |
+| -------- | -------- |
+| `bug_report.md` | Something isn't working correctly |
+| `feature_request.md` | Proposing a new feature or improvement |
+| `task.md` | Planned engineering work — new component, scenario module, or refactor |
+| `documentation.md` | A doc is wrong, outdated, or missing something |
+| `question.md` | Something unclear in the codebase or an open design decision |
+
+Blank issues are disabled. Check `TASKS.md` and `DEVELOPER_GUIDE.md` Section 11 (Common errors) before filing a bug.
+
 ### Branch naming
 
 ```
