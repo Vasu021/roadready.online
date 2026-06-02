@@ -1,40 +1,42 @@
-import { useState } from 'react'
-import { api, setStoredToken } from '../utils/api'
-import { useUserStore } from '../store/userStore'
+import { useState } from "react";
+import { api, setStoredToken } from "../utils/api";
+import { useUserStore } from "../store/userStore";
 
-type Mode = 'login' | 'signup'
+type Mode = "login" | "signup";
 
 export default function AuthModal() {
-  const setShowAuthModal = useUserStore((s) => s.setShowAuthModal)
-  const setUser = useUserStore((s) => s.setUser)
-  const authModalMode = useUserStore((s) => s.authModalMode)
+  const setShowAuthModal = useUserStore((s) => s.setShowAuthModal);
+  const setUser = useUserStore((s) => s.setUser);
+  const authModalMode = useUserStore((s) => s.authModalMode);
   // Initialise the tab from the store so "Get Started" opens register, "Sign In" opens login
-  const [mode, setMode] = useState<Mode>(authModalMode === 'register' ? 'signup' : 'login')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<Mode>(
+    authModalMode === "register" ? "signup" : "login",
+  );
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   function switchMode(next: Mode) {
-    setMode(next)
-    setError('')
+    setMode(next);
+    setError("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
-      const fn = mode === 'login' ? api.auth.login : api.auth.register
-      const { token, user } = await fn({ email, password })
-      setStoredToken(token)
-      setUser({ id: user.id, email: user.email })
-      setShowAuthModal(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      const fn = mode === "login" ? api.auth.login : api.auth.register;
+      const { token, user } = await fn({ email, password });
+      setStoredToken(token);
+      setUser({ id: user.id, email: user.email });
+      setShowAuthModal(false);
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -51,12 +53,12 @@ export default function AuthModal() {
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">
-              {mode === 'login' ? 'Sign In' : 'Create Account'}
+              {mode === "login" ? "Sign In" : "Create Account"}
             </h2>
             <p className="mt-1 text-sm text-gray-400">
-              {mode === 'login'
-                ? 'Track your progress across sessions.'
-                : 'Save your results and track improvement.'}
+              {mode === "login"
+                ? "Track your progress across sessions."
+                : "Save your results and track improvement."}
             </p>
           </div>
           <button
@@ -70,7 +72,9 @@ export default function AuthModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">Email</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">
+              Email
+            </label>
             <input
               type="email"
               required
@@ -81,14 +85,18 @@ export default function AuthModal() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">Password</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">
+              Password
+            </label>
             <input
               type="password"
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
+              placeholder={
+                mode === "signup" ? "At least 8 characters" : "••••••••"
+              }
               className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
             />
           </div>
@@ -100,23 +108,29 @@ export default function AuthModal() {
             disabled={loading}
             className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-60"
           >
-            {loading ? '...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading ? "..." : mode === "login" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
         {/* Mode toggle */}
         <p className="mt-5 text-center text-sm text-gray-500">
-          {mode === 'login' ? (
+          {mode === "login" ? (
             <>
-              No account?{' '}
-              <button onClick={() => switchMode('signup')} className="text-blue-400 hover:underline">
+              No account?{" "}
+              <button
+                onClick={() => switchMode("signup")}
+                className="text-blue-400 hover:underline"
+              >
                 Sign up
               </button>
             </>
           ) : (
             <>
-              Already have one?{' '}
-              <button onClick={() => switchMode('login')} className="text-blue-400 hover:underline">
+              Already have one?{" "}
+              <button
+                onClick={() => switchMode("login")}
+                className="text-blue-400 hover:underline"
+              >
                 Sign in
               </button>
             </>
@@ -124,5 +138,5 @@ export default function AuthModal() {
         </p>
       </div>
     </div>
-  )
+  );
 }
