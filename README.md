@@ -322,6 +322,20 @@ RoadReady is currently in early development. Contributions, ideas, and feedback 
 4. Push to the branch (`git push origin feature/new-scenario`)
 5. Open a Pull Request against `main`
 
+### Opening an Issue
+
+Use the issue templates under [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE/) — GitHub will ask you to pick one when you click **New Issue**:
+
+| Template | Use when |
+| -------- | -------- |
+| **Bug report** | Something isn't working correctly |
+| **Feature request** | Proposing a new feature or improvement |
+| **Task / Technical work** | Planned engineering work (new component, scenario module, refactor) |
+| **Documentation update** | A doc is wrong, outdated, or missing something |
+| **Question / Investigation** | Something unclear in the codebase or an open design decision |
+
+Blank issues are disabled — please pick the template that fits best.
+
 ### Pull Request template
 
 When you open a PR, GitHub will automatically fill in a template from [`.github/pull_request_template.md`](./.github/pull_request_template.md). Please complete all sections before requesting a review:

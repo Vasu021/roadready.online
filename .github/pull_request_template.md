@@ -15,17 +15,14 @@ Please check one: use [x]
 - [ ] Refactor
 - [ ] Documentation update
 - [ ] Test update
+- [ ] Chore / tooling / deps
 - [ ] Other
 
 ## How was this tested?
 
 Describe how you tested your changes.
 
-Example:
 
-- [ ] Tested locally
-- [ ] Added/updated tests
-- [ ] Existing tests pass
 
 ## Checklist
 
