@@ -327,6 +327,14 @@ chore/downgrade-prisma-6
 docs/add-deployment-guide
 ```
 
+### Before Commits
+
+Run this Prettier command to format the code before staging:
+
+```bash
+npx prettier --write "**/*.{ts,tsx,json,md}"
+```
+
 ### Commit messages
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
@@ -337,6 +345,8 @@ fix: correct lateral grip impulse calculation
 chore: pin prisma to 6.0.0
 docs: update developer guide for custom auth
 ```
+
+**Note:** If the commit solves an issue, then add “Fixes #<issue_number>” at the end of the commit message.
 
 ### Before pushing
 

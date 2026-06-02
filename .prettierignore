@@ -1,0 +1,25 @@
+# Ignore build outputs
+build/
+dist/
+
+# Ignore environments
+.env
+*.env
+
+# Ignore Prisma
+db
+prisma/migrations
+
+# Ignore logs
+logs/
+
+# Ignore IDE files
+.idea/
+.vscode/
+
+# Ignore lock files (managed by pnpm)
+package-lock.json
+
+# Ignore node_modules (managed by pnpm)
+node_modules/
+.pnp.*
