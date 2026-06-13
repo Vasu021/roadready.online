@@ -1,48 +1,50 @@
-import type { ScenarioDef, ScenarioChecker } from './types'
+import type { ScenarioDef, ScenarioChecker, Waypoint, ChallengePoint } from './types'
 
-// ── Stop zone (world space, XZ plane) ─────────────────────────────────────────
-export const STOP_ZONE = { cx: -15, cz: -25, hw: 8, hd: 8 }
+// ─── Autopilot path ────────────────────────────────────────────────────────────
+// Car spawns at (0, y, 40) facing −Z (south). It drives to the junction at z≈−2,
+// turns left (west, toward −X), then continues down the second street and stops.
+export const WAYPOINTS: Waypoint[] = [
+  { x: 0,   z: 22, speed: 7.5 },  // accelerate from spawn
+  { x: 0,   z:  4, speed: 5.0 },  // slow as junction approaches
+  { x: 0,   z: -1, speed: 2.5 },  // crawl at junction mouth
+  { x: -10, z: -5, speed: 4.0 },  // pivot west (left turn arc)
+  { x: -26, z: -5, speed: 7.5 },  // cruise on second street
+  { x: -43, z: -5, speed: 1.5 },  // decelerate toward stop line
+]
 
-// ── Objective IDs ─────────────────────────────────────────────────────────────
-const OBJ_DRIVE = 'drive-forward'
-const OBJ_TURN = 'turn-left'
-const OBJ_STOP = 'stop-in-zone'
+// ─── Challenge points ─────────────────────────────────────────────────────────
+export const CHALLENGES: ChallengePoint[] = [
+  {
+    id: 'turn-left',
+    triggerZ: 5,   // fires when car.z <= 5, while still on first road
+    prompt: 'Junction ahead — turn LEFT here!',
+    instruction: 'Press ← (LEFT ARROW) to steer left onto the side street',
+    correctKey: 'ArrowLeft',
+    correctKeyLabel: '← LEFT',
+  },
+  {
+    id: 'stop-at-sign',
+    triggerX: -37, // fires when car.x <= −37, approaching stop line at x≈−45
+    prompt: 'Stop line ahead — you must stop the car!',
+    instruction: 'Press SPACE to apply the brakes',
+    correctKey: 'Space',
+    correctKeyLabel: 'SPACE',
+  },
+]
 
-// ── Checker ───────────────────────────────────────────────────────────────────
-const check: ScenarioChecker = (carState, completed, _elapsed) => {
-  const newlyCompleted: string[] = []
-  const done = (id: string) => completed[id] || newlyCompleted.includes(id)
+// ─── Objective checker ────────────────────────────────────────────────────────
+// Challenges mark their matching objectives via resolvedChallengeIds in the store,
+// which ScenarioRunner merges into the `completed` map below.
+const check: ScenarioChecker = (_carState, completed) => ({
+  newlyCompleted: [],
+  passed: completed['turn-left'] === true && completed['stop-at-sign'] === true,
+  failed: false,
+})
 
-  const [x, , z] = carState.position
-  const yaw = carState.rotation[1] // Euler Y (radians)
-  const speed = carState.velocity  // km/h
+// ─── Stop zone visual (world-space AABB) ─────────────────────────────────────
+export const STOP_ZONE = { cx: -45, cz: -5, hw: 5, hd: 4 }
 
-  // 1 ▸ Drive forward ~55 m (spawn z=40 → reach z ≤ -15)
-  if (!completed[OBJ_DRIVE] && z <= -15) {
-    newlyCompleted.push(OBJ_DRIVE)
-  }
-
-  // 2 ▸ Turn left ≥ 30° (only valid after driving forward)
-  if (done(OBJ_DRIVE) && !completed[OBJ_TURN] && yaw >= Math.PI / 6) {
-    newlyCompleted.push(OBJ_TURN)
-  }
-
-  // 3 ▸ Stop inside the marked zone (only valid after turning)
-  const inZone =
-    Math.abs(x - STOP_ZONE.cx) <= STOP_ZONE.hw &&
-    Math.abs(z - STOP_ZONE.cz) <= STOP_ZONE.hd
-  if (done(OBJ_TURN) && !completed[OBJ_STOP] && inZone && speed < 3) {
-    newlyCompleted.push(OBJ_STOP)
-  }
-
-  return {
-    newlyCompleted,
-    passed: done(OBJ_DRIVE) && done(OBJ_TURN) && done(OBJ_STOP),
-    failed: false,
-  }
-}
-
-// ── Scenario definition ───────────────────────────────────────────────────────
+// ─── Scenario definition ──────────────────────────────────────────────────────
 const basicControls: ScenarioDef = {
   config: {
     id: 'basic-controls',
@@ -50,15 +52,26 @@ const basicControls: ScenarioDef = {
     city: 'Aachen',
     country: 'Germany',
     difficulty: 'beginner',
-    description: 'Drive forward, turn left, and stop in the marked zone.',
-    timeLimit: 120,
+    description:
+      'The car drives itself. Press the right key at each prompt to show you know the rules.',
+    timeLimit: 180,
     objectives: [
-      { id: OBJ_DRIVE, description: 'Drive forward 55 m', completed: false },
-      { id: OBJ_TURN, description: 'Turn left', completed: false },
-      { id: OBJ_STOP, description: 'Stop inside the marked zone', completed: false },
+      {
+        id: 'turn-left',
+        description: 'Turn left at the junction',
+        completed: false,
+      },
+      {
+        id: 'stop-at-sign',
+        description: 'Stop at the stop line',
+        completed: false,
+      },
     ],
   },
   check,
+  driveMode: 'auto',
+  waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   stopZone: STOP_ZONE,
 }
 

@@ -40,19 +40,40 @@ roadready.online/
 
 ```
 src/
-├── components/       # Reusable UI components (AuthModal, HUD, ResultsScreen)
-├── pages/            # Route-level pages (Home, Simulation, Dashboard)
-├── simulation/       # All 3D simulation code
-│   ├── scene/        # Main Canvas scene setup
-│   ├── vehicles/     # Car model + physics controller
-│   ├── roads/        # Road mesh generation
-│   ├── traffic/      # AI traffic, traffic lights
-│   └── scenarios/    # Individual scenario logic + pass/fail
-│       └── rules/    # German traffic rule implementations
-├── store/            # Zustand stores (gameStore, userStore)
-├── hooks/            # Custom React hooks
-├── types/            # TypeScript types (import from packages/shared too)
-└── utils/            # Helper functions (api.ts is the central API client)
+├── components/
+│   ├── AuthModal.tsx
+│   ├── ChallengeOverlay.tsx     # key-press challenge popup (shown over simulation)
+│   ├── ResultsScreen.tsx        # pass/fail modal; saves progress to DB
+│   └── ScenarioHUD.tsx          # top-left overlay: name, objectives, countdown
+├── pages/                       # Route-level pages (Home, Simulation, Dashboard)
+├── simulation/
+│   ├── scene/
+│   │   ├── SimulationScene.tsx  # Canvas root; wires all scene elements
+│   │   ├── GermanCityRoad.tsx   # L-shaped road (N-S + E-W), stop line, crosswalk, curbs
+│   │   ├── CityEnvironment.tsx  # Trees, buildings, sidewalks (deterministic seed)
+│   │   ├── FollowCamera.tsx     # Yaw-aware follow camera; always behind car
+│   │   ├── TrafficLight.tsx     # Procedural pole + 3 lights; phase prop controls glow
+│   │   ├── Tree.tsx             # Procedural tree (3 foliage variants)
+│   │   ├── Building.tsx         # Box building with roof; pos/size/color props
+│   │   ├── Ground.tsx
+│   │   └── Lighting.tsx
+│   ├── vehicles/
+│   │   ├── CarController.tsx    # Procedural car mesh + Rapier physics + autopilot
+│   │   ├── useCarPhysics.ts
+│   │   └── useCarControls.ts
+│   └── scenarios/
+│       ├── types.ts             # ScenarioDef, Waypoint, ChallengePoint, ScenarioChecker
+│       ├── index.ts             # Registry: slug → ScenarioDef
+│       ├── ScenarioRunner.tsx   # Frame checker; merges resolvedChallengeIds → completed
+│       ├── StopZone.tsx         # Visual AABB that dims on car entry
+│       ├── basicControls.ts     # 6 waypoints, 2 challenges (left-turn + stop-at-line)
+│       ├── trafficLights.ts     # 3 waypoints, 1 challenge (red-light-stop)
+│       └── rules/               # Traffic rule helper functions (future)
+├── store/
+│   ├── gameStore.ts             # ScenarioPhase, CarState, DriveMode, ActiveChallenge
+│   └── userStore.ts
+└── utils/
+    └── api.ts                   # Central fetch client (reads rr_token from localStorage)
 ```
 
 ## Backend Structure (apps/api/src/)
@@ -76,14 +97,45 @@ src/
     └── progress.ts           # GET /api/progress/:userId, POST /api/progress
 ```
 
-## Simulation Workflow (New Design)
+## Simulation Workflow
 
-The car moves automatically through a scenario. At key moments the simulation **pauses** and shows an MCQ question:
-- **Correct answer** → simulation resumes with a brief explanation shown.
-- **Wrong answer** → simulation stays paused; explanation shown; user retries or skips.
+**The car always drives itself (autopilot).** The user never touches the steering wheel — they only make decisions at challenge moments.
+
+### Current implementation (key-press challenges)
+
+1. Car follows `Waypoint[]` via proportional yaw controller
+2. At a `ChallengePoint` trigger (`triggerZ` or `triggerX`), the car brakes to a stop
+3. `ChallengeOverlay` appears with a prompt and key instruction
+4. User presses a key:
+   - Correct key → `resolveChallenge('correct')` → objective marked done → overlay clears → car resumes
+   - Wrong key → `resolveChallenge('wrong')` → overlay shows ❌ → `setScenarioPhase('failed')` after 1.6 s
+5. `ScenarioRunner` merges `resolvedChallengeIds` into the objectives `completed` map
+6. When all objectives are resolved, `check()` returns `passed: true` → `ResultsScreen` shows
+
+### Next implementation (MCQ pop-up)
+
+The key-press system will evolve to an **MCQ pop-up**:
+1. Car stops at challenge zone
+2. **Transparent, draggable popup** appears with 4 A/B/C/D options — user can drag it aside to see the road
+3. User selects an option and confirms
+4. Practice mode: wrong → show correct + explanation → Continue (car resumes)
+   Test mode: wrong → fail scenario
+5. MCQ questions come from `GET /api/scenarios/:slug/questions`
 
 **Practice mode** — individual scenario, no final grade.  
 **Test mode** — all scenarios in sequence; answers accumulated; grade and pass/fail shown at the end.
+
+### Autopilot math
+
+```
+desiredYaw = atan2(-dx, -dz)   where dx = target.x - car.x, dz = target.z - car.z
+angularError = desiredYaw - currentYaw   (normalised to [-π, π])
+Apply angular impulse ∝ angularError
+Apply forward impulse toward waypoint's speed target
+Advance waypointIndex when distance to current target < 3 m
+```
+
+Three.js coordinate system: **-Z is forward**, **+Y rotation is left turn**, car forward = `(-sin θ, 0, -cos θ)`
 
 ## Database Schema (Prisma 6.0.0)
 
@@ -183,18 +235,42 @@ TestSessionAnswer    → test_session_answers
 
 ## Current MVP Scope
 
-1. A 3D scene with a basic road environment (Aachen-inspired)
-2. A drivable car with keyboard controls (WASD or arrow keys)
-3. Multi-country support — Germany 🇩🇪 and France 🇫🇷 seeded; each with 9 PRACTICE + 1 TEST scenario
-4. Three-state UI flow in `Home.tsx`:
+1. A 3D city environment (L-shaped Aachen-inspired road, trees, buildings, traffic lights)
+2. An autopilot car — **no manual steering**; car follows waypoints; user only makes decisions
+3. Key-press challenge system — car pauses, user presses correct key; wrong → fail; correct → continue
+4. MCQ pop-up overlay (next to build) — transparent draggable popup with A/B/C/D options
+5. Multi-country support — Germany 🇩🇪 and France 🇫🇷 seeded; each with 9 PRACTICE + 1 TEST scenario
+6. Three-state UI flow in `Home.tsx`:
    - **State A** (logged out): marketing landing page with CTA buttons
    - **State B** (logged in, no country): country selector with facts panel
    - **State C** (logged in, country chosen): scenario list grouped by category
-5. Car moves automatically; simulation pauses at key moments for MCQ
-6. Pass/fail/explanation shown per question; final grade shown after test mode
-7. User auth (sign up / login) — ✅ working
-8. Progress saved to database — ✅ working
+7. Pass/fail per scenario; progress saved to database — ✅ working
+8. User auth (sign up / login) — ✅ working
 9. Free tier: first 3 scenarios unlocked; rest require Premium (dev toggle available)
+
+## gameStore — Key Fields for Simulation
+
+```typescript
+// Drive mode
+driveMode: 'manual' | 'auto'    // 'auto' for all current scenarios
+
+// Key-press challenge system (current)
+activeChallenge: ActiveChallenge | null   // non-null when waiting for key press
+  // ActiveChallenge: { id, prompt, instruction, correctKey, correctKeyLabel, result, wrongKeyLabel? }
+resolvedChallengeIds: Record<string, boolean>  // challenge.id → true when correctly resolved
+triggerChallenge(point: ChallengePoint): void
+resolveChallenge(result: 'correct'|'wrong', wrongKeyLabel?: string): void
+clearChallenge(): void
+
+// Scenario lifecycle
+startScenario(scenario, objectives): void   // resets challenge state, resolvedChallengeIds
+setScenarioPhase(phase): void  // 'idle'|'running'|'passed'|'failed'
+
+// Car state (exported from CarController each frame)
+carState: CarState | null   // { position: [x,y,z], rotation: [x,y,z], velocity: [x,y,z], speed }
+```
+
+**CRITICAL:** `challenge.id` MUST match the corresponding `objective.id` in `ScenarioDef.config.objectives`. `resolveChallenge('correct')` marks the matching objective completed using the challenge ID as the key.
 
 ## Scenarios Architecture
 
@@ -293,22 +369,26 @@ npm run build
 ## Important Notes for Claude Agent
 
 - **Always read `TASKS.md` at the start of every session** to understand what has been built and what is pending
+- **Always read `SIMULATION_DESIGN.md`** before touching any simulation code — it covers coordinate system, autopilot math, challenge architecture, and MCQ design spec
 - **Always update `TASKS.md`** when work is completed — move items from 📋 Todo to ✅ Done with implementation details
 - Always check existing files before creating new ones
 - **Prisma is pinned to 6.0.0** — do not upgrade; Prisma 7 requires a driver adapter that breaks our setup
 - **No `prisma.config.ts`** — it was removed; do not recreate it
 - **Vite runs on port 5173** with `strictPort: true`; the API is always on 3001
-- Keep Three.js/R3F code performant — use `useMemo` and `useRef` for 3D objects
+- Keep Three.js/R3F code performant — use `useMemo` and `useRef` for 3D objects; pre-allocate `THREE.Vector3` outside `useFrame`
 - Physics bodies must be cleaned up on component unmount
 - Never hardcode German traffic rule logic inline — put it in `src/simulation/scenarios/rules/`
-- When adding a new scenario, add a row to the DB (via seed or migration), create a simulation module in `src/simulation/scenarios/<slug>.ts`, and register it in `src/simulation/scenarios/index.ts`
+- When adding a new scenario: add DB row (via seed), create `src/simulation/scenarios/<slug>.ts` with waypoints + challenges, register in `index.ts`
+- **Challenge IDs must equal Objective IDs** — `resolveChallenge('correct')` uses challenge.id to mark the matching objective done. If they differ, pass/fail logic breaks silently.
 - Use `UserScenarioProgress` (not `UserProgress`) for all new progress tracking code; `UserProgress` is legacy
 - `Home.tsx` has three states: logged-out landing page / logged-in country select / logged-in scenario list — do not collapse these into separate routes
 - `userStore` holds `selectedCountry`, `isPremium`, `scenarioProgress`, `authModalMode` — update these when user changes country or completes a scenario
 - `isPremium` is a dev-only toggle (default false); free users get first 3 scenarios (order 1–3) unlocked per country
-- `setShowAuthModal(show, mode?)` sets both `showAuthModal` and `authModalMode` atomically — always pass `'login'` or `'register'` so AuthModal opens on the right tab
+- `setShowAuthModal(show, mode?)` sets both `showAuthModal` and `authModalMode` atomically — always pass `'login'` or `'register'`
 - `TestSession` + `TestSessionAnswer` power the test-mode grading — create a `TestSession` at start, upsert `TestSessionAnswer` per question, mark `completedAt` + `passed` + `grade` when done
 - The simulation canvas must be responsive — works on all screen sizes
+- **Junction clearance in CityEnvironment**: the car turn arc sweeps `x ∈ [0,-14], z ∈ [-2,-6]`. Do not place buildings or trees in this zone — existing safety margins in `CityEnvironment.tsx` must be preserved.
+- The car is **fully procedural** — no GLB files for the player car. `CarMesh` is defined inline in `CarController.tsx` using Three.js geometry. The `volvo.glb` in `public/models/` is unused.
 - All user-facing text should support i18n from the start (use a `t()` function wrapper even if translations aren't wired up yet)
 
 ## Git Workflow

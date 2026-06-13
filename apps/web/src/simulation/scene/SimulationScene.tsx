@@ -1,40 +1,59 @@
 import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import Lighting from './Lighting'
 import Ground from './Ground'
-import Road from './Road'
+import GermanCityRoad from './GermanCityRoad'
+import FollowCamera from './FollowCamera'
+import CityEnvironment from './CityEnvironment'
+import TrafficLight from './TrafficLight'
 import CarController from '../vehicles/CarController'
 import ScenarioRunner from '../scenarios/ScenarioRunner'
 import StopZone from '../scenarios/StopZone'
 import { getScenario } from '../scenarios'
+import { useGameStore } from '../../store/gameStore'
 
 interface SimulationSceneProps {
   scenarioId?: string
-  debug?: boolean
 }
 
-export default function SimulationScene({
-  scenarioId,
-  debug = false,
-}: SimulationSceneProps) {
+/** Traffic lights for the traffic-lights scenario — phase follows challenge state */
+function TrafficLightSet() {
+  const resolved = useGameStore((s) => s.resolvedChallengeIds)
+  const phase = resolved['red-light-stop'] ? 'green' : 'red'
+  return (
+    <>
+      <TrafficLight position={[5, 0, -5]} phase={phase} />
+      <TrafficLight position={[-5, 0, -5]} phase={phase} />
+    </>
+  )
+}
+
+export default function SimulationScene({ scenarioId }: SimulationSceneProps) {
   const def = scenarioId ? getScenario(scenarioId) : undefined
+  const isTrafficLights = scenarioId === 'traffic-lights'
 
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 6, 18], fov: 60, near: 0.1, far: 1000 }}
+      camera={{ position: [0, 5, 28], fov: 60, near: 0.1, far: 800 }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       style={{ width: '100%', height: '100%' }}
     >
       <color attach="background" args={['#87ceeb']} />
-      <fog attach="fog" args={['#b8d0e8', 60, 260]} />
+      <fog attach="fog" args={['#b8d4ec', 90, 320]} />
 
       <Suspense fallback={null}>
         <Lighting />
         <Ground />
-        <Road />
-        <CarController />
+        <GermanCityRoad />
+        <CityEnvironment />
+
+        {isTrafficLights && <TrafficLightSet />}
+
+        <CarController
+          waypoints={def?.waypoints}
+          challenges={def?.challenges}
+        />
 
         {def?.stopZone && (
           <StopZone
@@ -51,15 +70,9 @@ export default function SimulationScene({
             timeLimit={def.config.timeLimit}
           />
         )}
-      </Suspense>
 
-      {debug && (
-        <>
-          <OrbitControls makeDefault />
-          <axesHelper args={[5]} />
-          <gridHelper args={[100, 20, '#555', '#333']} />
-        </>
-      )}
+        <FollowCamera />
+      </Suspense>
     </Canvas>
   )
 }

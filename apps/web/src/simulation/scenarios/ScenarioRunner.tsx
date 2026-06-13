@@ -24,10 +24,10 @@ export default function ScenarioRunner({ checker, timeLimit }: Props) {
       return
     }
 
-    // Build completed map from current objective states
+    // Build completed map — merge objective state with resolved challenge IDs
     const completed: Record<string, boolean> = {}
     for (const obj of store.objectives) {
-      completed[obj.id] = obj.completed
+      completed[obj.id] = obj.completed || store.resolvedChallengeIds[obj.id] === true
     }
 
     const result = checker(store.carState, completed, newElapsed)

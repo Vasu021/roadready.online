@@ -192,39 +192,65 @@ npm run dev:api   # backend only   → http://localhost:3001
 ```
 roadready.online/
 ├── apps/
-│   ├── web/                   # React + Vite frontend (port 5173)
+│   ├── web/                      # React + Vite frontend (port 5173)
 │   │   └── src/
-│   │       ├── components/    # UI components (AuthModal, HUD, ResultsScreen)
-│   │       ├── pages/         # Route pages: Home, Simulation, Dashboard
-│   │       ├── simulation/    # All 3D + physics code
-│   │       │   ├── scene/     # Canvas, ground, road, lighting
-│   │       │   ├── vehicles/  # Car controller + Rapier physics
-│   │       │   └── scenarios/ # Scenario definitions + pass/fail logic
-│   │       │       └── rules/ # German traffic rule implementations
-│   │       ├── store/         # Zustand stores (gameStore, userStore)
-│   │       └── utils/         # api.ts — central fetch client
+│   │       ├── components/       # UI components
+│   │       │   ├── AuthModal.tsx
+│   │       │   ├── ChallengeOverlay.tsx  # key-press challenge popup
+│   │       │   ├── ResultsScreen.tsx
+│   │       │   └── ScenarioHUD.tsx
+│   │       ├── pages/            # Route pages: Home, Simulation, Dashboard
+│   │       ├── simulation/       # All 3D + physics code
+│   │       │   ├── scene/
+│   │       │   │   ├── SimulationScene.tsx   # Canvas root, wires all scene elements
+│   │       │   │   ├── GermanCityRoad.tsx    # L-shaped road geometry for Germany
+│   │       │   │   ├── CityEnvironment.tsx   # Trees, buildings, sidewalks
+│   │       │   │   ├── FollowCamera.tsx      # Yaw-aware follow camera
+│   │       │   │   ├── TrafficLight.tsx      # Procedural traffic light, phase prop
+│   │       │   │   ├── Tree.tsx              # Procedural tree (3 variants)
+│   │       │   │   ├── Building.tsx          # Procedural building box
+│   │       │   │   ├── Ground.tsx
+│   │       │   │   └── Lighting.tsx
+│   │       │   ├── vehicles/
+│   │       │   │   ├── CarController.tsx     # Procedural car mesh + autopilot + physics
+│   │       │   │   ├── useCarPhysics.ts
+│   │       │   │   └── useCarControls.ts
+│   │       │   └── scenarios/
+│   │       │       ├── types.ts              # ScenarioDef, Waypoint, ChallengePoint
+│   │       │       ├── index.ts              # Scenario registry (slug → ScenarioDef)
+│   │       │       ├── ScenarioRunner.tsx    # Frame-by-frame checker, merges challenge ids
+│   │       │       ├── StopZone.tsx          # Visual AABB stop zone
+│   │       │       ├── basicControls.ts      # Germany – Basic Controls (autopilot, 2 challenges)
+│   │       │       ├── trafficLights.ts      # Germany – Traffic Lights (autopilot, 1 challenge)
+│   │       │       └── rules/                # Traffic rule helper functions
+│   │       ├── store/
+│   │       │   ├── gameStore.ts              # ScenarioPhase, CarState, DriveMode, ActiveChallenge
+│   │       │   └── userStore.ts
+│   │       └── utils/
+│   │           └── api.ts                    # Central fetch client (reads rr_token)
 │   │
-│   └── api/                   # Node.js + Express backend (port 3001)
+│   └── api/                      # Node.js + Express backend (port 3001)
 │       ├── src/
-│       │   ├── index.ts       # App entry — dotenv/config imported first
-│       │   ├── lib/           # prisma.ts (singleton), jwt.ts
-│       │   ├── middleware/    # auth.ts — JWT verification
-│       │   └── routes/        # auth, countries, scenarios, testSessions, users, progress
+│       │   ├── index.ts
+│       │   ├── lib/              # prisma.ts (singleton), jwt.ts
+│       │   ├── middleware/       # auth.ts — JWT verification
+│       │   └── routes/           # auth, countries, scenarios, testSessions, users, progress
 │       └── prisma/
-│           ├── schema.prisma  # Database schema (Prisma 6.0.0) — 12 models
-│           ├── seed.ts        # Reference data (countries, categories, scenarios, questions)
-│           └── migrations/    # Applied migration files (committed to git)
+│           ├── schema.prisma     # Database schema (Prisma 6.0.0) — 12 models
+│           ├── seed.ts
+│           └── migrations/
 │
 └── packages/
     └── shared/src/
-        └── types.ts           # ScenarioConfig, CarState, etc. (shared by both apps)
+        └── types.ts              # ScenarioConfig, CarState, etc.
 ```
 
 **Key architectural decisions:**
 
-- `apps/web/src/simulation/scenarios/` holds the **3D game logic** (physics path, stop zones). This runs entirely in the browser. Each file maps to a scenario `slug`.
-- **Scenario metadata** (name, description, questions, options) is stored in the database and served by the API — not hardcoded in frontend files.
-- The simulation **pauses at key moments** and shows an MCQ question. The frontend submits the selected option to `POST /api/test-sessions/:id/answers`, which returns `{ isCorrect, explanation }`.
+- **The car always drives itself** via an autopilot waypoint system. Users never steer — they only make decisions at challenge moments. See `SIMULATION_DESIGN.md` for the full architecture.
+- `apps/web/src/simulation/scenarios/` holds the **3D game logic** (waypoints, challenge triggers, checker). This runs entirely in the browser. Each file maps to a scenario `slug`.
+- **Scenario metadata and MCQ questions** are stored in the database and served by the API — not hardcoded in frontend files.
+- **Challenge IDs must match Objective IDs** in `ScenarioDef.config.objectives`. `resolveChallenge('correct')` uses the challenge ID to mark the matching objective done.
 - `packages/shared/src/types.ts` defines types used by both apps. Import them as `@roadready/shared`.
 - User identity is managed by our own `users` table (bcrypt + JWT). There is no external auth provider.
 - Prisma is pinned to **6.0.0** — do not upgrade to 7.x, which requires a driver adapter we don't use.
@@ -365,11 +391,11 @@ cd apps/web && npx tsc --noEmit
 
 ## 10. Adding a new scenario
 
-A scenario has two parts: **database content** (metadata + MCQ questions, served by the API) and a **3D simulation module** (the scripted car path that runs in the browser). Both must be added.
+A scenario has two parts: **database content** (metadata + MCQ questions, served by the API) and a **3D simulation module** (the autopilot path + challenge points that run in the browser). Both must be added. Read `SIMULATION_DESIGN.md` for the full architecture first.
 
 ### Step 1 — Seed the scenario into the database
 
-Add an entry to the scenarios array in `apps/api/prisma/seed.ts`, then run the seed:
+Add an entry to the scenarios array in `apps/api/prisma/seed.ts`:
 
 ```typescript
 {
@@ -379,8 +405,8 @@ Add an entry to the scenarios array in `apps/api/prisma/seed.ts`, then run the s
   description: "One sentence shown in the scenario list.",
   order: 11,                          // position within this country's scenario list
   type: ScenarioType.PRACTICE,        // or ScenarioType.TEST
-  countryId: germany.id,              // or france.id — must match the country object
-  categoryId: trafficRulesDe.id,      // e.g. basicSkillsDe | trafficRulesDe | roadSignsDe
+  countryId: germany.id,
+  categoryId: trafficRulesDe.id,
   question: {
     text: "Your question text?",
     explanation: "Why the correct answer is correct.",
@@ -394,91 +420,102 @@ Add an entry to the scenarios array in `apps/api/prisma/seed.ts`, then run the s
 },
 ```
 
-Then apply:
+Then apply: `cd apps/api && npm run db:seed` (seed uses upsert — safe to re-run).
 
-```bash
-cd apps/api
-npm run db:seed
-```
+### Step 2 — Design the autopilot path
 
-The seed uses `upsert` — re-running it is safe and won't create duplicates.
+Sketch waypoints on paper first. Key coordinate facts:
+- Car spawns at `(0, y, 40)` facing **-Z** (south)
+- Left turn = more negative X; right turn = more positive X
+- Speed in m/s: city road = 5–8, junction approach = 2–3, stop zone = 1–2
 
-### Step 2 — Create the 3D simulation module
+### Step 3 — Create the 3D simulation module
 
-Create `apps/web/src/simulation/scenarios/your-slug.ts`. The simulation drives the car along a scripted path; the MCQ is fetched from the API and shown as an overlay when the simulation pauses.
+Create `apps/web/src/simulation/scenarios/your-slug.ts`:
 
 ```typescript
-import type { ScenarioDef, ScenarioChecker } from "./types";
+import type { ScenarioDef, ScenarioChecker, Waypoint, ChallengePoint } from './types'
 
-const PAUSE_ZONE = { cx: 0, cz: -20, hw: 5, hd: 5 }; // where the car pauses for the MCQ
+export const WAYPOINTS: Waypoint[] = [
+  { x: 0, z: 25, speed: 7 },   // accelerate from spawn
+  { x: 0, z:  5, speed: 4 },   // slow approaching challenge
+  { x: 0, z: -8, speed: 2 },   // crawl through zone
+  // add more waypoints as needed
+]
 
-const check: ScenarioChecker = (carState, completed, _elapsed) => {
-  const newlyCompleted: string[] = [];
-  const [x, , z] = carState.position;
+// CRITICAL: challenge id MUST match the objective id below
+export const CHALLENGES: ChallengePoint[] = [
+  {
+    id: 'your-challenge-id',   // matches objective.id
+    triggerZ: 8,               // fires when car.position.z <= 8 (travelling south)
+    // use triggerX instead for E-W travel: fires when car.position.x <= value
+    prompt: 'What should you do here?',
+    instruction: 'Press SPACE to stop',
+    correctKey: 'Space',       // KeyboardEvent.code value
+    correctKeyLabel: 'SPACE',
+  },
+]
 
-  // Trigger question when car enters the pause zone
-  const inZone =
-    Math.abs(x - PAUSE_ZONE.cx) <= PAUSE_ZONE.hw &&
-    Math.abs(z - PAUSE_ZONE.cz) <= PAUSE_ZONE.hd;
-
-  if (!completed["question-1"] && inZone) {
-    newlyCompleted.push("question-1"); // gameStore handles the MCQ pause
-  }
-
-  return {
-    newlyCompleted,
-    passed: completed["question-1"] === true,
-    failed: false,
-  };
-};
+const check: ScenarioChecker = (_carState, completed) => ({
+  newlyCompleted: [],
+  passed: completed['your-challenge-id'] === true,
+  failed: false,
+})
 
 const yourScenario: ScenarioDef = {
   config: {
-    id: "your-slug",
-    name: "Your Scenario Name",
-    city: "Aachen",
-    country: "Germany",
-    difficulty: "easy",
-    description: "One sentence shown in the scenario list.",
+    id: 'your-slug',
+    name: 'Your Scenario Name',
+    city: 'Aachen',
+    country: 'Germany',
+    difficulty: 'beginner',
+    description: 'One sentence description.',
     timeLimit: 180,
     objectives: [
-      { id: "question-1", description: "Answer the MCQ correctly", completed: false },
+      // id MUST match the challenge id above
+      { id: 'your-challenge-id', description: 'Do the right thing', completed: false },
     ],
   },
   check,
-};
+  driveMode: 'auto',
+  waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
+}
 
-export default yourScenario;
+export default yourScenario
 ```
 
-> **Key physics facts:** Three.js uses a right-handed coordinate system where **−Z is forward** and **Y is up**. The car spawns at `z = 40` and drives toward decreasing Z. A positive Euler Y rotation is a **left turn**. `carState.velocity` is in km/h.
-
-### Step 3 — Register the simulation module
-
-Open `apps/web/src/simulation/scenarios/index.ts` and add your import and registry entry:
+### Step 4 — Register the simulation module
 
 ```typescript
-import yourScenario from "./your-slug"; // add this
+// apps/web/src/simulation/scenarios/index.ts
+import yourScenario from './your-slug'   // add this
 
 const registry: Record<string, ScenarioDef> = {
-  "basic-controls": basicControls,
-  "your-slug": yourScenario, // add this
-};
+  'basic-controls': basicControls,
+  'traffic-lights': trafficLights,
+  'your-slug': yourScenario,   // add this
+}
 ```
 
-### Step 4 — Add a road mesh (if needed)
+### Step 5 — Add scene elements (if needed)
 
-Add a scene component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx` based on `scenarioId`. Reuse the existing `<Ground />` and `<Lighting />` components.
+Add a component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx`:
 
-### Step 5 — Add traffic rules (if needed)
+```typescript
+const isYourScenario = scenarioId === 'your-slug'
+// inside Canvas:
+{isYourScenario && <YourSceneComponent />}
+```
 
-Put rule-checking logic in `apps/web/src/simulation/scenarios/rules/yourRule.ts` as a plain function. Call it from your `ScenarioChecker` and set `failed: true` when the rule is violated.
+Reuse `<Ground />`, `<Lighting />`, `<GermanCityRoad />`, `<CityEnvironment />` — they work for all Germany scenarios.
 
 ### Checklist
 
-- [ ] `apps/api/prisma/seed.ts` — scenario + question + options added and seed re-run
-- [ ] `apps/web/src/simulation/scenarios/your-slug.ts` — 3D checker + config created
+- [ ] `apps/api/prisma/seed.ts` — scenario + question + options added; seed re-run
+- [ ] `apps/web/src/simulation/scenarios/your-slug.ts` — waypoints, challenges, config, checker
 - [ ] `apps/web/src/simulation/scenarios/index.ts` — registered in registry
+- [ ] Challenge IDs match Objective IDs exactly
 - [ ] `npx tsc --noEmit` passes in both `apps/web` and `apps/api`
 
 ---

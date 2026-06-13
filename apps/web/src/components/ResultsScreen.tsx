@@ -8,11 +8,11 @@ import { api } from '../utils/api'
 const FEEDBACK: Record<'passed' | 'failed', { heading: string; body: string }> = {
   passed: {
     heading: 'Well done!',
-    body: 'You completed all objectives. Your control of the vehicle was correct.',
+    body: 'You completed all objectives correctly. Great driving decision!',
   },
   failed: {
-    heading: "Time's up",
-    body: "You ran out of time before completing all objectives. Try again — there's no rush.",
+    heading: 'Scenario Failed',
+    body: 'Review the traffic rules for this situation and try again. Take your time — accuracy matters more than speed.',
   },
 }
 

@@ -64,25 +64,34 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 
 ## 🗺️ Core Features
 
-### MVP (Aachen Launch)
+### Working Now
 
-- ✅ 3D browser-based driving simulation (no download required)
-- ✅ Multi-country: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice modules + 1 full theory test
+- ✅ 3D browser-based driving simulation — no download required
+- ✅ Autopilot car — the car drives itself; users only make decisions at key moments
+- ✅ Key-press challenge system — simulation pauses, user must press the correct key (e.g. ← to turn, SPACE to stop)
+- ✅ Pass / fail per scenario — wrong choice fails the scenario; correct choice advances it
+- ✅ Progress saved to database after each scenario run
+- ✅ Procedural 3D city environment — L-shaped German road, trees, buildings, traffic lights
+- ✅ Multi-country DB: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice + 1 test scenario seeded
 - ✅ Three-state UI: marketing landing page → country selector with facts → scenario list
-- ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium
-- ✅ MCQ-pause workflow: car moves automatically, pauses at key moments to ask questions
-- ✅ Immediate right/wrong feedback with rule explanation after each question
-- ✅ Full test mode: all scenarios back-to-back, graded (A/B/C/F) at the end
-- ✅ Basic car physics (steering, acceleration, braking)
+- ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium (dev toggle)
 - ✅ User accounts and progress tracking (JWT auth, no third-party provider)
+- ✅ Two Germany simulation scenarios with full autopilot: Basic Controls, Traffic Lights
+
+### In Progress / Next Up
+
+- 🔨 MCQ pop-up overlay — transparent, draggable popup with A/B/C/D options; correct → continue simulation; wrong → explanation shown
+- 🔨 Practice vs Test mode — practice shows correct answer on wrong; test fails immediately
+- 🔨 More Germany simulation scenarios (Roundabout, Rechts vor Links, Pedestrian Crossing, etc.)
 
 ### Planned Features
 
+- 🔜 Full test mode — all scenarios in sequence, graded (A/B/C/F) at the end
 - 🔜 AI traffic — other cars, pedestrians, cyclists
 - 🔜 Day/night and weather conditions
-- 🔜 Leaderboards and scoring system
+- 🔜 Leaderboards and scoring
 - 🔜 Mobile support
-- 🔜 Multilingual UI (German, English, Turkish, Arabic, Hindi, etc.)
+- 🔜 Multilingual UI (German, English, Turkish, Arabic, Hindi)
 - 🔜 More cities: Berlin, Munich, Hamburg
 
 ---
