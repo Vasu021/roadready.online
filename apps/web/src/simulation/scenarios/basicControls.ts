@@ -1,78 +1,83 @@
-import type { ScenarioDef, ScenarioChecker, Waypoint, ChallengePoint } from './types'
+import type {
+  ScenarioDef,
+  ScenarioChecker,
+  Waypoint,
+  ChallengePoint,
+} from "./types";
 
 // ─── Autopilot path ────────────────────────────────────────────────────────────
 // Car spawns at (0, y, 40) facing −Z (south). It drives to the junction at z≈−2,
 // turns left (west, toward −X), then continues down the second street and stops.
 export const WAYPOINTS: Waypoint[] = [
-  { x: 0,   z: 22, speed: 7.5 },  // accelerate from spawn
-  { x: 0,   z:  4, speed: 5.0 },  // slow as junction approaches
-  { x: 0,   z: -1, speed: 2.5 },  // crawl at junction mouth
-  { x: -10, z: -5, speed: 4.0 },  // pivot west (left turn arc)
-  { x: -26, z: -5, speed: 7.5 },  // cruise on second street
-  { x: -43, z: -5, speed: 1.5 },  // decelerate toward stop line
-]
+  { x: 0, z: 22, speed: 7.5 }, // accelerate from spawn
+  { x: 0, z: 4, speed: 5.0 }, // slow as junction approaches
+  { x: 0, z: -1, speed: 2.5 }, // crawl at junction mouth
+  { x: -10, z: -5, speed: 4.0 }, // pivot west (left turn arc)
+  { x: -26, z: -5, speed: 7.5 }, // cruise on second street
+  { x: -43, z: -5, speed: 1.5 }, // decelerate toward stop line
+];
 
 // ─── Challenge points ─────────────────────────────────────────────────────────
 export const CHALLENGES: ChallengePoint[] = [
   {
-    id: 'turn-left',
-    triggerZ: 5,   // fires when car.z <= 5, while still on first road
-    prompt: 'Junction ahead — turn LEFT here!',
-    instruction: 'Press ← (LEFT ARROW) to steer left onto the side street',
-    correctKey: 'ArrowLeft',
-    correctKeyLabel: '← LEFT',
+    id: "turn-left",
+    triggerZ: 5, // fires when car.z <= 5, while still on first road
+    prompt: "Junction ahead — turn LEFT here!",
+    instruction: "Press ← (LEFT ARROW) to steer left onto the side street",
+    correctKey: "ArrowLeft",
+    correctKeyLabel: "← LEFT",
   },
   {
-    id: 'stop-at-sign',
+    id: "stop-at-sign",
     triggerX: -37, // fires when car.x <= −37, approaching stop line at x≈−45
-    prompt: 'Stop line ahead — you must stop the car!',
-    instruction: 'Press SPACE to apply the brakes',
-    correctKey: 'Space',
-    correctKeyLabel: 'SPACE',
+    prompt: "Stop line ahead — you must stop the car!",
+    instruction: "Press SPACE to apply the brakes",
+    correctKey: "Space",
+    correctKeyLabel: "SPACE",
   },
-]
+];
 
 // ─── Objective checker ────────────────────────────────────────────────────────
 // Challenges mark their matching objectives via resolvedChallengeIds in the store,
 // which ScenarioRunner merges into the `completed` map below.
 const check: ScenarioChecker = (_carState, completed) => ({
   newlyCompleted: [],
-  passed: completed['turn-left'] === true && completed['stop-at-sign'] === true,
+  passed: completed["turn-left"] === true && completed["stop-at-sign"] === true,
   failed: false,
-})
+});
 
 // ─── Stop zone visual (world-space AABB) ─────────────────────────────────────
-export const STOP_ZONE = { cx: -45, cz: -5, hw: 5, hd: 4 }
+export const STOP_ZONE = { cx: -45, cz: -5, hw: 5, hd: 4 };
 
 // ─── Scenario definition ──────────────────────────────────────────────────────
 const basicControls: ScenarioDef = {
   config: {
-    id: 'basic-controls',
-    name: 'Basic Controls',
-    city: 'Aachen',
-    country: 'Germany',
-    difficulty: 'beginner',
+    id: "basic-controls",
+    name: "Basic Controls",
+    city: "Aachen",
+    country: "Germany",
+    difficulty: "beginner",
     description:
-      'The car drives itself. Press the right key at each prompt to show you know the rules.',
+      "The car drives itself. Press the right key at each prompt to show you know the rules.",
     timeLimit: 180,
     objectives: [
       {
-        id: 'turn-left',
-        description: 'Turn left at the junction',
+        id: "turn-left",
+        description: "Turn left at the junction",
         completed: false,
       },
       {
-        id: 'stop-at-sign',
-        description: 'Stop at the stop line',
+        id: "stop-at-sign",
+        description: "Stop at the stop line",
         completed: false,
       },
     ],
   },
   check,
-  driveMode: 'auto',
+  driveMode: "auto",
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
   stopZone: STOP_ZONE,
-}
+};
 
-export default basicControls
+export default basicControls;

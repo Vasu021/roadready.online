@@ -1,56 +1,63 @@
-import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useGameStore } from '../store/gameStore'
-import type { ScenarioPhase } from '../store/gameStore'
-import { useUserStore } from '../store/userStore'
-import { api } from '../utils/api'
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useGameStore } from "../store/gameStore";
+import type { ScenarioPhase } from "../store/gameStore";
+import { useUserStore } from "../store/userStore";
+import { api } from "../utils/api";
 
-const FEEDBACK: Record<'passed' | 'failed', { heading: string; body: string }> = {
-  passed: {
-    heading: 'Well done!',
-    body: 'You completed all objectives correctly. Great driving decision!',
-  },
-  failed: {
-    heading: 'Scenario Failed',
-    body: 'Review the traffic rules for this situation and try again. Take your time — accuracy matters more than speed.',
-  },
-}
+const FEEDBACK: Record<"passed" | "failed", { heading: string; body: string }> =
+  {
+    passed: {
+      heading: "Well done!",
+      body: "You completed all objectives correctly. Great driving decision!",
+    },
+    failed: {
+      heading: "Scenario Failed",
+      body: "Review the traffic rules for this situation and try again. Take your time — accuracy matters more than speed.",
+    },
+  };
 
 export default function ResultsScreen() {
-  const phase = useGameStore((s) => s.scenarioPhase) as ScenarioPhase
-  const objectives = useGameStore((s) => s.objectives)
-  const elapsed = useGameStore((s) => s.elapsedSeconds)
-  const scenario = useGameStore((s) => s.activeScenario)
-  const resetScenario = useGameStore((s) => s.resetScenario)
-  const user = useUserStore((s) => s.user)
-  const navigate = useNavigate()
+  const phase = useGameStore((s) => s.scenarioPhase) as ScenarioPhase;
+  const objectives = useGameStore((s) => s.objectives);
+  const elapsed = useGameStore((s) => s.elapsedSeconds);
+  const scenario = useGameStore((s) => s.activeScenario);
+  const resetScenario = useGameStore((s) => s.resetScenario);
+  const user = useUserStore((s) => s.user);
+  const navigate = useNavigate();
 
   // Prevent saving the same attempt more than once per run
-  const hasSaved = useRef(false)
+  const hasSaved = useRef(false);
   useEffect(() => {
-    if (phase === 'running') hasSaved.current = false
-  }, [phase])
+    if (phase === "running") hasSaved.current = false;
+  }, [phase]);
 
   // Save the attempt once when the scenario ends, if the user is signed in
   useEffect(() => {
-    if ((phase !== 'passed' && phase !== 'failed') || !user || !scenario || hasSaved.current) return
-    hasSaved.current = true
+    if (
+      (phase !== "passed" && phase !== "failed") ||
+      !user ||
+      !scenario ||
+      hasSaved.current
+    )
+      return;
+    hasSaved.current = true;
     api.progress
       .save({
         scenarioId: scenario.id,
-        passed: phase === 'passed',
+        passed: phase === "passed",
         timeSeconds: Math.floor(elapsed),
       })
-      .catch(console.error)
-  }, [phase, user, scenario, elapsed])
+      .catch(console.error);
+  }, [phase, user, scenario, elapsed]);
 
-  if (phase !== 'passed' && phase !== 'failed') return null
+  if (phase !== "passed" && phase !== "failed") return null;
 
-  const isPassed = phase === 'passed'
-  const { heading, body } = FEEDBACK[phase]
-  const mins = Math.floor(elapsed / 60)
-  const secs = Math.floor(elapsed % 60)
-  const completedCount = objectives.filter((o) => o.completed).length
+  const isPassed = phase === "passed";
+  const { heading, body } = FEEDBACK[phase];
+  const mins = Math.floor(elapsed / 60);
+  const secs = Math.floor(elapsed % 60);
+  const completedCount = objectives.filter((o) => o.completed).length;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm">
@@ -59,11 +66,13 @@ export default function ResultsScreen() {
         <div className="mb-6 flex items-center gap-3">
           <span
             className={[
-              'flex h-10 w-10 items-center justify-center rounded-full text-xl',
-              isPassed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400',
-            ].join(' ')}
+              "flex h-10 w-10 items-center justify-center rounded-full text-xl",
+              isPassed
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "bg-red-500/20 text-red-400",
+            ].join(" ")}
           >
-            {isPassed ? '✓' : '✕'}
+            {isPassed ? "✓" : "✕"}
           </span>
           <div>
             <p className="text-lg font-bold text-white">{heading}</p>
@@ -85,7 +94,7 @@ export default function ResultsScreen() {
           <div>
             <p className="text-xs text-gray-500">Time</p>
             <p className="font-mono text-lg font-semibold text-white">
-              {mins}:{secs.toString().padStart(2, '0')}
+              {mins}:{secs.toString().padStart(2, "0")}
             </p>
           </div>
         </div>
@@ -94,10 +103,14 @@ export default function ResultsScreen() {
         <ul className="mb-6 space-y-1.5">
           {objectives.map((obj) => (
             <li key={obj.id} className="flex items-center gap-2 text-sm">
-              <span className={obj.completed ? 'text-emerald-400' : 'text-gray-600'}>
-                {obj.completed ? '✓' : '○'}
+              <span
+                className={obj.completed ? "text-emerald-400" : "text-gray-600"}
+              >
+                {obj.completed ? "✓" : "○"}
               </span>
-              <span className={obj.completed ? 'text-gray-300' : 'text-gray-600'}>
+              <span
+                className={obj.completed ? "text-gray-300" : "text-gray-600"}
+              >
                 {obj.description}
               </span>
             </li>
@@ -120,7 +133,7 @@ export default function ResultsScreen() {
             Try Again
           </button>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="flex-1 rounded-lg border border-gray-700 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800"
           >
             Back to Menu
@@ -128,5 +141,5 @@ export default function ResultsScreen() {
         </div>
       </div>
     </div>
-  )
+  );
 }

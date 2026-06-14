@@ -1,12 +1,13 @@
 ---
 name: Question / Investigation
 about: Something unclear in the codebase, an open design decision, or a behaviour that needs investigation
-title: '[Question] '
+title: "[Question] "
 labels: question
-assignees: ''
+assignees: ""
 ---
 
 > **Before opening this issue**, check:
+>
 > - `DEVELOPER_GUIDE.md` → Section 11 (Common errors and fixes)
 > - `CLAUDE.md` → Key conventions and architecture notes
 > - `TASKS.md` → Known pending work that may already cover your question
@@ -35,6 +36,7 @@ assignees: ''
 - [ ] Other
 
 **Relevant files or line numbers:**
+
 <!-- e.g. apps/web/src/simulation/scenarios/basicControls.ts:42
           apps/api/src/routes/testSessions.ts -->
 

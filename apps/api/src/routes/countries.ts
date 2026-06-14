@@ -1,22 +1,24 @@
-import { Router } from 'express'
-import prisma from '../lib/prisma'
+import { Router } from "express";
+import prisma from "../lib/prisma";
 
-const router = Router()
+const router = Router();
 
 // GET /api/countries
-router.get('/', async (_req, res) => {
+router.get("/", async (_req, res) => {
   try {
     const countries = await prisma.country.findMany({
       where: { isActive: true },
-      orderBy: { name: 'asc' },
+      orderBy: { name: "asc" },
       include: {
         categories: {
-          orderBy: { order: 'asc' },
-          include: { _count: { select: { scenarios: { where: { isActive: true } } } } },
+          orderBy: { order: "asc" },
+          include: {
+            _count: { select: { scenarios: { where: { isActive: true } } } },
+          },
         },
         _count: { select: { scenarios: { where: { isActive: true } } } },
       },
-    })
+    });
 
     res.json(
       countries.map((c) => ({
@@ -33,55 +35,55 @@ router.get('/', async (_req, res) => {
           scenarioCount: cat._count.scenarios,
         })),
       })),
-    )
+    );
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Failed to fetch countries' })
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch countries" });
   }
-})
+});
 
 // GET /api/countries/:code/facts
-router.get('/:code/facts', async (req, res) => {
+router.get("/:code/facts", async (req, res) => {
   try {
     const country = await prisma.country.findUnique({
       where: { code: req.params.code.toUpperCase() },
       select: { facts: true },
-    })
+    });
 
     if (!country) {
-      res.status(404).json({ error: 'Country not found' })
-      return
+      res.status(404).json({ error: "Country not found" });
+      return;
     }
 
-    res.json({ facts: country.facts ?? null })
+    res.json({ facts: country.facts ?? null });
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Failed to fetch country facts' })
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch country facts" });
   }
-})
+});
 
 // GET /api/countries/:code/scenarios
-router.get('/:code/scenarios', async (req, res) => {
+router.get("/:code/scenarios", async (req, res) => {
   try {
     const country = await prisma.country.findUnique({
       where: { code: req.params.code.toUpperCase() },
       include: {
         categories: {
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
           include: {
             scenarios: {
               where: { isActive: true },
-              orderBy: { order: 'asc' },
+              orderBy: { order: "asc" },
               include: { _count: { select: { questions: true } } },
             },
           },
         },
       },
-    })
+    });
 
     if (!country) {
-      res.status(404).json({ error: 'Country not found' })
-      return
+      res.status(404).json({ error: "Country not found" });
+      return;
     }
 
     res.json({
@@ -108,11 +110,11 @@ router.get('/:code/scenarios', async (req, res) => {
           questionCount: s._count.questions,
         })),
       })),
-    })
+    });
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Failed to fetch scenarios' })
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch scenarios" });
   }
-})
+});
 
-export default router
+export default router;

@@ -1,26 +1,26 @@
-import { useMemo } from 'react'
-import * as THREE from 'three'
+import { useMemo } from "react";
+import * as THREE from "three";
 
 interface Props {
-  position: [number, number, number]
-  scale?: number
-  variant?: 0 | 1 | 2
+  position: [number, number, number];
+  scale?: number;
+  variant?: 0 | 1 | 2;
 }
 
 // Three foliage colour variants so trees aren't all identical
-const FOLIAGE_COLORS = ['#2d6a2d', '#3a7d44', '#1f5e1f'] as const
+const FOLIAGE_COLORS = ["#2d6a2d", "#3a7d44", "#1f5e1f"] as const;
 
 export default function Tree({ position, scale = 1, variant = 0 }: Props) {
-  const color = FOLIAGE_COLORS[variant % 3]
+  const color = FOLIAGE_COLORS[variant % 3];
 
   const trunkMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: '#5c3d1a', roughness: 0.95 }),
+    () => new THREE.MeshStandardMaterial({ color: "#5c3d1a", roughness: 0.95 }),
     [],
-  )
+  );
   const foliageMat = useMemo(
     () => new THREE.MeshStandardMaterial({ color, roughness: 0.9 }),
     [color],
-  )
+  );
 
   return (
     <group position={position} scale={scale}>
@@ -41,5 +41,5 @@ export default function Tree({ position, scale = 1, variant = 0 }: Props) {
         <coneGeometry args={[0.5, 1.2, 8]} />
       </mesh>
     </group>
-  )
+  );
 }

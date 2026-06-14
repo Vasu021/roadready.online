@@ -1,4 +1,4 @@
-import type { CarState, ScenarioConfig } from '@roadready/shared'
+import type { CarState, ScenarioConfig } from "@roadready/shared";
 
 /** Per-frame evaluation function each scenario must export. */
 export type ScenarioChecker = (
@@ -6,16 +6,16 @@ export type ScenarioChecker = (
   completed: Record<string, boolean>,
   elapsedSeconds: number,
 ) => {
-  newlyCompleted: string[]
-  passed: boolean
-  failed: boolean
-}
+  newlyCompleted: string[];
+  passed: boolean;
+  failed: boolean;
+};
 
 /** A point along the autopilot path. Speed is m/s. */
 export interface Waypoint {
-  x: number
-  z: number
-  speed: number
+  x: number;
+  z: number;
+  speed: number;
 }
 
 /**
@@ -23,31 +23,31 @@ export interface Waypoint {
  * must press the correct key to demonstrate a traffic rule.
  */
 export interface ChallengePoint {
-  id: string
+  id: string;
   /** Fire when car.z <= this value (for roads running north-south). */
-  triggerZ?: number
+  triggerZ?: number;
   /** Fire when car.x <= this value (for roads running east-west, going west). */
-  triggerX?: number
+  triggerX?: number;
   /** Short situation description shown in the overlay. */
-  prompt: string
+  prompt: string;
   /** "Press SPACE to brake" etc. */
-  instruction: string
+  instruction: string;
   /** e.g. 'Space', 'ArrowLeft', 'KeyW' — matches KeyboardEvent.code */
-  correctKey: string
+  correctKey: string;
   /** Human-readable label shown on the key badge. */
-  correctKeyLabel: string
+  correctKeyLabel: string;
 }
 
 /** Full scenario definition — config + runtime logic. */
 export interface ScenarioDef {
-  config: ScenarioConfig
-  check: ScenarioChecker
+  config: ScenarioConfig;
+  check: ScenarioChecker;
   /** World-space AABB of the stop zone, if the scenario has one. */
-  stopZone?: { cx: number; cz: number; hw: number; hd: number }
+  stopZone?: { cx: number; cz: number; hw: number; hd: number };
   /** When set to 'auto', the car drives itself and waits for challenges. */
-  driveMode?: 'manual' | 'auto'
+  driveMode?: "manual" | "auto";
   /** Autopilot path — used when driveMode === 'auto'. */
-  waypoints?: Waypoint[]
+  waypoints?: Waypoint[];
   /** Key-press challenges along the path. */
-  challenges?: ChallengePoint[]
+  challenges?: ChallengePoint[];
 }

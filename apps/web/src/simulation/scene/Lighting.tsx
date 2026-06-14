@@ -17,5 +17,5 @@ export default function Lighting() {
         shadow-camera-bottom={-80}
       />
     </>
-  )
+  );
 }

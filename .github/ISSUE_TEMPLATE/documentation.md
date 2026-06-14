@@ -1,9 +1,9 @@
 ---
 name: Documentation update
 about: Fix or improve project documentation — README, DEVELOPER_GUIDE, CLAUDE.md, TASKS.md, or inline comments
-title: '[Docs] '
+title: "[Docs] "
 labels: documentation
-assignees: ''
+assignees: ""
 ---
 
 ## Which document(s) need updating?

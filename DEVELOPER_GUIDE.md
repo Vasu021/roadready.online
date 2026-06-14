@@ -117,21 +117,21 @@ npx prisma migrate deploy
 
 This applies all committed migrations and creates the following tables:
 
-| Table                       | Description                                                |
-| --------------------------- | ---------------------------------------------------------- |
-| `users`                     | Registered users (email + bcrypt password hash)            |
-| `countries`                 | Country records (DE, FR, etc.) with active flag and HTML facts |
-| `scenario_categories`       | Named groups within a country (Basic Skills, Traffic Rules…)|
-| `scenarios`                 | Individual scenarios — slug, type (PRACTICE/TEST), order   |
-| `questions`                 | MCQ questions linked to a scenario                         |
-| `options`                   | Answer options for a question (one marked `is_correct`)    |
-| `scenario_attempts`         | One row per scenario run (mode, pass/fail, score, time)    |
-| `user_progress`             | Legacy best score/time per user+scenario (kept for compat) |
-| `user_scenario_progress`    | Current progress status per user+scenario                  |
-| `user_country_access`       | Which countries a user has unlocked                        |
-| `test_sessions`             | Full test session (score, grade, pass/fail)                |
-| `test_session_answers`      | Per-question answer within a test session                  |
-| `_prisma_migrations`        | Prisma migration history                                   |
+| Table                    | Description                                                    |
+| ------------------------ | -------------------------------------------------------------- |
+| `users`                  | Registered users (email + bcrypt password hash)                |
+| `countries`              | Country records (DE, FR, etc.) with active flag and HTML facts |
+| `scenario_categories`    | Named groups within a country (Basic Skills, Traffic Rules…)   |
+| `scenarios`              | Individual scenarios — slug, type (PRACTICE/TEST), order       |
+| `questions`              | MCQ questions linked to a scenario                             |
+| `options`                | Answer options for a question (one marked `is_correct`)        |
+| `scenario_attempts`      | One row per scenario run (mode, pass/fail, score, time)        |
+| `user_progress`          | Legacy best score/time per user+scenario (kept for compat)     |
+| `user_scenario_progress` | Current progress status per user+scenario                      |
+| `user_country_access`    | Which countries a user has unlocked                            |
+| `test_sessions`          | Full test session (score, grade, pass/fail)                    |
+| `test_session_answers`   | Per-question answer within a test session                      |
+| `_prisma_migrations`     | Prisma migration history                                       |
 
 ### 5.3 Seed reference data
 
@@ -297,25 +297,25 @@ Logout
 
 ### API endpoints
 
-| Method | Path | Auth | Description |
-| ------ | ---- | ---- | ----------- |
-| POST   | `/api/auth/register` | — | Create account, returns JWT |
-| POST   | `/api/auth/login` | — | Sign in, returns JWT |
-| GET    | `/api/users/me` | ✓ | Current user profile + attempt count |
-| GET    | `/api/countries` | — | Active countries with categories + scenario counts |
-| GET    | `/api/countries/:code/facts` | — | HTML facts string for a country |
-| GET    | `/api/countries/:code/scenarios` | — | Scenarios grouped by category for a country |
-| POST   | `/api/user-country-access` | ✓ | Record that user accessed a country — body: `{ countryCode }` |
-| GET    | `/api/scenarios` | — | All active scenarios (flat list) |
-| GET    | `/api/scenarios/:slug` | — | Single scenario by slug |
-| GET    | `/api/scenarios/:slug/questions` | — | Questions + shuffled options (`isCorrect` hidden) |
-| GET    | `/api/scenarios/progress/:userId/:countryCode` | ✓ | `UserScenarioProgress[]` for all scenarios in a country; creates `NOT_STARTED` rows on first call |
-| POST   | `/api/test-sessions` | ✓ | Create a test session for a country |
-| POST   | `/api/test-sessions/:id/answers` | ✓ | Submit an answer — returns `{ isCorrect, explanation }` |
-| PATCH  | `/api/test-sessions/:id/complete` | ✓ | Finish session — computes score, grade (A/B/C/F), pass/fail |
-| GET    | `/api/test-sessions/:id` | ✓ | Full session with per-question answer breakdown |
-| GET    | `/api/progress/:userId` | ✓ | All `ScenarioAttempt` rows for a user |
-| POST   | `/api/progress` | ✓ | Save attempt + upsert `UserProgress` + `UserScenarioProgress` |
+| Method | Path                                           | Auth | Description                                                                                       |
+| ------ | ---------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| POST   | `/api/auth/register`                           | —    | Create account, returns JWT                                                                       |
+| POST   | `/api/auth/login`                              | —    | Sign in, returns JWT                                                                              |
+| GET    | `/api/users/me`                                | ✓    | Current user profile + attempt count                                                              |
+| GET    | `/api/countries`                               | —    | Active countries with categories + scenario counts                                                |
+| GET    | `/api/countries/:code/facts`                   | —    | HTML facts string for a country                                                                   |
+| GET    | `/api/countries/:code/scenarios`               | —    | Scenarios grouped by category for a country                                                       |
+| POST   | `/api/user-country-access`                     | ✓    | Record that user accessed a country — body: `{ countryCode }`                                     |
+| GET    | `/api/scenarios`                               | —    | All active scenarios (flat list)                                                                  |
+| GET    | `/api/scenarios/:slug`                         | —    | Single scenario by slug                                                                           |
+| GET    | `/api/scenarios/:slug/questions`               | —    | Questions + shuffled options (`isCorrect` hidden)                                                 |
+| GET    | `/api/scenarios/progress/:userId/:countryCode` | ✓    | `UserScenarioProgress[]` for all scenarios in a country; creates `NOT_STARTED` rows on first call |
+| POST   | `/api/test-sessions`                           | ✓    | Create a test session for a country                                                               |
+| POST   | `/api/test-sessions/:id/answers`               | ✓    | Submit an answer — returns `{ isCorrect, explanation }`                                           |
+| PATCH  | `/api/test-sessions/:id/complete`              | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail                                       |
+| GET    | `/api/test-sessions/:id`                       | ✓    | Full session with per-question answer breakdown                                                   |
+| GET    | `/api/progress/:userId`                        | ✓    | All `ScenarioAttempt` rows for a user                                                             |
+| POST   | `/api/progress`                                | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress`                                     |
 
 ---
 
@@ -325,13 +325,13 @@ Logout
 
 Use the templates under `.github/ISSUE_TEMPLATE/` — GitHub shows a picker when you click **New Issue**:
 
-| Template | Use when |
-| -------- | -------- |
-| `bug_report.md` | Something isn't working correctly |
-| `feature_request.md` | Proposing a new feature or improvement |
-| `task.md` | Planned engineering work — new component, scenario module, or refactor |
-| `documentation.md` | A doc is wrong, outdated, or missing something |
-| `question.md` | Something unclear in the codebase or an open design decision |
+| Template             | Use when                                                               |
+| -------------------- | ---------------------------------------------------------------------- |
+| `bug_report.md`      | Something isn't working correctly                                      |
+| `feature_request.md` | Proposing a new feature or improvement                                 |
+| `task.md`            | Planned engineering work — new component, scenario module, or refactor |
+| `documentation.md`   | A doc is wrong, outdated, or missing something                         |
+| `question.md`        | Something unclear in the codebase or an open design decision           |
 
 Blank issues are disabled. Check `TASKS.md` and `DEVELOPER_GUIDE.md` Section 11 (Common errors) before filing a bug.
 
@@ -425,6 +425,7 @@ Then apply: `cd apps/api && npm run db:seed` (seed uses upsert — safe to re-ru
 ### Step 2 — Design the autopilot path
 
 Sketch waypoints on paper first. Key coordinate facts:
+
 - Car spawns at `(0, y, 40)` facing **-Z** (south)
 - Left turn = more negative X; right turn = more positive X
 - Speed in m/s: city road = 5–8, junction approach = 2–3, stop zone = 1–2
@@ -434,68 +435,77 @@ Sketch waypoints on paper first. Key coordinate facts:
 Create `apps/web/src/simulation/scenarios/your-slug.ts`:
 
 ```typescript
-import type { ScenarioDef, ScenarioChecker, Waypoint, ChallengePoint } from './types'
+import type {
+  ScenarioDef,
+  ScenarioChecker,
+  Waypoint,
+  ChallengePoint,
+} from "./types";
 
 export const WAYPOINTS: Waypoint[] = [
-  { x: 0, z: 25, speed: 7 },   // accelerate from spawn
-  { x: 0, z:  5, speed: 4 },   // slow approaching challenge
-  { x: 0, z: -8, speed: 2 },   // crawl through zone
+  { x: 0, z: 25, speed: 7 }, // accelerate from spawn
+  { x: 0, z: 5, speed: 4 }, // slow approaching challenge
+  { x: 0, z: -8, speed: 2 }, // crawl through zone
   // add more waypoints as needed
-]
+];
 
 // CRITICAL: challenge id MUST match the objective id below
 export const CHALLENGES: ChallengePoint[] = [
   {
-    id: 'your-challenge-id',   // matches objective.id
-    triggerZ: 8,               // fires when car.position.z <= 8 (travelling south)
+    id: "your-challenge-id", // matches objective.id
+    triggerZ: 8, // fires when car.position.z <= 8 (travelling south)
     // use triggerX instead for E-W travel: fires when car.position.x <= value
-    prompt: 'What should you do here?',
-    instruction: 'Press SPACE to stop',
-    correctKey: 'Space',       // KeyboardEvent.code value
-    correctKeyLabel: 'SPACE',
+    prompt: "What should you do here?",
+    instruction: "Press SPACE to stop",
+    correctKey: "Space", // KeyboardEvent.code value
+    correctKeyLabel: "SPACE",
   },
-]
+];
 
 const check: ScenarioChecker = (_carState, completed) => ({
   newlyCompleted: [],
-  passed: completed['your-challenge-id'] === true,
+  passed: completed["your-challenge-id"] === true,
   failed: false,
-})
+});
 
 const yourScenario: ScenarioDef = {
   config: {
-    id: 'your-slug',
-    name: 'Your Scenario Name',
-    city: 'Aachen',
-    country: 'Germany',
-    difficulty: 'beginner',
-    description: 'One sentence description.',
+    id: "your-slug",
+    name: "Your Scenario Name",
+    city: "Aachen",
+    country: "Germany",
+    difficulty: "beginner",
+    description: "One sentence description.",
     timeLimit: 180,
     objectives: [
       // id MUST match the challenge id above
-      { id: 'your-challenge-id', description: 'Do the right thing', completed: false },
+      {
+        id: "your-challenge-id",
+        description: "Do the right thing",
+        completed: false,
+      },
     ],
   },
   check,
-  driveMode: 'auto',
+  driveMode: "auto",
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
-}
+};
 
-export default yourScenario
+export default yourScenario;
 ```
 
 ### Step 4 — Register the simulation module
 
 ```typescript
 // apps/web/src/simulation/scenarios/index.ts
-import yourScenario from './your-slug'   // add this
+import yourScenario from "./your-slug"; // add this
 
 const registry: Record<string, ScenarioDef> = {
-  'basic-controls': basicControls,
-  'traffic-lights': trafficLights,
-  'your-slug': yourScenario,   // add this
-}
+  "basic-controls": basicControls,
+  "traffic-lights": trafficLights,
+  "your-slug": yourScenario, // add this
+};
 ```
 
 ### Step 5 — Add scene elements (if needed)

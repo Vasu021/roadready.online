@@ -1,10 +1,10 @@
-import { useFrame } from '@react-three/fiber'
-import { useGameStore } from '../../store/gameStore'
-import type { ScenarioChecker } from './types'
+import { useFrame } from "@react-three/fiber";
+import { useGameStore } from "../../store/gameStore";
+import type { ScenarioChecker } from "./types";
 
 interface Props {
-  checker: ScenarioChecker
-  timeLimit: number
+  checker: ScenarioChecker;
+  timeLimit: number;
 }
 
 /**
@@ -13,31 +13,32 @@ interface Props {
  */
 export default function ScenarioRunner({ checker, timeLimit }: Props) {
   useFrame((_, delta) => {
-    const store = useGameStore.getState()
-    if (store.scenarioPhase !== 'running' || !store.carState) return
+    const store = useGameStore.getState();
+    if (store.scenarioPhase !== "running" || !store.carState) return;
 
-    const newElapsed = store.elapsedSeconds + delta
-    store.setElapsed(newElapsed)
+    const newElapsed = store.elapsedSeconds + delta;
+    store.setElapsed(newElapsed);
 
     if (newElapsed >= timeLimit) {
-      store.setScenarioPhase('failed')
-      return
+      store.setScenarioPhase("failed");
+      return;
     }
 
     // Build completed map — merge objective state with resolved challenge IDs
-    const completed: Record<string, boolean> = {}
+    const completed: Record<string, boolean> = {};
     for (const obj of store.objectives) {
-      completed[obj.id] = obj.completed || store.resolvedChallengeIds[obj.id] === true
+      completed[obj.id] =
+        obj.completed || store.resolvedChallengeIds[obj.id] === true;
     }
 
-    const result = checker(store.carState, completed, newElapsed)
+    const result = checker(store.carState, completed, newElapsed);
 
     for (const id of result.newlyCompleted) {
-      store.completeObjective(id)
+      store.completeObjective(id);
     }
-    if (result.passed) store.setScenarioPhase('passed')
-    if (result.failed) store.setScenarioPhase('failed')
-  })
+    if (result.passed) store.setScenarioPhase("passed");
+    if (result.failed) store.setScenarioPhase("failed");
+  });
 
-  return null
+  return null;
 }

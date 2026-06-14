@@ -102,33 +102,33 @@ Scenarios are database-driven. Each pauses the car at a key moment and asks an M
 
 ### 🇩🇪 Germany
 
-| Scenario                                   | Category      | Type     |
-| ------------------------------------------ | ------------- | -------- |
-| Basic Controls                             | Basic Skills  | PRACTICE |
-| Rechts vor Links — Right before Left       | Traffic Rules | PRACTICE |
-| Roundabout                                 | Traffic Rules | PRACTICE |
-| Traffic Lights                             | Traffic Rules | PRACTICE |
-| Priority Road Signs (Vorfahrtstraße)       | Road Signs    | PRACTICE |
-| Vorfahrt — Priority at Next Intersection   | Road Signs    | PRACTICE |
-| Emergency Vehicle                          | Traffic Rules | PRACTICE |
-| Pedestrian Crossing                        | Traffic Rules | PRACTICE |
-| Autobahn Rules                             | Traffic Rules | PRACTICE |
-| Full Test — Germany                        | Traffic Rules | TEST     |
+| Scenario                                 | Category      | Type     |
+| ---------------------------------------- | ------------- | -------- |
+| Basic Controls                           | Basic Skills  | PRACTICE |
+| Rechts vor Links — Right before Left     | Traffic Rules | PRACTICE |
+| Roundabout                               | Traffic Rules | PRACTICE |
+| Traffic Lights                           | Traffic Rules | PRACTICE |
+| Priority Road Signs (Vorfahrtstraße)     | Road Signs    | PRACTICE |
+| Vorfahrt — Priority at Next Intersection | Road Signs    | PRACTICE |
+| Emergency Vehicle                        | Traffic Rules | PRACTICE |
+| Pedestrian Crossing                      | Traffic Rules | PRACTICE |
+| Autobahn Rules                           | Traffic Rules | PRACTICE |
+| Full Test — Germany                      | Traffic Rules | TEST     |
 
 ### 🇫🇷 France
 
-| Scenario                                   | Category      | Type     |
-| ------------------------------------------ | ------------- | -------- |
-| Basic Controls                             | Basic Skills  | PRACTICE |
-| Priorité à droite                          | Traffic Rules | PRACTICE |
-| Roundabout — French Style                  | Traffic Rules | PRACTICE |
-| Speed Limits                               | Traffic Rules | PRACTICE |
-| Radar Cameras                              | Traffic Rules | PRACTICE |
-| Motorway Rules                             | Traffic Rules | PRACTICE |
-| Pedestrian Crossing                        | Traffic Rules | PRACTICE |
-| Traffic Lights                             | Traffic Rules | PRACTICE |
-| Parking Rules                              | Basic Skills  | PRACTICE |
-| Full Test — France                         | Traffic Rules | TEST     |
+| Scenario                  | Category      | Type     |
+| ------------------------- | ------------- | -------- |
+| Basic Controls            | Basic Skills  | PRACTICE |
+| Priorité à droite         | Traffic Rules | PRACTICE |
+| Roundabout — French Style | Traffic Rules | PRACTICE |
+| Speed Limits              | Traffic Rules | PRACTICE |
+| Radar Cameras             | Traffic Rules | PRACTICE |
+| Motorway Rules            | Traffic Rules | PRACTICE |
+| Pedestrian Crossing       | Traffic Rules | PRACTICE |
+| Traffic Lights            | Traffic Rules | PRACTICE |
+| Parking Rules             | Basic Skills  | PRACTICE |
+| Full Test — France        | Traffic Rules | TEST     |
 
 ---
 
@@ -157,12 +157,12 @@ Scenarios are database-driven. Each pauses the car at a key moment and asks an M
 
 ### Infrastructure & Services
 
-| Service        | Purpose                            | Cost                |
-| -------------- | ---------------------------------- | ------------------- |
-| **Vercel**     | Frontend hosting + CDN             | Free                |
-| **Railway**    | Backend API + PostgreSQL hosting   | Free tier           |
-| **Cloudflare** | DNS, DDoS protection, CDN          | Free                |
-| **Stripe**     | Payments and subscriptions         | Pay per transaction |
+| Service        | Purpose                          | Cost                |
+| -------------- | -------------------------------- | ------------------- |
+| **Vercel**     | Frontend hosting + CDN           | Free                |
+| **Railway**    | Backend API + PostgreSQL hosting | Free tier           |
+| **Cloudflare** | DNS, DDoS protection, CDN        | Free                |
+| **Stripe**     | Payments and subscriptions       | Pay per transaction |
 
 ### Map & Road Data
 
@@ -335,13 +335,13 @@ RoadReady is currently in early development. Contributions, ideas, and feedback 
 
 Use the issue templates under [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE/) — GitHub will ask you to pick one when you click **New Issue**:
 
-| Template | Use when |
-| -------- | -------- |
-| **Bug report** | Something isn't working correctly |
-| **Feature request** | Proposing a new feature or improvement |
-| **Task / Technical work** | Planned engineering work (new component, scenario module, refactor) |
-| **Documentation update** | A doc is wrong, outdated, or missing something |
-| **Question / Investigation** | Something unclear in the codebase or an open design decision |
+| Template                     | Use when                                                            |
+| ---------------------------- | ------------------------------------------------------------------- |
+| **Bug report**               | Something isn't working correctly                                   |
+| **Feature request**          | Proposing a new feature or improvement                              |
+| **Task / Technical work**    | Planned engineering work (new component, scenario module, refactor) |
+| **Documentation update**     | A doc is wrong, outdated, or missing something                      |
+| **Question / Investigation** | Something unclear in the codebase or an open design decision        |
 
 Blank issues are disabled — please pick the template that fits best.
 

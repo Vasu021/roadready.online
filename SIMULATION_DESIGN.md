@@ -57,6 +57,7 @@ L-shaped road — two segments meeting at the junction at `(0, 0, -5)`:
 ```
 
 Key geometry numbers:
+
 - Road 1 left edge: `x = -3.5`, right edge: `x = +3.5`
 - Road 2 north edge: `z = -8.5`, south edge: `z = -1.5`
 - Intersection fill: box at `(−3.5, 0, −5)` to cover the corner
@@ -74,8 +75,8 @@ File: `apps/web/src/simulation/vehicles/CarController.tsx`
 
 ```typescript
 interface Props {
-  waypoints?: Waypoint[]     // autopilot path (empty = manual control)
-  challenges?: ChallengePoint[]  // moments that pause the car and ask for input
+  waypoints?: Waypoint[]; // autopilot path (empty = manual control)
+  challenges?: ChallengePoint[]; // moments that pause the car and ask for input
 }
 ```
 
@@ -109,13 +110,13 @@ interface Props {
 
 ```typescript
 interface ChallengePoint {
-  id: string
-  triggerZ?: number   // fires when car.position.z <= triggerZ (N→S travel)
-  triggerX?: number   // fires when car.position.x <= triggerX (E→W travel)
-  prompt: string
-  instruction: string
-  correctKey: string        // e.g. 'ArrowLeft', 'Space'
-  correctKeyLabel: string   // e.g. '← LEFT', 'SPACE'
+  id: string;
+  triggerZ?: number; // fires when car.position.z <= triggerZ (N→S travel)
+  triggerX?: number; // fires when car.position.x <= triggerX (E→W travel)
+  prompt: string;
+  instruction: string;
+  correctKey: string; // e.g. 'ArrowLeft', 'Space'
+  correctKeyLabel: string; // e.g. '← LEFT', 'SPACE'
 }
 ```
 
@@ -128,6 +129,7 @@ interface ChallengePoint {
 File: `apps/web/src/components/ChallengeOverlay.tsx`
 
 Reads `activeChallenge` from `gameStore`. When `result === 'pending'`, adds a `keydown` listener. On keydown:
+
 - Correct key → `resolveChallenge('correct')` → overlay shows ✅ for 1600 ms then clears
 - Any other key → `resolveChallenge('wrong', keyLabel)` → overlay shows ❌ for 1600 ms then `setScenarioPhase('failed')`
 
@@ -185,28 +187,28 @@ File: `apps/web/src/simulation/scenarios/types.ts`
 
 ```typescript
 interface Waypoint {
-  x: number
-  z: number
-  speed: number   // m/s target speed at this waypoint
+  x: number;
+  z: number;
+  speed: number; // m/s target speed at this waypoint
 }
 
 interface ChallengePoint {
-  id: string                 // MUST match objective.id
-  triggerZ?: number          // trigger when car.z <= this value
-  triggerX?: number          // trigger when car.x <= this value
-  prompt: string             // shown as heading in overlay
-  instruction: string        // shown as subtext in overlay
-  correctKey: string         // KeyboardEvent.code value
-  correctKeyLabel: string    // display label for the key
+  id: string; // MUST match objective.id
+  triggerZ?: number; // trigger when car.z <= this value
+  triggerX?: number; // trigger when car.x <= this value
+  prompt: string; // shown as heading in overlay
+  instruction: string; // shown as subtext in overlay
+  correctKey: string; // KeyboardEvent.code value
+  correctKeyLabel: string; // display label for the key
 }
 
 interface ScenarioDef {
-  config: ScenarioConfig     // id, name, city, country, timeLimit, objectives[]
-  check: ScenarioChecker     // (carState, completed) => { newlyCompleted, passed, failed }
-  driveMode?: 'manual' | 'auto'
-  waypoints?: Waypoint[]
-  challenges?: ChallengePoint[]
-  stopZone?: { cx: number; cz: number; hw: number; hd: number }
+  config: ScenarioConfig; // id, name, city, country, timeLimit, objectives[]
+  check: ScenarioChecker; // (carState, completed) => { newlyCompleted, passed, failed }
+  driveMode?: "manual" | "auto";
+  waypoints?: Waypoint[];
+  challenges?: ChallengePoint[];
+  stopZone?: { cx: number; cz: number; hw: number; hd: number };
 }
 ```
 
@@ -217,6 +219,7 @@ interface ScenarioDef {
 ### 1. Design the path
 
 Sketch the waypoints on paper first. Remember:
+
 - Car spawns at `(0, y, 40)` facing south (-Z)
 - Left turns = increasing X magnitude going negative
 - Right turns = increasing X magnitude going positive
@@ -225,6 +228,7 @@ Sketch the waypoints on paper first. Remember:
 ### 2. Design the challenge point(s)
 
 Decide where to pause the car. A good challenge point is:
+
 - Just **before** the decision zone (trigger a few metres before the actual point)
 - Matches a real traffic rule decision a learner might get wrong
 - Has one clearly correct answer and 3 plausible wrong ones (for MCQ)
@@ -233,64 +237,73 @@ Decide where to pause the car. A good challenge point is:
 
 ```typescript
 // apps/web/src/simulation/scenarios/your-slug.ts
-import type { ScenarioDef, ScenarioChecker, Waypoint, ChallengePoint } from './types'
+import type {
+  ScenarioDef,
+  ScenarioChecker,
+  Waypoint,
+  ChallengePoint,
+} from "./types";
 
 export const WAYPOINTS: Waypoint[] = [
-  { x: 0, z: 30, speed: 7 },   // accelerate from spawn
-  { x: 0, z:  5, speed: 4 },   // slow approaching challenge
+  { x: 0, z: 30, speed: 7 }, // accelerate from spawn
+  { x: 0, z: 5, speed: 4 }, // slow approaching challenge
   // ... more waypoints after challenge zone
-]
+];
 
 export const CHALLENGES: ChallengePoint[] = [
   {
-    id: 'your-challenge-id',   // MUST match an objective id below
-    triggerZ: 8,               // fire when car.z <= 8
-    prompt: 'What should you do here?',
-    instruction: 'Press SPACE to stop',
-    correctKey: 'Space',
-    correctKeyLabel: 'SPACE',
+    id: "your-challenge-id", // MUST match an objective id below
+    triggerZ: 8, // fire when car.z <= 8
+    prompt: "What should you do here?",
+    instruction: "Press SPACE to stop",
+    correctKey: "Space",
+    correctKeyLabel: "SPACE",
   },
-]
+];
 
 const check: ScenarioChecker = (_carState, completed) => ({
   newlyCompleted: [],
-  passed: completed['your-challenge-id'] === true,
+  passed: completed["your-challenge-id"] === true,
   failed: false,
-})
+});
 
 const yourScenario: ScenarioDef = {
   config: {
-    id: 'your-slug',
-    name: 'Your Scenario Name',
-    city: 'Aachen',
-    country: 'Germany',
-    difficulty: 'beginner',
-    description: 'One sentence description.',
+    id: "your-slug",
+    name: "Your Scenario Name",
+    city: "Aachen",
+    country: "Germany",
+    difficulty: "beginner",
+    description: "One sentence description.",
     timeLimit: 180,
     objectives: [
-      { id: 'your-challenge-id', description: 'Do the right thing', completed: false },
+      {
+        id: "your-challenge-id",
+        description: "Do the right thing",
+        completed: false,
+      },
     ],
   },
   check,
-  driveMode: 'auto',
+  driveMode: "auto",
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
-}
+};
 
-export default yourScenario
+export default yourScenario;
 ```
 
 ### 4. Register it
 
 ```typescript
 // apps/web/src/simulation/scenarios/index.ts
-import yourScenario from './your-slug'
+import yourScenario from "./your-slug";
 
 const registry: Record<string, ScenarioDef> = {
-  'basic-controls': basicControls,
-  'traffic-lights': trafficLights,
-  'your-slug': yourScenario,   // add this
-}
+  "basic-controls": basicControls,
+  "traffic-lights": trafficLights,
+  "your-slug": yourScenario, // add this
+};
 ```
 
 ### 5. Add to database (seed)
@@ -316,11 +329,13 @@ File: `apps/web/src/simulation/scene/FollowCamera.tsx`
 The car's forward direction is `(-sin θ, 0, -cos θ)` where `θ = carState.rotation[1]` (Euler Y from Rapier).
 
 Camera position (behind car):
+
 ```
 cx + sin(θ) * CAM_BACK,  cy + CAM_UP,  cz + cos(θ) * CAM_BACK
 ```
 
 LookAt target (ahead of car):
+
 ```
 cx - sin(θ) * CAM_AHEAD,  cy + 1,  cz - cos(θ) * CAM_AHEAD
 ```
@@ -358,6 +373,7 @@ setCarState(state: CarState): void
 ## Scene Architecture in `SimulationScene.tsx`
 
 All scenarios share the same base scene:
+
 - `<Lighting />` — ambient + directional + hemisphere lights
 - `<Ground />` — large grass plane
 - `<GermanCityRoad />` — L-shaped road (Germany-specific; each country will have its own)
@@ -366,6 +382,7 @@ All scenarios share the same base scene:
 - `<FollowCamera />` — always rendered
 
 Scenario-specific elements added conditionally:
+
 - `<TrafficLightSet />` — only for `traffic-lights` scenario (reads `resolvedChallengeIds`)
 - `<StopZone />` — if `def.stopZone` is defined
 - `<ScenarioRunner />` — always if a scenario is active

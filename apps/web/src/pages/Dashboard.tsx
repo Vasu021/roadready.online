@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom'
-import { useUserStore } from '../store/userStore'
+import { Link } from "react-router-dom";
+import { useUserStore } from "../store/userStore";
 
 export default function Dashboard() {
-  const user = useUserStore((s) => s.user)
+  const user = useUserStore((s) => s.user);
 
   return (
     <div className="min-h-full bg-gray-950 text-white">
@@ -37,7 +37,7 @@ export default function Dashboard() {
             Scenario Results
           </h2>
           <p className="text-sm text-gray-500">
-            No scenarios completed yet.{' '}
+            No scenarios completed yet.{" "}
             <Link to="/" className="text-blue-400 hover:underline">
               Start driving →
             </Link>
@@ -45,5 +45,5 @@ export default function Dashboard() {
         </section>
       </main>
     </div>
-  )
+  );
 }

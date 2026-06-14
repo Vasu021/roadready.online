@@ -4,5 +4,5 @@ export default function Ground() {
       <planeGeometry args={[500, 500]} />
       <meshStandardMaterial color="#4a7c59" roughness={1} metalness={0} />
     </mesh>
-  )
+  );
 }

@@ -115,6 +115,7 @@ src/
 ### Next implementation (MCQ pop-up)
 
 The key-press system will evolve to an **MCQ pop-up**:
+
 1. Car stops at challenge zone
 2. **Transparent, draggable popup** appears with 4 A/B/C/D options — user can drag it aside to see the road
 3. User selects an option and confirms
@@ -193,12 +194,14 @@ TestSessionAnswer    → test_session_answers
 ```
 
 **Seeded data** (`apps/api/prisma/seed.ts`):
+
 - Germany (code: `DE`, isActive: true) + France (code: `FR`, isActive: true) — both with `facts` HTML
 - Each country has categories: Basic Skills, Traffic Rules, Road Signs
 - Germany: 9 PRACTICE + 1 TEST scenario; France: 9 PRACTICE + 1 TEST scenario
 - All scenarios `isActive: true`, each with one 4-option MCQ question
 
 **Prisma notes:**
+
 - Schema file: `apps/api/prisma/schema.prisma` — datasource has `url = env("DATABASE_URL")`
 - No `prisma.config.ts` — it was removed; Prisma 6 reads `DATABASE_URL` from env automatically
 - `src/lib/prisma.ts` uses globalThis singleton to avoid multiple connections during hot reload
@@ -279,10 +282,12 @@ Scenarios are stored in PostgreSQL and loaded via the API. Each `Scenario` row h
 Frontend simulation modules live in `src/simulation/scenarios/<slug>.ts` and handle the 3D scripted path. MCQ questions are fetched from the API and rendered as overlays on top of the paused simulation.
 
 **Scenario types:**
+
 - `PRACTICE` — single scenario, no final grade, immediate explanation on each question
 - `TEST` — all questions across all active scenarios, graded at end via `TestSession`
 
 **Seeded Germany scenarios (slug → name):**
+
 ```
 basic-controls                  → Basic Controls
 rechts-vor-links                → Rechts vor Links — Right before Left
@@ -297,6 +302,7 @@ full-test-germany               → Full Test — Germany  (type: TEST)
 ```
 
 **Seeded France scenarios (slug → name):**
+
 ```
 fr-basic-controls               → Basic Controls
 fr-priorite-a-droite            → Priorité à droite

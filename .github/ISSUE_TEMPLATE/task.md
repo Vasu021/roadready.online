@@ -1,9 +1,9 @@
 ---
 name: Task / Technical work
 about: Planned engineering work — new component, refactor, new scenario module, or infrastructure change
-title: '[Task] '
+title: "[Task] "
 labels: task
-assignees: ''
+assignees: ""
 ---
 
 ## What needs to be done?
