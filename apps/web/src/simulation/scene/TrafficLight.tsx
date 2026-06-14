@@ -1,29 +1,31 @@
-import { useRef, useEffect } from 'react'
-import * as THREE from 'three'
+import { useRef, useEffect } from "react";
+import * as THREE from "three";
 
 interface Props {
-  position: [number, number, number]
+  position: [number, number, number];
   /** Controlled externally — 'red' until the challenge is resolved. */
-  phase: 'red' | 'yellow' | 'green'
+  phase: "red" | "yellow" | "green";
 }
 
-const ON = 3.5
-const OFF = 0.04
+const ON = 3.5;
+const OFF = 0.04;
 
 export default function TrafficLight({ position, phase }: Props) {
-  const redRef = useRef<THREE.Mesh>(null!)
-  const yellowRef = useRef<THREE.Mesh>(null!)
-  const greenRef = useRef<THREE.Mesh>(null!)
+  const redRef = useRef<THREE.Mesh>(null!);
+  const yellowRef = useRef<THREE.Mesh>(null!);
+  const greenRef = useRef<THREE.Mesh>(null!);
 
   useEffect(() => {
-    if (!redRef.current || !yellowRef.current || !greenRef.current) return
-    ;(redRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-      phase === 'red' ? ON : OFF
-    ;(yellowRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-      phase === 'yellow' ? ON : OFF
-    ;(greenRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
-      phase === 'green' ? ON : OFF
-  }, [phase])
+    if (!redRef.current || !yellowRef.current || !greenRef.current) return;
+    (redRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity =
+      phase === "red" ? ON : OFF;
+    (
+      yellowRef.current.material as THREE.MeshStandardMaterial
+    ).emissiveIntensity = phase === "yellow" ? ON : OFF;
+    (
+      greenRef.current.material as THREE.MeshStandardMaterial
+    ).emissiveIntensity = phase === "green" ? ON : OFF;
+  }, [phase]);
 
   return (
     <group position={position}>
@@ -72,5 +74,5 @@ export default function TrafficLight({ position, phase }: Props) {
         />
       </mesh>
     </group>
-  )
+  );
 }

@@ -1,9 +1,9 @@
 ---
 name: Feature request
 about: Propose a new feature or improvement for RoadReady
-title: '[Feature] '
+title: "[Feature] "
 labels: enhancement
-assignees: ''
+assignees: ""
 ---
 
 ## Problem or motivation
@@ -34,6 +34,7 @@ assignees: ''
 - [ ] Developer tooling / CI / docs
 
 **Country / scenario affected:**
+
 <!-- e.g. Germany only, France only, all countries, or a specific slug like `roundabout` -->
 
 **Tier:**

@@ -43,17 +43,32 @@ async function main() {
     prisma.scenarioCategory.upsert({
       where: { id: "cat-de-basic" },
       update: {},
-      create: { id: "cat-de-basic", countryId: germany.id, name: "Basic Skills", order: 1 },
+      create: {
+        id: "cat-de-basic",
+        countryId: germany.id,
+        name: "Basic Skills",
+        order: 1,
+      },
     }),
     prisma.scenarioCategory.upsert({
       where: { id: "cat-de-traffic" },
       update: {},
-      create: { id: "cat-de-traffic", countryId: germany.id, name: "Traffic Rules", order: 2 },
+      create: {
+        id: "cat-de-traffic",
+        countryId: germany.id,
+        name: "Traffic Rules",
+        order: 2,
+      },
     }),
     prisma.scenarioCategory.upsert({
       where: { id: "cat-de-signs" },
       update: {},
-      create: { id: "cat-de-signs", countryId: germany.id, name: "Road Signs", order: 3 },
+      create: {
+        id: "cat-de-signs",
+        countryId: germany.id,
+        name: "Road Signs",
+        order: 3,
+      },
     }),
   ]);
   console.log("Germany categories: Basic Skills, Traffic Rules, Road Signs");
@@ -63,17 +78,32 @@ async function main() {
     prisma.scenarioCategory.upsert({
       where: { id: "cat-fr-basic" },
       update: {},
-      create: { id: "cat-fr-basic", countryId: france.id, name: "Basic Skills", order: 1 },
+      create: {
+        id: "cat-fr-basic",
+        countryId: france.id,
+        name: "Basic Skills",
+        order: 1,
+      },
     }),
     prisma.scenarioCategory.upsert({
       where: { id: "cat-fr-traffic" },
       update: {},
-      create: { id: "cat-fr-traffic", countryId: france.id, name: "Traffic Rules", order: 2 },
+      create: {
+        id: "cat-fr-traffic",
+        countryId: france.id,
+        name: "Traffic Rules",
+        order: 2,
+      },
     }),
     prisma.scenarioCategory.upsert({
       where: { id: "cat-fr-signs" },
       update: {},
-      create: { id: "cat-fr-signs", countryId: france.id, name: "Road Signs", order: 3 },
+      create: {
+        id: "cat-fr-signs",
+        countryId: france.id,
+        name: "Road Signs",
+        order: 3,
+      },
     }),
   ]);
   console.log("France categories: Basic Skills, Traffic Rules, Road Signs");
@@ -112,10 +142,22 @@ async function main() {
         explanation:
           "Before moving off you must signal your intention, check all mirrors for approaching traffic, then perform a blind-spot shoulder check before pulling away. Sounding the horn is not a substitute for observation.",
         options: [
-          { text: "Signal, check mirrors, blind-spot shoulder check, then move", correct: true },
-          { text: "Accelerate directly into traffic and let others react", correct: false },
-          { text: "Only check the centre rearview mirror before moving", correct: false },
-          { text: "Sound the horn to warn other drivers, then move", correct: false },
+          {
+            text: "Signal, check mirrors, blind-spot shoulder check, then move",
+            correct: true,
+          },
+          {
+            text: "Accelerate directly into traffic and let others react",
+            correct: false,
+          },
+          {
+            text: "Only check the centre rearview mirror before moving",
+            correct: false,
+          },
+          {
+            text: "Sound the horn to warn other drivers, then move",
+            correct: false,
+          },
         ],
       },
     },
@@ -138,9 +180,18 @@ async function main() {
             text: "Rechts vor Links — the vehicle from the right always has priority",
             correct: true,
           },
-          { text: "The vehicle that arrives at the intersection first has priority", correct: false },
-          { text: "Larger or heavier vehicles always have right of way", correct: false },
-          { text: "Drivers must negotiate among themselves who proceeds first", correct: false },
+          {
+            text: "The vehicle that arrives at the intersection first has priority",
+            correct: false,
+          },
+          {
+            text: "Larger or heavier vehicles always have right of way",
+            correct: false,
+          },
+          {
+            text: "Drivers must negotiate among themselves who proceeds first",
+            correct: false,
+          },
         ],
       },
     },
@@ -163,9 +214,18 @@ async function main() {
             text: "Yield to all vehicles already circulating inside the roundabout",
             correct: true,
           },
-          { text: "You have priority over roundabout traffic and may enter freely", correct: false },
-          { text: "Stop completely regardless of whether traffic is present", correct: false },
-          { text: "Flash your headlights to signal your intention to enter", correct: false },
+          {
+            text: "You have priority over roundabout traffic and may enter freely",
+            correct: false,
+          },
+          {
+            text: "Stop completely regardless of whether traffic is present",
+            correct: false,
+          },
+          {
+            text: "Flash your headlights to signal your intention to enter",
+            correct: false,
+          },
         ],
       },
     },
@@ -184,7 +244,10 @@ async function main() {
         explanation:
           "A yellow light means the signal is about to turn red. You must prepare to stop unless stopping safely is no longer possible. Accelerating to beat a yellow light is illegal and dangerous.",
         options: [
-          { text: "Prepare to stop — the light is about to turn red", correct: true },
+          {
+            text: "Prepare to stop — the light is about to turn red",
+            correct: true,
+          },
           {
             text: "Accelerate to clear the intersection before the light turns red",
             correct: false,
@@ -193,7 +256,10 @@ async function main() {
             text: "Proceed freely if the intersection appears clear of other vehicles",
             correct: false,
           },
-          { text: "Only cyclists and pedestrians must stop at a yellow light", correct: false },
+          {
+            text: "Only cyclists and pedestrians must stop at a yellow light",
+            correct: false,
+          },
         ],
       },
     },
@@ -216,7 +282,10 @@ async function main() {
             text: "You are on a priority road with right of way over all side-road traffic",
             correct: true,
           },
-          { text: "You must yield to all other traffic at the next junction", correct: false },
+          {
+            text: "You must yield to all other traffic at the next junction",
+            correct: false,
+          },
           { text: "A reduced speed zone begins ahead", correct: false },
           { text: "A motorway toll booth is located ahead", correct: false },
         ],
@@ -249,7 +318,10 @@ async function main() {
             text: "You must come to a complete stop at the very next intersection",
             correct: false,
           },
-          { text: "A traffic-light controlled junction is ahead", correct: false },
+          {
+            text: "A traffic-light controlled junction is ahead",
+            correct: false,
+          },
         ],
       },
     },
@@ -340,7 +412,10 @@ async function main() {
             text: "130 km/h is the recommended advisory speed; there is no legally enforced maximum",
             correct: true,
           },
-          { text: "120 km/h is the legally enforced maximum on all Autobahn", correct: false },
+          {
+            text: "120 km/h is the legally enforced maximum on all Autobahn",
+            correct: false,
+          },
           {
             text: "150 km/h is the maximum permitted by law on unrestricted sections",
             correct: false,
@@ -367,9 +442,18 @@ async function main() {
         explanation:
           "§24a StVG sets the BAC limit at 0.5 per mille (0.05%) for fully licensed drivers. A limit of 0.0 per mille applies to drivers under 21 or within the first two years of holding a licence (Fahranfänger). Driving above the limit is an administrative offence; above 1.6 per mille it becomes a criminal offence.",
         options: [
-          { text: "0.5 per mille (0.05%) for fully licensed drivers", correct: true },
-          { text: "0.8 per mille (0.08%) — the same as the UK limit", correct: false },
-          { text: "0.0 per mille — zero tolerance applies to all drivers", correct: false },
+          {
+            text: "0.5 per mille (0.05%) for fully licensed drivers",
+            correct: true,
+          },
+          {
+            text: "0.8 per mille (0.08%) — the same as the UK limit",
+            correct: false,
+          },
+          {
+            text: "0.0 per mille — zero tolerance applies to all drivers",
+            correct: false,
+          },
           { text: "0.3 per mille (0.03%)", correct: false },
         ],
       },
@@ -397,9 +481,18 @@ async function main() {
             text: "Driving licence, vehicle registration, proof of insurance, and ID",
             correct: true,
           },
-          { text: "Only a driving licence is legally required", correct: false },
-          { text: "Insurance documents are optional if the vehicle has a vignette", correct: false },
-          { text: "A passport is the only accepted form of identification", correct: false },
+          {
+            text: "Only a driving licence is legally required",
+            correct: false,
+          },
+          {
+            text: "Insurance documents are optional if the vehicle has a vignette",
+            correct: false,
+          },
+          {
+            text: "A passport is the only accepted form of identification",
+            correct: false,
+          },
         ],
       },
     },
@@ -422,9 +515,18 @@ async function main() {
             text: "Priorité à droite — the vehicle from the right always has priority",
             correct: true,
           },
-          { text: "The vehicle on the wider road always has priority", correct: false },
-          { text: "The vehicle travelling at higher speed has priority", correct: false },
-          { text: "All vehicles must stop and negotiate at unmarked crossings", correct: false },
+          {
+            text: "The vehicle on the wider road always has priority",
+            correct: false,
+          },
+          {
+            text: "The vehicle travelling at higher speed has priority",
+            correct: false,
+          },
+          {
+            text: "All vehicles must stop and negotiate at unmarked crossings",
+            correct: false,
+          },
         ],
       },
     },
@@ -447,9 +549,18 @@ async function main() {
             text: "Vehicles already inside the roundabout — entering drivers must yield",
             correct: true,
           },
-          { text: "Entering vehicles always have priority under Priorité à droite", correct: false },
-          { text: "The vehicle with the highest speed inside the roundabout", correct: false },
-          { text: "Vehicles entering from the right of the roundabout entry point", correct: false },
+          {
+            text: "Entering vehicles always have priority under Priorité à droite",
+            correct: false,
+          },
+          {
+            text: "The vehicle with the highest speed inside the roundabout",
+            correct: false,
+          },
+          {
+            text: "Vehicles entering from the right of the roundabout entry point",
+            correct: false,
+          },
         ],
       },
     },
@@ -498,8 +609,14 @@ async function main() {
             text: "Brake sharply just before the camera and accelerate immediately after",
             correct: false,
           },
-          { text: "Speed limits are advisory — radar fines can be contested", correct: false },
-          { text: "Only slow down if you are more than 20 km/h over the limit", correct: false },
+          {
+            text: "Speed limits are advisory — radar fines can be contested",
+            correct: false,
+          },
+          {
+            text: "Only slow down if you are more than 20 km/h over the limit",
+            correct: false,
+          },
         ],
       },
     },
@@ -544,9 +661,18 @@ async function main() {
             text: "Stop and yield — pedestrians have absolute priority at marked crossings",
             correct: true,
           },
-          { text: "Proceed if no pedestrian has yet stepped onto the crossing", correct: false },
-          { text: "Flash your headlights to warn the pedestrian you are passing", correct: false },
-          { text: "Slow to 20 km/h and pass in front of the pedestrian", correct: false },
+          {
+            text: "Proceed if no pedestrian has yet stepped onto the crossing",
+            correct: false,
+          },
+          {
+            text: "Flash your headlights to warn the pedestrian you are passing",
+            correct: false,
+          },
+          {
+            text: "Slow to 20 km/h and pass in front of the pedestrian",
+            correct: false,
+          },
         ],
       },
     },
@@ -565,10 +691,22 @@ async function main() {
         explanation:
           "A flashing amber light in France means you may proceed but must do so with extreme caution, giving way to pedestrians and other vehicles. It is commonly used at night or when the full signal sequence is suspended. Unlike a steady amber, it does not mean stop.",
         options: [
-          { text: "Proceed with caution, giving way to all other road users", correct: true },
-          { text: "Stop immediately as if it were a red light", correct: false },
-          { text: "You have right of way and may proceed at normal speed", correct: false },
-          { text: "The signal is broken — treat the junction as uncontrolled", correct: false },
+          {
+            text: "Proceed with caution, giving way to all other road users",
+            correct: true,
+          },
+          {
+            text: "Stop immediately as if it were a red light",
+            correct: false,
+          },
+          {
+            text: "You have right of way and may proceed at normal speed",
+            correct: false,
+          },
+          {
+            text: "The signal is broken — treat the junction as uncontrolled",
+            correct: false,
+          },
         ],
       },
     },
@@ -587,10 +725,22 @@ async function main() {
         explanation:
           "Alternating parking (stationnement alterné semi-mensuel) is used in many French towns. From the 1st to the 15th you park on the odd-numbered side of the street. From the 16th to the end of the month you park on the even-numbered side. Between midnight and 12:30 you may park on either side to allow the change.",
         options: [
-          { text: "On the odd-numbered (impair) side of the street", correct: true },
-          { text: "On the even-numbered (pair) side of the street", correct: false },
-          { text: "On whichever side has the most available space", correct: false },
-          { text: "Parking is prohibited on both sides during changeover days", correct: false },
+          {
+            text: "On the odd-numbered (impair) side of the street",
+            correct: true,
+          },
+          {
+            text: "On the even-numbered (pair) side of the street",
+            correct: false,
+          },
+          {
+            text: "On whichever side has the most available space",
+            correct: false,
+          },
+          {
+            text: "Parking is prohibited on both sides during changeover days",
+            correct: false,
+          },
         ],
       },
     },

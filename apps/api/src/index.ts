@@ -1,34 +1,34 @@
-import 'dotenv/config'
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import scenarioRoutes from './routes/scenarios'
-import countryRoutes from './routes/countries'
-import testSessionRoutes from './routes/testSessions'
-import userRoutes from './routes/users'
-import progressRoutes from './routes/progress'
-import authRoutes from './routes/auth'
-import userCountryAccessRoutes from './routes/userCountryAccess'
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import scenarioRoutes from "./routes/scenarios";
+import countryRoutes from "./routes/countries";
+import testSessionRoutes from "./routes/testSessions";
+import userRoutes from "./routes/users";
+import progressRoutes from "./routes/progress";
+import authRoutes from "./routes/auth";
+import userCountryAccessRoutes from "./routes/userCountryAccess";
 
-const app = express()
-const PORT = process.env.PORT ?? 3001
+const app = express();
+const PORT = process.env.PORT ?? 3001;
 
-app.use(helmet())
-app.use(cors())
-app.use(express.json())
+app.use(helmet());
+app.use(cors());
+app.use(express.json());
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' })
-})
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
 
-app.use('/api/auth', authRoutes)
-app.use('/api/countries', countryRoutes)
-app.use('/api/scenarios', scenarioRoutes)
-app.use('/api/test-sessions', testSessionRoutes)
-app.use('/api/users', userRoutes)
-app.use('/api/progress', progressRoutes)
-app.use('/api/user-country-access', userCountryAccessRoutes)
+app.use("/api/auth", authRoutes);
+app.use("/api/countries", countryRoutes);
+app.use("/api/scenarios", scenarioRoutes);
+app.use("/api/test-sessions", testSessionRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/progress", progressRoutes);
+app.use("/api/user-country-access", userCountryAccessRoutes);
 
 app.listen(PORT, () => {
-  console.log(`API running on http://localhost:${PORT}`)
-})
+  console.log(`API running on http://localhost:${PORT}`);
+});

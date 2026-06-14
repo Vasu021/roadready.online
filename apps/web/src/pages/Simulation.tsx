@@ -1,29 +1,29 @@
-import { useEffect } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { useGameStore } from '../store/gameStore'
-import SimulationScene from '../simulation/scene'
-import ScenarioHUD from '../components/ScenarioHUD'
-import ResultsScreen from '../components/ResultsScreen'
-import ChallengeOverlay from '../components/ChallengeOverlay'
-import { getScenario } from '../simulation/scenarios'
+import { useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useGameStore } from "../store/gameStore";
+import SimulationScene from "../simulation/scene";
+import ScenarioHUD from "../components/ScenarioHUD";
+import ResultsScreen from "../components/ResultsScreen";
+import ChallengeOverlay from "../components/ChallengeOverlay";
+import { getScenario } from "../simulation/scenarios";
 
 export default function Simulation() {
-  const { scenarioId } = useParams<{ scenarioId: string }>()
-  const carState = useGameStore((s) => s.carState)
-  const isPaused = useGameStore((s) => s.isPaused)
-  const setPaused = useGameStore((s) => s.setPaused)
-  const startScenario = useGameStore((s) => s.startScenario)
-  const setDriveMode = useGameStore((s) => s.setDriveMode)
+  const { scenarioId } = useParams<{ scenarioId: string }>();
+  const carState = useGameStore((s) => s.carState);
+  const isPaused = useGameStore((s) => s.isPaused);
+  const setPaused = useGameStore((s) => s.setPaused);
+  const startScenario = useGameStore((s) => s.startScenario);
+  const setDriveMode = useGameStore((s) => s.setDriveMode);
 
   // Load scenario config + drive mode into the store once on mount
   useEffect(() => {
-    if (!scenarioId) return
-    const def = getScenario(scenarioId)
+    if (!scenarioId) return;
+    const def = getScenario(scenarioId);
     if (def) {
-      startScenario(def.config)
-      setDriveMode(def.driveMode ?? 'manual')
+      startScenario(def.config);
+      setDriveMode(def.driveMode ?? "manual");
     }
-  }, [scenarioId, startScenario, setDriveMode])
+  }, [scenarioId, startScenario, setDriveMode]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-900">
@@ -50,7 +50,7 @@ export default function Simulation() {
           onClick={() => setPaused(!isPaused)}
           className="rounded bg-black/50 px-3 py-1.5 text-sm font-medium text-white backdrop-blur transition hover:bg-black/70"
         >
-          {isPaused ? 'Resume' : 'Pause'}
+          {isPaused ? "Resume" : "Pause"}
         </button>
       </div>
 
@@ -73,5 +73,5 @@ export default function Simulation() {
         <p>R &nbsp; Reset</p>
       </div>
     </div>
-  )
+  );
 }

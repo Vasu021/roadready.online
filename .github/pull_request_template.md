@@ -22,8 +22,6 @@ Please check one: use [x]
 
 Describe how you tested your changes.
 
-
-
 ## Checklist
 
 - [ ] My code follows the project style

@@ -1,9 +1,9 @@
 ---
 name: Bug report
 about: Something isn't working correctly in RoadReady
-title: '[Bug] '
+title: "[Bug] "
 labels: bug
-assignees: ''
+assignees: ""
 ---
 
 ## What happened?
@@ -41,18 +41,19 @@ assignees: ''
 - [ ] Other: <!-- describe -->
 
 **Country and scenario (if simulation-related):**
+
 <!-- e.g. Germany → roundabout, France → fr-speed-limits, or N/A -->
 
 ---
 
 ## Environment
 
-| Field | Value |
-|-------|-------|
-| Browser + version | <!-- Chrome 124 / Firefox 126 / Safari 17 --> |
-| OS | <!-- macOS 14 / Windows 11 / Ubuntu 22.04 --> |
-| Node.js (`node -v`) | <!-- e.g. v20.11.0 --> |
-| Running locally or production | <!-- local / https://roadready.online --> |
+| Field                         | Value                                         |
+| ----------------------------- | --------------------------------------------- |
+| Browser + version             | <!-- Chrome 124 / Firefox 126 / Safari 17 --> |
+| OS                            | <!-- macOS 14 / Windows 11 / Ubuntu 22.04 --> |
+| Node.js (`node -v`)           | <!-- e.g. v20.11.0 -->                        |
+| Running locally or production | <!-- local / https://roadready.online -->     |
 
 ---
 

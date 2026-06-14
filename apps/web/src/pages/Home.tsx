@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { api } from '../utils/api'
-import type { CountryRow, CountryScenariosResponse, ScenarioRow } from '../utils/api'
-import { useUserStore } from '../store/userStore'
-import type { ProgressStatus } from '../store/userStore'
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../utils/api";
+import type {
+  CountryRow,
+  CountryScenariosResponse,
+  ScenarioRow,
+} from "../utils/api";
+import { useUserStore } from "../store/userStore";
+import type { ProgressStatus } from "../store/userStore";
 
 // ── State A: Landing Page (logged out) ────────────────────────────────────────
 
 function LandingPage() {
-  const setShowAuthModal = useUserStore((s) => s.setShowAuthModal)
+  const setShowAuthModal = useUserStore((s) => s.setShowAuthModal);
 
   return (
     <div className="flex min-h-full flex-col bg-gray-950 text-white">
@@ -16,13 +20,13 @@ function LandingPage() {
         <span className="text-xl font-bold tracking-tight">RoadReady</span>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => setShowAuthModal(true, 'login')}
+            onClick={() => setShowAuthModal(true, "login")}
             className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800"
           >
             Sign In
           </button>
           <button
-            onClick={() => setShowAuthModal(true, 'register')}
+            onClick={() => setShowAuthModal(true, "register")}
             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
           >
             Get Started — It's Free
@@ -37,18 +41,18 @@ function LandingPage() {
             Learn Traffic Rules. Pass Your Test.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-gray-400">
-            Practice country-specific driving rules through interactive 3D simulations.
-            No downloads. No instructor needed.
+            Practice country-specific driving rules through interactive 3D
+            simulations. No downloads. No instructor needed.
           </p>
           <div className="mt-8 flex gap-4">
             <button
-              onClick={() => setShowAuthModal(true, 'register')}
+              onClick={() => setShowAuthModal(true, "register")}
               className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500"
             >
               Get Started — It's Free
             </button>
             <button
-              onClick={() => setShowAuthModal(true, 'login')}
+              onClick={() => setShowAuthModal(true, "login")}
               className="rounded-xl border border-gray-700 px-6 py-3 text-base text-gray-300 transition hover:bg-gray-800"
             >
               Sign In
@@ -60,9 +64,21 @@ function LandingPage() {
         <section className="bg-gray-900/40 px-8 py-16">
           <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
             {[
-              { icon: '🌍', title: 'Multiple Countries', desc: 'Germany, France, and more coming soon. Learn the rules for your country.' },
-              { icon: '🚗', title: '3D Simulations', desc: 'Drive through realistic city environments directly in your browser. No install required.' },
-              { icon: '📊', title: 'Track Progress', desc: 'See your scores and completion across every scenario and test.' },
+              {
+                icon: "🌍",
+                title: "Multiple Countries",
+                desc: "Germany, France, and more coming soon. Learn the rules for your country.",
+              },
+              {
+                icon: "🚗",
+                title: "3D Simulations",
+                desc: "Drive through realistic city environments directly in your browser. No install required.",
+              },
+              {
+                icon: "📊",
+                title: "Track Progress",
+                desc: "See your scores and completion across every scenario and test.",
+              },
             ].map((f) => (
               <div
                 key={f.title}
@@ -79,14 +95,31 @@ function LandingPage() {
         {/* How it works */}
         <section className="px-8 py-16">
           <div className="mx-auto max-w-3xl">
-            <h2 className="mb-10 text-center text-2xl font-bold">How it works</h2>
+            <h2 className="mb-10 text-center text-2xl font-bold">
+              How it works
+            </h2>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {[
-                { step: '1', title: 'Choose your country', desc: 'Pick from Germany, France, and more.' },
-                { step: '2', title: 'Practice scenarios', desc: 'Drive through each scenario and answer MCQ questions.' },
-                { step: '3', title: 'Take the test', desc: 'Complete the full theory test and get your grade.' },
+                {
+                  step: "1",
+                  title: "Choose your country",
+                  desc: "Pick from Germany, France, and more.",
+                },
+                {
+                  step: "2",
+                  title: "Practice scenarios",
+                  desc: "Drive through each scenario and answer MCQ questions.",
+                },
+                {
+                  step: "3",
+                  title: "Take the test",
+                  desc: "Complete the full theory test and get your grade.",
+                },
               ].map((h) => (
-                <div key={h.step} className="flex flex-col items-center text-center">
+                <div
+                  key={h.step}
+                  className="flex flex-col items-center text-center"
+                >
                   <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-lg font-bold">
                     {h.step}
                   </div>
@@ -103,71 +136,77 @@ function LandingPage() {
         roadready.online — Built in Aachen 🇩🇪
       </footer>
     </div>
-  )
+  );
 }
 
 // ── State B: Country Selection (logged in, no country chosen) ─────────────────
 
 function CountrySelect() {
-  const user = useUserStore((s) => s.user)
-  const setSelectedCountry = useUserStore((s) => s.setSelectedCountry)
-  const setScenarioProgress = useUserStore((s) => s.setScenarioProgress)
-  const logout = useUserStore((s) => s.logout)
+  const user = useUserStore((s) => s.user);
+  const setSelectedCountry = useUserStore((s) => s.setSelectedCountry);
+  const setScenarioProgress = useUserStore((s) => s.setScenarioProgress);
+  const logout = useUserStore((s) => s.logout);
 
-  const [countries, setCountries] = useState<CountryRow[]>([])
+  const [countries, setCountries] = useState<CountryRow[]>([]);
   // Store the full country object so handleContinue never needs countries.find()
-  const [chosenCountry, setChosenCountry] = useState<CountryRow | null>(null)
-  const [facts, setFacts] = useState<string | null>(null)
-  const [loadingFacts, setLoadingFacts] = useState(false)
-  const [continuing, setContinuing] = useState(false)
-  const [continueError, setContinueError] = useState<string | null>(null)
+  const [chosenCountry, setChosenCountry] = useState<CountryRow | null>(null);
+  const [facts, setFacts] = useState<string | null>(null);
+  const [loadingFacts, setLoadingFacts] = useState(false);
+  const [continuing, setContinuing] = useState(false);
+  const [continueError, setContinueError] = useState<string | null>(null);
 
   useEffect(() => {
     api.countries
       .list()
       .then((list) => {
-        setCountries(list)
-        if (list.length > 0) setChosenCountry(list[0])
+        setCountries(list);
+        const germany = list.find((c) => c.code === "DE");
+        setChosenCountry(germany ?? list[0]);
       })
-      .catch(console.error)
-  }, [])
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
-    if (!chosenCountry) return
-    setLoadingFacts(true)
-    setFacts(null)
+    if (!chosenCountry) return;
+    setLoadingFacts(true);
+    setFacts(null);
     api.countries
       .facts(chosenCountry.code)
       .then((r) => setFacts(r.facts))
       .catch(() => setFacts(null))
-      .finally(() => setLoadingFacts(false))
-  }, [chosenCountry])
+      .finally(() => setLoadingFacts(false));
+  }, [chosenCountry]);
 
   async function handleContinue() {
-    if (!chosenCountry || !user) return
-    setContinuing(true)
-    setContinueError(null)
+    if (!chosenCountry || !user) return;
+    setContinuing(true);
+    setContinueError(null);
     try {
-      await api.userCountryAccess.record(chosenCountry.code)
+      await api.userCountryAccess.record(chosenCountry.code);
 
-      const progressRows = await api.scenarios.progress(user.id, chosenCountry.code)
-      const progressMap: Record<string, ProgressStatus> = {}
+      const progressRows = await api.scenarios.progress(
+        user.id,
+        chosenCountry.code,
+      );
+      const progressMap: Record<string, ProgressStatus> = {};
       for (const row of progressRows) {
-        progressMap[row.scenarioId] = row.status
+        progressMap[row.scenarioId] = row.status;
       }
-      setScenarioProgress(progressMap)
+      setScenarioProgress(progressMap);
       // setSelectedCountry MUST be last — it triggers the render switch to State C
       setSelectedCountry({
         id: chosenCountry.id,
         code: chosenCountry.code,
         name: chosenCountry.name,
         flagEmoji: chosenCountry.flagEmoji,
-      })
+      });
     } catch (err) {
-      console.error('Failed to continue:', err)
-      setContinueError('Something went wrong. Check the console and try again.')
+      console.error("Failed to continue:", err);
+      setContinueError(
+        "Something went wrong. Check the console and try again.",
+      );
     } finally {
-      setContinuing(false)
+      setContinuing(false);
     }
   }
 
@@ -188,17 +227,22 @@ function CountrySelect() {
 
       <main className="flex flex-1 flex-col items-center px-8 py-20">
         <div className="w-full max-w-lg">
-          <h1 className="mb-8 text-center text-3xl font-bold">Where are you learning to drive?</h1>
+          <h1 className="mb-8 text-center text-3xl font-bold">
+            Where are you learning to drive?
+          </h1>
 
-          <label className="mb-1 block text-sm font-medium text-gray-400" htmlFor="country-select">
+          <label
+            className="mb-1 block text-sm font-medium text-gray-400"
+            htmlFor="country-select"
+          >
             Select a country
           </label>
           <select
             id="country-select"
-            value={chosenCountry?.code ?? ''}
+            value={chosenCountry?.code ?? ""}
             onChange={(e) => {
-              const found = countries.find((c) => c.code === e.target.value)
-              if (found) setChosenCountry(found)
+              const found = countries.find((c) => c.code === e.target.value);
+              if (found) setChosenCountry(found);
             }}
             className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-base text-white focus:border-blue-500 focus:outline-none"
           >
@@ -221,7 +265,9 @@ function CountrySelect() {
                 dangerouslySetInnerHTML={{ __html: facts }}
               />
             ) : (
-              <p className="text-sm text-gray-500">No information available for this country.</p>
+              <p className="text-sm text-gray-500">
+                No information available for this country.
+              </p>
             )}
           </div>
 
@@ -234,48 +280,48 @@ function CountrySelect() {
             disabled={!chosenCountry || continuing}
             className="mt-4 w-full rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {continuing ? 'Loading...' : 'Continue →'}
+            {continuing ? "Loading..." : "Continue →"}
           </button>
         </div>
       </main>
     </div>
-  )
+  );
 }
 
 // ── State C: Scenario List (logged in, country selected) ─────────────────────
 
 function ScenarioList() {
-  const user = useUserStore((s) => s.user)
-  const selectedCountry = useUserStore((s) => s.selectedCountry)
-  const setSelectedCountry = useUserStore((s) => s.setSelectedCountry)
-  const isPremium = useUserStore((s) => s.isPremium)
-  const setIsPremium = useUserStore((s) => s.setIsPremium)
-  const scenarioProgress = useUserStore((s) => s.scenarioProgress)
-  const logout = useUserStore((s) => s.logout)
+  const user = useUserStore((s) => s.user);
+  const selectedCountry = useUserStore((s) => s.selectedCountry);
+  const setSelectedCountry = useUserStore((s) => s.setSelectedCountry);
+  const isPremium = useUserStore((s) => s.isPremium);
+  const setIsPremium = useUserStore((s) => s.setIsPremium);
+  const scenarioProgress = useUserStore((s) => s.scenarioProgress);
+  const logout = useUserStore((s) => s.logout);
 
-  const [data, setData] = useState<CountryScenariosResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [data, setData] = useState<CountryScenariosResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!selectedCountry) return
-    setLoading(true)
+    if (!selectedCountry) return;
+    setLoading(true);
     api.countries
       .scenarios(selectedCountry.code)
       .then(setData)
       .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [selectedCountry])
+      .finally(() => setLoading(false));
+  }, [selectedCountry]);
 
   function isUnlocked(scenario: ScenarioRow): boolean {
-    if (isPremium) return true
-    return scenario.order <= 3
+    if (isPremium) return true;
+    return scenario.order <= 3;
   }
 
   function isCompleted(scenario: ScenarioRow): boolean {
-    return scenarioProgress[scenario.id] === 'COMPLETED'
+    return scenarioProgress[scenario.id] === "COMPLETED";
   }
 
-  const isDev = import.meta.env.DEV
+  const isDev = import.meta.env.DEV;
 
   return (
     <div className="flex min-h-full flex-col bg-gray-950 text-white">
@@ -288,7 +334,10 @@ function ScenarioList() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Link to="/dashboard" className="text-sm text-gray-400 transition hover:text-white">
+          <Link
+            to="/dashboard"
+            className="text-sm text-gray-400 transition hover:text-white"
+          >
             My Progress →
           </Link>
           {isDev && (
@@ -296,11 +345,11 @@ function ScenarioList() {
               onClick={() => setIsPremium(!isPremium)}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
                 isPremium
-                  ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               }`}
             >
-              {isPremium ? '⭐ Premium ON' : '⭐ Premium OFF'}
+              {isPremium ? "⭐ Premium ON" : "⭐ Premium OFF"}
             </button>
           )}
           <span className="text-sm text-gray-400">{user?.email}</span>
@@ -329,8 +378,9 @@ function ScenarioList() {
 
           {!isPremium && (
             <div className="mb-6 rounded-xl border border-amber-800/50 bg-amber-900/20 px-5 py-3 text-sm text-amber-300">
-              Free plan — first 3 scenarios unlocked.{' '}
-              <span className="font-semibold">Upgrade to Premium</span> to access all scenarios.
+              Free plan — first 3 scenarios unlocked.{" "}
+              <span className="font-semibold">Upgrade to Premium</span> to
+              access all scenarios.
             </div>
           )}
 
@@ -341,10 +391,14 @@ function ScenarioList() {
           ) : data ? (
             <div className="space-y-8">
               {data.categories.map((cat) => {
-                const practiceScenarios = cat.scenarios.filter((s) => s.type === 'PRACTICE')
-                const testScenarios = cat.scenarios.filter((s) => s.type === 'TEST')
+                const practiceScenarios = cat.scenarios.filter(
+                  (s) => s.type === "PRACTICE",
+                );
+                const testScenarios = cat.scenarios.filter(
+                  (s) => s.type === "TEST",
+                );
 
-                if (cat.scenarios.length === 0) return null
+                if (cat.scenarios.length === 0) return null;
 
                 return (
                   <section key={cat.id}>
@@ -370,16 +424,18 @@ function ScenarioList() {
                       ))}
                     </ul>
                   </section>
-                )
+                );
               })}
             </div>
           ) : (
-            <p className="text-center text-gray-500">Failed to load scenarios.</p>
+            <p className="text-center text-gray-500">
+              Failed to load scenarios.
+            </p>
           )}
         </div>
       </main>
     </div>
-  )
+  );
 }
 
 function ScenarioCard({
@@ -387,9 +443,9 @@ function ScenarioCard({
   unlocked,
   completed,
 }: {
-  scenario: ScenarioRow
-  unlocked: boolean
-  completed: boolean
+  scenario: ScenarioRow;
+  unlocked: boolean;
+  completed: boolean;
 }) {
   if (!unlocked) {
     return (
@@ -402,11 +458,13 @@ function ScenarioCard({
                 🔒 Premium
               </span>
             </div>
-            <p className="mt-0.5 text-sm text-gray-500">{scenario.description}</p>
+            <p className="mt-0.5 text-sm text-gray-500">
+              {scenario.description}
+            </p>
           </div>
         </div>
       </li>
-    )
+    );
   }
 
   return (
@@ -427,7 +485,7 @@ function ScenarioCard({
         </span>
       </Link>
     </li>
-  )
+  );
 }
 
 function TestCard({
@@ -435,9 +493,9 @@ function TestCard({
   unlocked,
   completed,
 }: {
-  scenario: ScenarioRow
-  unlocked: boolean
-  completed: boolean
+  scenario: ScenarioRow;
+  unlocked: boolean;
+  completed: boolean;
 }) {
   if (!unlocked) {
     return (
@@ -450,11 +508,13 @@ function TestCard({
                 🔒 Premium
               </span>
             </div>
-            <p className="mt-0.5 text-sm text-gray-500">{scenario.description}</p>
+            <p className="mt-0.5 text-sm text-gray-500">
+              {scenario.description}
+            </p>
           </div>
         </div>
       </li>
-    )
+    );
   }
 
   return (
@@ -465,26 +525,30 @@ function TestCard({
       >
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-amber-300">{scenario.name}</span>
+            <span className="font-semibold text-amber-300">
+              {scenario.name}
+            </span>
             {completed && <span className="text-emerald-400">✅</span>}
           </div>
-          <p className="mt-0.5 text-sm text-amber-200/60">{scenario.description}</p>
+          <p className="mt-0.5 text-sm text-amber-200/60">
+            {scenario.description}
+          </p>
         </div>
         <span className="ml-4 shrink-0 rounded-lg bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-400">
           Take Test →
         </span>
       </Link>
     </li>
-  )
+  );
 }
 
 // ── Root component — picks which state to render ──────────────────────────────
 
 export default function Home() {
-  const user = useUserStore((s) => s.user)
-  const selectedCountry = useUserStore((s) => s.selectedCountry)
+  const user = useUserStore((s) => s.user);
+  const selectedCountry = useUserStore((s) => s.selectedCountry);
 
-  if (!user) return <LandingPage />
-  if (!selectedCountry) return <CountrySelect />
-  return <ScenarioList />
+  if (!user) return <LandingPage />;
+  if (!selectedCountry) return <CountrySelect />;
+  return <ScenarioList />;
 }
