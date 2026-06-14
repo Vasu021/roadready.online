@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import AuthModal from "./components/AuthModal";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { getStoredToken } from "./utils/api";
 import { useUserStore } from "./store/userStore";
 
@@ -44,8 +45,22 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/simulation/:scenarioId" element={<Simulation />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/simulation/:scenarioId"
+            element={
+              <ProtectedRoute>
+                <Simulation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Suspense>
       {showAuthModal && <AuthModal />}
