@@ -19,9 +19,18 @@
 
 - **3 migrations applied:** `init_tables`, `redesign_core_schema`, `add_country_facts`
 - **12-table schema:** Country (+ facts), ScenarioCategory, Scenario, Question, Option, User, UserCountryAccess, UserScenarioProgress, UserProgress (legacy), ScenarioAttempt, TestSession, TestSessionAnswer
-- **Seeded data:** Germany 🇩🇪 + France 🇫🇷 — each with facts HTML, 3 categories (Basic Skills / Traffic Rules / Road Signs), 9 PRACTICE + 1 TEST scenario, 4-option MCQ per scenario
+- **Seeded data:** Germany 🇩🇪 — 6 categories, 28 PRACTICE + 1 TEST scenario, multi-MCQ banks (see "Germany Content Expansion" below). France 🇫🇷 — facts HTML, 3 categories, 9 PRACTICE + 1 TEST scenario, one 4-option MCQ per scenario
 - `npm run db:seed` in `apps/api/package.json`; seed uses upsert — safe to re-run
 - `.env.example` committed (no real secrets)
+
+### Germany Content Expansion (PROMPT.md — Step 1) ✅
+
+- **Seed now supports MANY MCQs per scenario:** `ScenarioSeed.question` → `questions: [...]`; ids `q-${id}-${qIdx}` / `opt-${id}-${qIdx}-${i}`. Loop deletes a scenario's questions then recreates them so the seed is authoritative; `upsert.update` re-points category/order/name on re-run. Idempotent (verified by double run).
+- **6 Germany categories:** Basic Skills, Right of Way & Priority, Traffic Lights & Signals, Road Signs, Vulnerable Road Users, Special Situations & Highway. Old `cat-de-traffic` removed; existing scenarios re-pointed/re-ordered.
+- **28 PRACTICE + 1 TEST Germany scenarios seeded** (19 new + 10 existing re-categorized), 3–4 StVO-accurate MCQs each (~107 active DE questions total = future full-test maxScore). `full-test-germany` intentionally has 0 own questions (aggregates). New slugs: mirror-signal-maneuver, speed-stopping-distance, parking-rules-de, give-way-sign, stop-sign, turning-left-oncoming, green-arrow, signals-override, prohibition-signs, mandatory-signs, speed-limit-tempo30, warning-signs, cyclist-blind-spot, tram-priority, school-zone, bus-stop, zipper-merge, railway-crossing, adverse-conditions.
+- **France untouched** (each scenario's single question wrapped in a `questions: []` array; still works).
+- Verified: `GET /api/scenarios/:slug/questions` returns 3–4 questions × 4 shuffled options with `isCorrect` hidden; `apps/api` `tsc --noEmit` clean.
+- **Not yet done (later steps):** frontend simulation modules for the new slugs (Steps 6–7), per-scenario Practice/Test UI (Steps 2–3). Until registered in `apps/web/src/simulation/scenarios/index.ts`, new slugs will show as not-yet-playable in the UI.
 
 ### Backend — Express API (all routes live)
 
@@ -135,6 +144,8 @@ The product vision: car drives itself, pauses at a key moment, a **transparent d
 - [ ] Explanation panel shown above road scene for 2–3 s after correct MCQ answer, then simulation resumes
 
 ### More Germany Scenario Simulation Modules
+
+> **Note:** All Germany scenarios + their MCQ banks are now seeded in the DB (PROMPT.md Step 1 ✅). What remains here is the **frontend 3D simulation module** (waypoints + decision points + scene props) per slug — PROMPT.md Steps 6–7. A scenario only becomes playable once registered in `apps/web/src/simulation/scenarios/index.ts`.
 
 Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and any new road/scene components.
 
