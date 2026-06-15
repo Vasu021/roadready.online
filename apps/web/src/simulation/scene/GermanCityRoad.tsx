@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import * as THREE from "three";
 
 // ─── Road geometry constants ───────────────────────────────────────────────────
 const ROAD_Y = 0.002;
@@ -6,6 +7,7 @@ const MARK_Y = 0.004;
 const ASPHALT = "#1c1c1c";
 const WHITE = "#f0f0f0";
 const YELLOW = "#f5c842";
+const BIKE_RED = "#8a3b2e";
 
 // Road 1 runs south (−Z): car enters from z=45, exits at z=−9
 const R1_Z_START = 45;
@@ -188,6 +190,111 @@ function StopLine({
   );
 }
 
+/** Red-tinted bike lane (Radweg) strip with a white boundary line. */
+function BikeLane({
+  x,
+  zStart,
+  zEnd,
+  width,
+}: {
+  x: number;
+  zStart: number;
+  zEnd: number;
+  width: number;
+}) {
+  const len = Math.abs(zStart - zEnd);
+  const cz = (zStart + zEnd) / 2;
+  return (
+    <group>
+      <mesh position={[x, MARK_Y, cz]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[width, len]} />
+        <meshStandardMaterial color={BIKE_RED} roughness={0.92} />
+      </mesh>
+      {/* White boundary line on the road-centre side of the lane */}
+      <mesh
+        position={[x - Math.sign(x) * (width / 2), MARK_Y + 0.001, cz]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <planeGeometry args={[0.12, len]} />
+        <meshBasicMaterial color={WHITE} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Give-way "shark teeth" (Haifischzähne) — a row of triangles pointing +X. */
+function SharkTeeth({
+  cx,
+  zStart,
+  zEnd,
+  count,
+}: {
+  cx: number;
+  zStart: number;
+  zEnd: number;
+  count: number;
+}) {
+  const shape = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(0, -0.32);
+    s.lineTo(0, 0.32);
+    s.lineTo(0.7, 0);
+    s.closePath();
+    return s;
+  }, []);
+  const zs = useMemo(
+    () =>
+      Array.from(
+        { length: count },
+        (_, i) => zStart + ((zEnd - zStart) * i) / (count - 1),
+      ),
+    [zStart, zEnd, count],
+  );
+  return (
+    <>
+      {zs.map((z, i) => (
+        <mesh
+          key={i}
+          position={[cx, MARK_Y, z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <shapeGeometry args={[shape]} />
+          <meshBasicMaterial color={WHITE} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/** Parking-bay divider ticks (perpendicular to the kerb). */
+function ParkingBay({
+  z,
+  xStart,
+  xEnd,
+  length,
+}: {
+  z: number;
+  xStart: number;
+  xEnd: number;
+  length: number;
+}) {
+  const xs = useMemo(() => {
+    const out: number[] = [];
+    for (let x = xStart; x >= xEnd; x -= 2.5) out.push(x);
+    return out;
+  }, [xStart, xEnd]);
+  return (
+    <>
+      {xs.map((x, i) => (
+        <mesh key={i} position={[x, MARK_Y, z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.12, length]} />
+          <meshBasicMaterial color={WHITE} />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function GermanCityRoad() {
@@ -288,6 +395,16 @@ export default function GermanCityRoad() {
         <boxGeometry args={[R2_LENGTH, 0.12, 0.3]} />
         <meshStandardMaterial color="#888" roughness={0.95} />
       </mesh>
+
+      {/* ── German road details (additive) ─────────────────────────────── */}
+      {/* Bike lane along Road 1's right-of-travel kerb (−X), north of junction */}
+      <BikeLane x={-2.85} zStart={44} zEnd={2} width={1.0} />
+
+      {/* Give-way shark teeth on Road 2 approaching the junction from the west */}
+      <SharkTeeth cx={-12} zStart={-8} zEnd={-2} count={6} />
+
+      {/* Parking bay dividers along Road 2's south kerb */}
+      <ParkingBay z={-2.6} xStart={-22} xEnd={-40} length={1.6} />
     </group>
   );
 }
