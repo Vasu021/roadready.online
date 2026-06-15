@@ -113,6 +113,26 @@ export interface ScenarioProgressRow {
   status: ProgressStatus;
 }
 
+export interface QuestionOption {
+  id: string;
+  optionText: string;
+  order: number;
+}
+
+/** From GET /api/scenarios/:slug/questions — `isCorrect` hidden (graded test). */
+export interface ScenarioQuestion {
+  id: string;
+  questionText: string;
+  order: number;
+  options: QuestionOption[];
+}
+
+/** From GET /api/scenarios/:slug/questions/answers — includes the answer key. */
+export interface ScenarioQuestionWithAnswer extends ScenarioQuestion {
+  explanation: string;
+  correctOptionId: string | null;
+}
+
 export const api = {
   auth: {
     register: (payload: AuthPayload) =>
@@ -138,6 +158,14 @@ export const api = {
     progress: (userId: string, countryCode: string) =>
       request<ScenarioProgressRow[]>(
         `/api/scenarios/progress/${userId}/${countryCode}`,
+      ),
+    // Options shuffled, `isCorrect` hidden — for the graded Full Test.
+    getQuestions: (slug: string) =>
+      request<ScenarioQuestion[]>(`/api/scenarios/${slug}/questions`),
+    // Includes correctOptionId + explanation — for per-scenario practice/test.
+    getQuestionsWithAnswers: (slug: string) =>
+      request<ScenarioQuestionWithAnswer[]>(
+        `/api/scenarios/${slug}/questions/answers`,
       ),
   },
   userCountryAccess: {
