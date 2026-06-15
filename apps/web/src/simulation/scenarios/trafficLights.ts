@@ -16,15 +16,16 @@ export const WAYPOINTS: Waypoint[] = [
   { x: 0, z: -60, speed: 8 }, // drive on after light turns green
 ];
 
-// ── Challenge points ──────────────────────────────────────────────────────────
+// ── Decision points ───────────────────────────────────────────────────────────
+// Practice → teaching panel; Test → all of this scenario's seeded MCQs.
 export const CHALLENGES: ChallengePoint[] = [
   {
     id: "red-light-stop",
     triggerZ: -12,
     prompt: "The traffic light is RED!",
-    instruction: "Press SPACE to brake and stop at the line",
-    correctKey: "Space",
-    correctKeyLabel: "SPACE",
+    teaching:
+      "The traffic light is red. Stop at the stop line and wait — do not enter the junction. When it turns green, check that pedestrians and cyclists are clear before you move off.",
+    // No questionOrders → ask every question seeded for traffic-lights.
   },
 ];
 

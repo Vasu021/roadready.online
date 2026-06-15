@@ -45,6 +45,22 @@ State, routing, scenario-list buttons and the questions data hook for the two at
 - `tsc --noEmit` clean in both apps; Prettier applied.
 - **Not yet done (Step 3):** `MCQOverlay` + `TeachingOverlay` components, `CarController` brake-while-overlay + practice-vs-test trigger, per-scenario results screen, migrating `basicControls`/`trafficLights` decision points.
 
+### Overlays + Autopilot Integration (PROMPT.md — Step 3) ✅
+
+The two on-screen experiences and the autopilot wiring. Practice and Test are now visibly different and a scenario plays end-to-end with MCQs.
+
+- **`MCQOverlay.tsx`** (new) — transparent/frosted (`bg-slate-950/75 backdrop-blur-md`), **draggable** via a header bar (pointer events + capture, clamped to the viewport) so the user can move it aside to see the road. Renders the question + lettered A/B/C/D options, highlights the selection, **Confirm** submits, then shows ✅/❌ + explanation and a **Next Question →** / **Continue →** button. Per-scenario test is SCORED, never instant-fail — a wrong answer shows the correct option + explanation and continues.
+- **`TeachingOverlay.tsx`** (new) — PRACTICE panel: situation (`prompt`) + rule (`teaching`) + one **Continue →** that completes the objective and lets the car perform the correct action automatically. No keyboard needed.
+- **`ScenarioTestResults.tsx`** (new) — shown instead of `ResultsScreen` when `attemptMode === 'test'`. Scores the MCQs answered across all the scenario's decision points (`mcqCorrect/mcqAsked`, pass ≥ 60%), shows a per-question recap (your answer / correct answer / explanation), Retry + Back, and saves once via `POST /api/progress`.
+- **Decision-point model.** `ChallengePoint` (`types.ts`) now carries `teaching: string` + `questionOrders?: number[]`; the legacy key-press fields (`instruction`/`correctKey`/`correctKeyLabel`) are optional and unused by the new flow.
+- **`TriggerWatcher.tsx`** (new, in `scenarios/`) — invisible R3F watcher that, on first crossing of a decision's `triggerZ`/`triggerX`, opens the right overlay: practice → `triggerTeaching`, test → `startMcqSequence` with the questions filtered by `questionOrders` (waits for the bank to load; falls back to teaching if a decision has no questions). One decision at a time.
+- **`CarController`** — trigger detection removed (now in `TriggerWatcher`); braking generalised to a single `pausedForInput` condition (legacy challenge **or** `activeTeaching` **or** `activeMcq`); `challenges` prop dropped.
+- **gameStore additions for Step 3:** `activeTeaching` + `triggerTeaching`/`resolveTeaching`; `mcqDecisionId`, `mcqAnswers` (recap), `finishMcq` (completes the decision's objective, keeps the score); `submitMcq` now records each answer; `startMcqSequence(decisionId, questions)` no longer resets the counters so the score accumulates across a scenario's decisions; a `runId` bumped on (re)start so the car snaps back to spawn and decisions re-arm on **Retry**.
+- **Objective completion** runs through `resolvedChallengeIds[id] = true` (via `resolveTeaching`/`finishMcq`), so the existing `TrafficLightSet` (red→green) and `ScenarioRunner` pass logic keep working unchanged.
+- **Migrated** `basicControls` (two decisions → MCQ orders `[1,2]` and `[3]`, plus teaching) and `trafficLights` (one decision → all questions, plus teaching) to the new model; both play in BOTH modes.
+- **`Simulation.tsx`** fetches the bank via `useScenarioQuestions`, passes it to `SimulationScene` → `TriggerWatcher`, mounts `MCQOverlay` + `TeachingOverlay` (+ dormant `ChallengeOverlay`), and picks `ScenarioTestResults` vs `ResultsScreen` by mode.
+- `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -141,22 +157,22 @@ State, routing, scenario-list buttons and the questions data hook for the two at
 
 The product vision: car drives itself, pauses at a key moment, a **transparent draggable popup** appears with an MCQ question (A/B/C/D). User can drag the popup aside to see the full road scene before answering. Correct → resume with brief explanation shown. Wrong → fail (Test mode) OR show correct answer + continue (Practice mode).
 
-> **Status:** the underlying state + data plumbing landed in PROMPT.md Step 2 ✅ (see Done above). What remains below — the overlay components, CarController integration and per-scenario results — is PROMPT.md Step 3.
+> **Status:** Steps 2 ✅ and 3 ✅ delivered this whole block (see Done above). Practice (teaching panel) and Test (scored MCQ popup) both play end-to-end on the registered scenarios. Wiring the remaining Germany scenarios into this system is Steps 6–7.
 
-- [ ] Design the `MCQOverlay.tsx` component
-  - [ ] Transparent/frosted panel — user can still see the 3D scene behind it
-  - [ ] Draggable: mouse down + move repositions the popup
-  - [ ] 4 option buttons (A/B/C/D); highlight selected before confirming
-  - [ ] "Confirm" button to submit (or auto-submit on click with no confirm)
-  - [ ] Show ✅ / ❌ state + explanation text after answer
-  - [ ] "Continue" button re-starts autopilot (resume simulation)
-- [x] Wire `gameStore` for MCQ state — Step 2 ✅ (shipped as `attemptMode`, `mcqQueue`, `activeMcq`, `mcqResult`, `mcqSelectedOptionId`, `mcqAsked`, `mcqCorrect` + actions; richer than the original `pausedForMCQ`/`activeMCQQuestion` sketch)
+- [x] Design the `MCQOverlay.tsx` component — Step 3 ✅
+  - [x] Transparent/frosted panel — user can still see the 3D scene behind it
+  - [x] Draggable: pointer down + move repositions the popup (viewport-clamped)
+  - [x] 4 option buttons (A/B/C/D); highlight selected before confirming
+  - [x] "Confirm" button to submit
+  - [x] Show ✅ / ❌ state + explanation text after answer
+  - [x] "Next/Continue" button advances the queue / resumes autopilot
+- [x] Wire `gameStore` for MCQ state — Step 2 ✅ (`attemptMode`, `mcqQueue`, `activeMcq`, `mcqResult`, `mcqSelectedOptionId`, `mcqAsked`, `mcqCorrect`) + Step 3 (`activeTeaching`, `mcqDecisionId`, `mcqAnswers`, `finishMcq`, `runId`)
 - [x] `useScenarioQuestions.ts` hook — Step 2 ✅ (fetches the auth-guarded `…/questions/answers` bank once per slug, caches in a ref, returns `McqQuestion[]`)
-- [ ] **Practice mode**: wrong answer → show correct option + explanation → Continue (car resumes)
-- [ ] **Test mode**: wrong answer → fail (current behavior stays)
-- [ ] Migrate `basicControls` challenges from key-press to MCQ format as proof of concept
-- [ ] `CarController`: when `pausedForMCQ`, apply braking impulse (same as current challenge pending logic)
-- [ ] Explanation panel shown above road scene for 2–3 s after correct MCQ answer, then simulation resumes
+- [x] **Practice mode** — Step 3 ✅: teaching panel explains the rule, Continue completes the objective and the car drives on
+- [x] **Test mode** — Step 3 ✅: SCORED (not instant-fail) — a wrong answer shows the correct option + explanation and continues; final X/N on `ScenarioTestResults`
+- [x] Migrate `basicControls` (and `trafficLights`) decision points to the teaching/MCQ model — Step 3 ✅
+- [x] `CarController`: brake while any decision overlay is open (`pausedForInput`) — Step 3 ✅
+- [x] Explanation shown after each answer (in the MCQ popup and the results recap) — Step 3 ✅
 
 ### More Germany Scenario Simulation Modules
 

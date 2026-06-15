@@ -5,7 +5,7 @@ import type { World, RigidBody } from "@dimforge/rapier3d-compat";
 import { useCarControls } from "./useCarControls";
 import { useCarPhysics, CAR_SPAWN } from "./useCarPhysics";
 import { useGameStore } from "../../store/gameStore";
-import type { Waypoint, ChallengePoint } from "../scenarios/types";
+import type { Waypoint } from "../scenarios/types";
 
 // ─── Physics tuning ───────────────────────────────────────────────────────────
 const ENGINE_FORCE = 12_000;
@@ -173,24 +173,19 @@ function CarMesh() {
 
 interface Props {
   waypoints?: Waypoint[];
-  challenges?: ChallengePoint[];
 }
 
-export default function CarController({
-  waypoints = [],
-  challenges = [],
-}: Props) {
+export default function CarController({ waypoints = [] }: Props) {
   const groupRef = useRef<THREE.Group>(null!);
   const controls = useCarControls();
   const { worldRef, bodyRef, readyRef } = useCarPhysics();
   const setCarState = useGameStore((s) => s.setCarState);
 
   const waypointIndexRef = useRef(0);
-  const triggeredRef = useRef(new Set<string>());
+  const runIdRef = useRef(useGameStore.getState().runId);
 
   useEffect(() => {
     waypointIndexRef.current = 0;
-    triggeredRef.current = new Set();
   }, [waypoints]);
 
   useFrame((_, delta) => {
@@ -201,6 +196,19 @@ export default function CarController({
     const store = useGameStore.getState();
 
     if (store.isPaused || store.scenarioPhase !== "running") return;
+
+    // ── New run (mount / Retry): snap the car back to spawn ────────────────────
+    if (runIdRef.current !== store.runId) {
+      runIdRef.current = store.runId;
+      body.setTranslation(
+        { x: CAR_SPAWN.x, y: CAR_SPAWN.y, z: CAR_SPAWN.z },
+        true,
+      );
+      body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+      waypointIndexRef.current = 0;
+    }
 
     const { forward, backward, left, right, handbrake, reset } =
       controls.current;
@@ -215,7 +223,6 @@ export default function CarController({
       body.setLinvel({ x: 0, y: 0, z: 0 }, true);
       body.setAngvel({ x: 0, y: 0, z: 0 }, true);
       waypointIndexRef.current = 0;
-      triggeredRef.current = new Set();
     }
 
     // ── Read physics state ────────────────────────────────────────────────────
@@ -236,9 +243,15 @@ export default function CarController({
     _impulse.copy(_right).multiplyScalar(gripImpulse);
     body.applyImpulse({ x: _impulse.x, y: 0, z: _impulse.z }, true);
 
-    // ── Challenge pending: brake car, wait for key ─────────────────────────────
-    const challenge = store.activeChallenge;
-    if (challenge?.result === "pending") {
+    // ── Paused for input: brake car while an overlay is open ───────────────────
+    // Any decision overlay (legacy key-press challenge, teaching panel, or MCQ
+    // popup) holds the car still. TriggerWatcher opens these; the car resumes
+    // once the store clears them.
+    const pausedForInput =
+      store.activeChallenge?.result === "pending" ||
+      store.activeTeaching !== null ||
+      store.activeMcq !== null;
+    if (pausedForInput) {
       if (forwardSpeed > 0.05) {
         _impulse.copy(_fwd).multiplyScalar(-BRAKE_FORCE * delta);
         body.applyImpulse({ x: _impulse.x, y: 0, z: _impulse.z }, true);
@@ -253,24 +266,6 @@ export default function CarController({
 
     if (isAuto) {
       const pos = body.translation();
-
-      // Check challenge triggers
-      for (const cp of challenges) {
-        if (triggeredRef.current.has(cp.id)) continue;
-        const fireZ = cp.triggerZ !== undefined && pos.z <= cp.triggerZ;
-        const fireX = cp.triggerX !== undefined && pos.x <= cp.triggerX;
-        if (fireZ || fireX) {
-          triggeredRef.current.add(cp.id);
-          store.triggerChallenge({
-            id: cp.id,
-            prompt: cp.prompt,
-            instruction: cp.instruction,
-            correctKey: cp.correctKey,
-            correctKeyLabel: cp.correctKeyLabel,
-          });
-          break;
-        }
-      }
 
       // Autopilot waypoint following
       const wp = waypoints[waypointIndexRef.current];
