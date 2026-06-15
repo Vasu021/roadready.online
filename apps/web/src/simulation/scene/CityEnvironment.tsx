@@ -1,10 +1,24 @@
 import { useMemo } from "react";
 import Tree from "./Tree";
 import Building from "./Building";
+import type { BuildingStyle } from "./Building";
+import RoadSign from "./RoadSign";
+import StreetLamp from "./StreetLamp";
+import Bench from "./Bench";
+import Bollard from "./Bollard";
+import BusStop from "./BusStop";
 
 function seededRand(seed: number) {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
   return x - Math.floor(x);
+}
+
+/** Deterministically pick a German facade style from a [0,1) value. */
+function pickStyle(r: number): BuildingStyle {
+  if (r < 0.45) return "altbau";
+  if (r < 0.7) return "shop";
+  if (r < 0.9) return "fachwerk";
+  return "modern";
 }
 
 // ─── Layout constants ──────────────────────────────────────────────────────────
@@ -186,6 +200,7 @@ function Road1Buildings() {
           height={b.cfg.h}
           color={b.cfg.color}
           roofColor={b.cfg.roof}
+          style={pickStyle(seededRand(b.x * 1.7 + b.z * 0.9))}
         />
       ))}
       {right.map((b, i) => (
@@ -197,6 +212,7 @@ function Road1Buildings() {
           height={b.cfg.h}
           color={b.cfg.color}
           roofColor={b.cfg.roof}
+          style={pickStyle(seededRand(b.x * 1.7 + b.z * 0.9))}
         />
       ))}
     </>
@@ -246,6 +262,7 @@ function Road2Buildings() {
           height={b.cfg.h}
           color={b.cfg.color}
           roofColor={b.cfg.roof}
+          style={pickStyle(seededRand(b.x * 1.7 + b.z * 0.9))}
         />
       ))}
       {south.map((b, i) => (
@@ -257,6 +274,7 @@ function Road2Buildings() {
           height={b.cfg.h}
           color={b.cfg.color}
           roofColor={b.cfg.roof}
+          style={pickStyle(seededRand(b.x * 1.7 + b.z * 0.9))}
         />
       ))}
     </>
@@ -309,6 +327,57 @@ function Sidewalks() {
   );
 }
 
+// ─── Street furniture + a demonstrative sign set ───────────────────────────────
+// Static props only (Step 4). Everything sits in the documented safe zones —
+// the turn arc (x∈[0,-14], z∈[-2,-6]) and building margins stay clear.
+// Step 6 will place signs/props declaratively per scenario.
+
+function StreetFurniture() {
+  return (
+    <group>
+      {/* Lamps — Road 1 right kerb (arm reaches the road) */}
+      {[36, 25, 14].map((z, i) => (
+        <StreetLamp key={`lr${i}`} position={[5.6, 0, z]} rotationY={Math.PI} />
+      ))}
+      {/* Lamps — Road 1 left kerb, north of the junction */}
+      {[36, 25, 14].map((z, i) => (
+        <StreetLamp key={`ll${i}`} position={[-5.6, 0, z]} rotationY={0} />
+      ))}
+      {/* Lamps — Road 2 south kerb (west of the junction) */}
+      {[-20, -34, -48].map((x, i) => (
+        <StreetLamp
+          key={`ls${i}`}
+          position={[x, 0, 1.4]}
+          rotationY={Math.PI / 2}
+        />
+      ))}
+
+      {/* Bench + bollards on Road 1 right sidewalk */}
+      <Bench position={[6.4, 0, 30.5]} rotationY={Math.PI} />
+      <Bollard position={[4.1, 0, 16]} />
+      <Bollard position={[4.1, 0, 13.5]} />
+
+      {/* Bus stop on Road 2 south sidewalk */}
+      <BusStop position={[-30, 0, 2.2]} rotationY={Math.PI} />
+
+      {/* Sign gallery on Road 1 right kerb, facing approaching (southbound) traffic */}
+      <RoadSign position={[6.4, 0, 33]} kind="give-way" />
+      <RoadSign position={[6.4, 0, 28]} kind="stop" />
+      <RoadSign position={[6.4, 0, 23]} kind="priority-road" />
+      <RoadSign position={[6.4, 0, 18]} kind="speed-limit" number={30} />
+      <RoadSign position={[6.4, 0, 13]} kind="roundabout" />
+      <RoadSign position={[6.4, 0, 8]} kind="pedestrian-crossing" />
+
+      {/* Pedestrian-crossing sign by the actual zebra (faces the westbound car) */}
+      <RoadSign
+        position={[-46.5, 0, -9.5]}
+        kind="pedestrian-crossing"
+        rotationY={Math.PI / 2}
+      />
+    </group>
+  );
+}
+
 export default function CityEnvironment() {
   return (
     <group>
@@ -317,6 +386,7 @@ export default function CityEnvironment() {
       <Road2Trees />
       <Road1Buildings />
       <Road2Buildings />
+      <StreetFurniture />
     </group>
   );
 }

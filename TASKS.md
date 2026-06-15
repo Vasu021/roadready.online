@@ -61,6 +61,21 @@ The two on-screen experiences and the autopilot wiring. Practice and Test are no
 - **`Simulation.tsx`** fetches the bank via `useScenarioQuestions`, passes it to `SimulationScene` → `TriggerWatcher`, mounts `MCQOverlay` + `TeachingOverlay` (+ dormant `ChallengeOverlay`), and picks `ScenarioTestResults` vs `ResultsScreen` by mode.
 - `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
 
+### German Environment (PROMPT.md — Step 4) ✅
+
+Made the world look German with **static props only** (moving NPCs are Step 5). Junction clearance + all `CityEnvironment` safety margins left intact (only the `Building` `style` prop and a furniture group were added — no placement loop or margin was changed).
+
+- **`Building.tsx` — style variants** via a new `style` prop (`'altbau' | 'fachwerk' | 'shop' | 'modern'`, default `modern` = the original flat box, so nothing changes unless opted in). Split into `ModernBuilding` + `GermanBuilding` so hooks stay unconditional.
+  - **altbau:** plastered pastel body, instanced **window grid** (computed per storey on all four faces), cornice trim, gabled tile roof (memoised `ExtrudeGeometry`, disposed on unmount).
+  - **fachwerk:** cream body + instanced dark **timber beams** (corner posts, per-storey rails, studs, X-braces) + steeper gable.
+  - **shop:** altbau body with a glazed ground-floor shopfront + awning (ground-floor windows skipped).
+  - Windows/beams use `InstancedMesh` (unit box + per-instance matrices built in `useMemo`) — no per-frame allocation.
+- **`CityEnvironment.tsx`** — assigns a style to every building deterministically (`pickStyle(seededRand(x,z))`: ~45% altbau / 25% shop / 20% fachwerk / 10% modern). Added a `StreetFurniture` group: street lamps along both streets, a bench, bollards, a bus stop, and a demonstrative **sign gallery** — all in documented safe zones.
+- **`GermanCityRoad.tsx`** (additive; existing coords / stop-line / zebra untouched): red **bike lane** (Radweg) on the right-of-travel kerb of Road 1 with a centre-side boundary line; give-way **shark teeth** (Haifischzähne) on the Road 2 approach; **parking-bay** divider ticks on the Road 2 south kerb.
+- **New procedural props (no assets):** `RoadSign.tsx` (canvas-textured faces — give-way, stop, priority-road, crossing/rechts-vor-links, pedestrian-crossing, speed-limit `number`, roundabout, no-entry, no-overtaking, autobahn, tram, children), `BusStop.tsx` (canvas "H" plate + glass shelter + bench), `StreetLamp.tsx`, `Bench.tsx`, `Bollard.tsx`.
+- Not wired per-scenario yet — Step 6 introduces the declarative per-scenario placement (`def.signs` / `def.npcs`). For now a small demonstrative set renders in the shared scene.
+- `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
