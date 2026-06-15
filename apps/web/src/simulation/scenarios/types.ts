@@ -19,8 +19,9 @@ export interface Waypoint {
 }
 
 /**
- * A moment in the autopilot path where the car pauses and the user
- * must press the correct key to demonstrate a traffic rule.
+ * A decision point along the autopilot path: the car pauses and either teaches
+ * the rule (practice) or asks its MCQ(s) (test). `id` MUST equal the matching
+ * objective id, or pass/fail breaks silently.
  */
 export interface ChallengePoint {
   id: string;
@@ -28,14 +29,22 @@ export interface ChallengePoint {
   triggerZ?: number;
   /** Fire when car.x <= this value (for roads running east-west, going west). */
   triggerX?: number;
-  /** Short situation description shown in the overlay. */
+  /** Short situation description shown in the overlay (the "what's happening"). */
   prompt: string;
+  /** PRACTICE-mode teaching: the rule explanation shown before the car proceeds. */
+  teaching: string;
+  /**
+   * Which DB question `order`s to ask in TEST mode at this decision point.
+   * Omit to ask every question seeded for the scenario.
+   */
+  questionOrders?: number[];
+  // ── Legacy key-press fields (optional — kept so old scenarios type-check) ──
   /** "Press SPACE to brake" etc. */
-  instruction: string;
+  instruction?: string;
   /** e.g. 'Space', 'ArrowLeft', 'KeyW' — matches KeyboardEvent.code */
-  correctKey: string;
+  correctKey?: string;
   /** Human-readable label shown on the key badge. */
-  correctKeyLabel: string;
+  correctKeyLabel?: string;
 }
 
 /** Full scenario definition — config + runtime logic. */

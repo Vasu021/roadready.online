@@ -30,6 +30,25 @@ export interface McqQuestion {
   explanation?: string;
 }
 
+/** A teaching panel shown at a decision point in PRACTICE mode. */
+export interface ActiveTeaching {
+  id: string; // matches the decision/objective id
+  prompt: string; // the situation
+  teaching: string; // the rule explanation
+}
+
+/** One answered MCQ, recorded for the per-scenario test recap. */
+export interface McqAnswerRecord {
+  questionId: string;
+  questionText: string;
+  selectedOptionId: string;
+  selectedOptionText: string;
+  correctOptionId?: string;
+  correctOptionText?: string;
+  isCorrect: boolean;
+  explanation?: string;
+}
+
 export interface ActiveChallenge {
   id: string;
   prompt: string;
@@ -46,6 +65,8 @@ interface GameStore {
   scenarioPhase: ScenarioPhase;
   objectives: Objective[];
   elapsedSeconds: number;
+  /** Bumped on each (re)start so the car resets to spawn and decisions re-arm. */
+  runId: number;
   // ── Car ───────────────────────────────────────────────────────────────────
   carState: CarState | null;
   isPaused: boolean;
@@ -55,13 +76,17 @@ interface GameStore {
   // ── Challenges (key-press, legacy) ─────────────────────────────────────────
   activeChallenge: ActiveChallenge | null;
   resolvedChallengeIds: Record<string, boolean>;
+  // ── Teaching panel (practice mode) ─────────────────────────────────────────
+  activeTeaching: ActiveTeaching | null;
   // ── MCQ sequence (test mode) ───────────────────────────────────────────────
-  mcqQueue: McqQuestion[]; // questions still to ask in this run
+  mcqQueue: McqQuestion[]; // questions still to ask for the current decision
   activeMcq: McqQuestion | null; // currently shown question
   mcqResult: McqResult;
   mcqSelectedOptionId: string | null;
-  mcqAsked: number; // running per-scenario score
+  mcqDecisionId: string | null; // objective the running MCQ sequence completes
+  mcqAsked: number; // running per-scenario score (accumulates across decisions)
   mcqCorrect: number;
+  mcqAnswers: McqAnswerRecord[]; // recap for the per-scenario test results
   // ── Actions ───────────────────────────────────────────────────────────────
   startScenario: (scenario: ScenarioConfig) => void;
   setScenarioPhase: (phase: ScenarioPhase) => void;
@@ -78,11 +103,15 @@ interface GameStore {
     wrongKeyLabel?: string,
   ) => void;
   clearChallenge: () => void;
-  // MCQ actions
-  startMcqSequence: (questions: McqQuestion[]) => void;
+  // Teaching (practice mode)
+  triggerTeaching: (t: ActiveTeaching) => void;
+  resolveTeaching: () => void;
+  // MCQ actions (test mode)
+  startMcqSequence: (decisionId: string, questions: McqQuestion[]) => void;
   selectMcqOption: (id: string) => void;
   submitMcq: () => void;
   advanceMcq: () => void;
+  finishMcq: () => void;
   resetMcq: () => void;
 }
 
@@ -91,36 +120,44 @@ export const useGameStore = create<GameStore>((set) => ({
   scenarioPhase: "idle",
   objectives: [],
   elapsedSeconds: 0,
+  runId: 0,
   carState: null,
   isPaused: false,
   driveMode: "manual",
   attemptMode: "practice",
   activeChallenge: null,
   resolvedChallengeIds: {},
+  activeTeaching: null,
   mcqQueue: [],
   activeMcq: null,
   mcqResult: null,
   mcqSelectedOptionId: null,
+  mcqDecisionId: null,
   mcqAsked: 0,
   mcqCorrect: 0,
+  mcqAnswers: [],
 
   startScenario: (scenario) =>
-    set({
+    set((s) => ({
       activeScenario: scenario,
       scenarioPhase: "running",
       objectives: scenario.objectives.map((o) => ({ ...o, completed: false })),
       elapsedSeconds: 0,
+      runId: s.runId + 1,
       activeChallenge: null,
       resolvedChallengeIds: {},
+      activeTeaching: null,
       // Reset the MCQ run, but NOT attemptMode — Simulation.tsx sets that from
       // the route query string, and the two calls must be order-independent.
       mcqQueue: [],
       activeMcq: null,
       mcqResult: null,
       mcqSelectedOptionId: null,
+      mcqDecisionId: null,
       mcqAsked: 0,
       mcqCorrect: 0,
-    }),
+      mcqAnswers: [],
+    })),
 
   setScenarioPhase: (scenarioPhase) => set({ scenarioPhase }),
 
@@ -160,17 +197,37 @@ export const useGameStore = create<GameStore>((set) => ({
 
   clearChallenge: () => set({ activeChallenge: null }),
 
-  // ── MCQ sequence ────────────────────────────────────────────────────────────
-  startMcqSequence: (questions) =>
+  // ── Teaching (practice mode) ─────────────────────────────────────────────────
+  triggerTeaching: (activeTeaching) => set({ activeTeaching }),
+
+  // Continue from a teaching panel: complete its objective and let the car resume.
+  resolveTeaching: () =>
+    set((s) => {
+      const id = s.activeTeaching?.id;
+      return {
+        activeTeaching: null,
+        resolvedChallengeIds: id
+          ? { ...s.resolvedChallengeIds, [id]: true }
+          : s.resolvedChallengeIds,
+        objectives: id
+          ? s.objectives.map((o) =>
+              o.id === id ? { ...o, completed: true } : o,
+            )
+          : s.objectives,
+      };
+    }),
+
+  // ── MCQ sequence (test mode) ─────────────────────────────────────────────────
+  // Counters/recap accumulate across decisions and reset only on (re)start.
+  startMcqSequence: (decisionId, questions) =>
     set(() => {
       const [first, ...rest] = questions;
       return {
+        mcqDecisionId: decisionId,
         activeMcq: first ?? null,
         mcqQueue: rest,
         mcqResult: first ? "pending" : null,
         mcqSelectedOptionId: null,
-        mcqAsked: 0,
-        mcqCorrect: 0,
       };
     }),
 
@@ -179,17 +236,32 @@ export const useGameStore = create<GameStore>((set) => ({
 
   submitMcq: () =>
     set((s) => {
-      if (!s.activeMcq || s.mcqResult !== "pending" || !s.mcqSelectedOptionId) {
+      const q = s.activeMcq;
+      if (!q || s.mcqResult !== "pending" || !s.mcqSelectedOptionId) {
         return {};
       }
-      const isCorrect = s.mcqSelectedOptionId === s.activeMcq.correctOptionId;
+      const selected = q.options.find((o) => o.id === s.mcqSelectedOptionId);
+      const correct = q.options.find((o) => o.id === q.correctOptionId);
+      const isCorrect = s.mcqSelectedOptionId === q.correctOptionId;
+      const record: McqAnswerRecord = {
+        questionId: q.id,
+        questionText: q.questionText,
+        selectedOptionId: s.mcqSelectedOptionId,
+        selectedOptionText: selected?.text ?? "",
+        correctOptionId: q.correctOptionId,
+        correctOptionText: correct?.text,
+        isCorrect,
+        explanation: q.explanation,
+      };
       return {
         mcqResult: isCorrect ? "correct" : "wrong",
         mcqAsked: s.mcqAsked + 1,
         mcqCorrect: s.mcqCorrect + (isCorrect ? 1 : 0),
+        mcqAnswers: [...s.mcqAnswers, record],
       };
     }),
 
+  // Advance to the next question in the current decision's queue.
   advanceMcq: () =>
     set((s) => {
       const [next, ...rest] = s.mcqQueue;
@@ -208,28 +280,56 @@ export const useGameStore = create<GameStore>((set) => ({
           };
     }),
 
+  // Finish the current decision's MCQ run: complete its objective and let the
+  // car resume. Keeps mcqAsked/mcqCorrect/mcqAnswers for the results recap.
+  finishMcq: () =>
+    set((s) => {
+      const id = s.mcqDecisionId;
+      return {
+        activeMcq: null,
+        mcqQueue: [],
+        mcqResult: null,
+        mcqSelectedOptionId: null,
+        mcqDecisionId: null,
+        resolvedChallengeIds: id
+          ? { ...s.resolvedChallengeIds, [id]: true }
+          : s.resolvedChallengeIds,
+        objectives: id
+          ? s.objectives.map((o) =>
+              o.id === id ? { ...o, completed: true } : o,
+            )
+          : s.objectives,
+      };
+    }),
+
   resetMcq: () =>
     set({
       mcqQueue: [],
       activeMcq: null,
       mcqResult: null,
       mcqSelectedOptionId: null,
+      mcqDecisionId: null,
       mcqAsked: 0,
       mcqCorrect: 0,
+      mcqAnswers: [],
     }),
 
   resetScenario: () =>
     set((s) => ({
       scenarioPhase: "running",
       elapsedSeconds: 0,
+      runId: s.runId + 1,
       activeChallenge: null,
       resolvedChallengeIds: {},
+      activeTeaching: null,
       mcqQueue: [],
       activeMcq: null,
       mcqResult: null,
       mcqSelectedOptionId: null,
+      mcqDecisionId: null,
       mcqAsked: 0,
       mcqCorrect: 0,
+      mcqAnswers: [],
       objectives:
         s.activeScenario?.objectives.map((o) => ({
           ...o,

@@ -5,8 +5,12 @@ import type { AttemptMode } from "../store/gameStore";
 import SimulationScene from "../simulation/scene";
 import ScenarioHUD from "../components/ScenarioHUD";
 import ResultsScreen from "../components/ResultsScreen";
+import ScenarioTestResults from "../components/ScenarioTestResults";
 import ChallengeOverlay from "../components/ChallengeOverlay";
+import MCQOverlay from "../components/MCQOverlay";
+import TeachingOverlay from "../components/TeachingOverlay";
 import { getScenario } from "../simulation/scenarios";
+import { useScenarioQuestions } from "../hooks/useScenarioQuestions";
 
 export default function Simulation() {
   const { scenarioId } = useParams<{ scenarioId: string }>();
@@ -22,6 +26,10 @@ export default function Simulation() {
   const attemptMode: AttemptMode =
     searchParams.get("mode") === "test" ? "test" : "practice";
 
+  // Fetch the scenario's MCQ bank (cached per slug); test mode feeds it to the
+  // TriggerWatcher to build each decision point's question queue.
+  const { questions } = useScenarioQuestions(scenarioId);
+
   // Load scenario config + drive mode + attempt mode into the store on mount
   useEffect(() => {
     if (!scenarioId) return;
@@ -35,16 +43,18 @@ export default function Simulation() {
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-900">
-      <SimulationScene scenarioId={scenarioId} />
+      <SimulationScene scenarioId={scenarioId} questions={questions} />
 
       {/* Objectives + timer */}
       <ScenarioHUD />
 
-      {/* Pass / fail modal */}
-      <ResultsScreen />
+      {/* Pass / fail modal — test mode shows the scored recap instead */}
+      {attemptMode === "test" ? <ScenarioTestResults /> : <ResultsScreen />}
 
-      {/* Challenge key-press overlay */}
+      {/* Decision overlays — only one is active at a time (store-driven) */}
       <ChallengeOverlay />
+      <TeachingOverlay />
+      <MCQOverlay />
 
       {/* Top-left controls */}
       <div className="absolute left-4 top-4 flex items-center gap-2">

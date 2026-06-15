@@ -17,23 +17,24 @@ export const WAYPOINTS: Waypoint[] = [
   { x: -43, z: -5, speed: 1.5 }, // decelerate toward stop line
 ];
 
-// ─── Challenge points ─────────────────────────────────────────────────────────
+// ─── Decision points ──────────────────────────────────────────────────────────
+// Practice → teaching panel; Test → the mapped MCQs (by DB question order).
 export const CHALLENGES: ChallengePoint[] = [
   {
     id: "turn-left",
     triggerZ: 5, // fires when car.z <= 5, while still on first road
     prompt: "Junction ahead — turn LEFT here!",
-    instruction: "Press ← (LEFT ARROW) to steer left onto the side street",
-    correctKey: "ArrowLeft",
-    correctKeyLabel: "← LEFT",
+    teaching:
+      "You're approaching the junction and need to turn left. Signal left in good time, check your mirrors and your left blind spot (Schulterblick), then make the turn once the way is clear.",
+    questionOrders: [1, 2],
   },
   {
     id: "stop-at-sign",
     triggerX: -37, // fires when car.x <= −37, approaching stop line at x≈−45
     prompt: "Stop line ahead — you must stop the car!",
-    instruction: "Press SPACE to apply the brakes",
-    correctKey: "Space",
-    correctKeyLabel: "SPACE",
+    teaching:
+      "There's a stop line ahead. Come to a complete stop behind the line, check that the way is clear, and only then move off — always stop fully, even if the road looks empty.",
+    questionOrders: [3],
   },
 ];
 

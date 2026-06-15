@@ -8,12 +8,16 @@ import CityEnvironment from "./CityEnvironment";
 import TrafficLight from "./TrafficLight";
 import CarController from "../vehicles/CarController";
 import ScenarioRunner from "../scenarios/ScenarioRunner";
+import TriggerWatcher from "../scenarios/TriggerWatcher";
 import StopZone from "../scenarios/StopZone";
 import { getScenario } from "../scenarios";
 import { useGameStore } from "../../store/gameStore";
+import type { McqQuestion } from "../../store/gameStore";
 
 interface SimulationSceneProps {
   scenarioId?: string;
+  /** Scenario MCQ bank (with answers), used by TriggerWatcher in test mode. */
+  questions?: McqQuestion[];
 }
 
 /** Traffic lights for the traffic-lights scenario — phase follows challenge state */
@@ -28,7 +32,10 @@ function TrafficLightSet() {
   );
 }
 
-export default function SimulationScene({ scenarioId }: SimulationSceneProps) {
+export default function SimulationScene({
+  scenarioId,
+  questions = [],
+}: SimulationSceneProps) {
   const def = scenarioId ? getScenario(scenarioId) : undefined;
   const isTrafficLights = scenarioId === "traffic-lights";
 
@@ -50,10 +57,7 @@ export default function SimulationScene({ scenarioId }: SimulationSceneProps) {
 
         {isTrafficLights && <TrafficLightSet />}
 
-        <CarController
-          waypoints={def?.waypoints}
-          challenges={def?.challenges}
-        />
+        <CarController waypoints={def?.waypoints} />
 
         {def?.stopZone && (
           <StopZone
@@ -62,6 +66,10 @@ export default function SimulationScene({ scenarioId }: SimulationSceneProps) {
             hw={def.stopZone.hw}
             hd={def.stopZone.hd}
           />
+        )}
+
+        {def?.challenges && def.challenges.length > 0 && (
+          <TriggerWatcher decisions={def.challenges} questions={questions} />
         )}
 
         {def && (
