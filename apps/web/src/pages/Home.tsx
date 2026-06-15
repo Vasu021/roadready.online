@@ -9,6 +9,10 @@ import type {
 import { useUserStore } from "../store/userStore";
 import type { ProgressStatus } from "../store/userStore";
 
+// i18n placeholder — returns English now; Step 8 swaps in a real t() from
+// utils/i18n.ts. Wrap user-facing strings so they are translation-ready today.
+const t = (s: string): string => s;
+
 // ── State A: Landing Page (logged out) ────────────────────────────────────────
 
 function LandingPage() {
@@ -469,21 +473,29 @@ function ScenarioCard({
 
   return (
     <li>
-      <Link
-        to={`/simulation/${scenario.slug}`}
-        className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/60 px-6 py-4 transition hover:border-gray-600 hover:bg-gray-900"
-      >
-        <div>
+      <div className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/60 px-6 py-4">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-medium">{scenario.name}</span>
             {completed && <span className="text-emerald-400">✅</span>}
           </div>
           <p className="mt-0.5 text-sm text-gray-400">{scenario.description}</p>
         </div>
-        <span className="ml-4 shrink-0 rounded-lg bg-blue-600/20 px-3 py-1 text-sm font-medium text-blue-400">
-          Practice
-        </span>
-      </Link>
+        <div className="ml-4 flex shrink-0 items-center gap-2">
+          <Link
+            to={`/simulation/${scenario.slug}?mode=practice`}
+            className="rounded-lg bg-blue-600/20 px-3 py-1.5 text-sm font-medium text-blue-400 transition hover:bg-blue-600/30"
+          >
+            {t("Practice")}
+          </Link>
+          <Link
+            to={`/simulation/${scenario.slug}?mode=test`}
+            className="rounded-lg bg-amber-500/20 px-3 py-1.5 text-sm font-medium text-amber-400 transition hover:bg-amber-500/30"
+          >
+            {t("Test")}
+          </Link>
+        </div>
+      </div>
     </li>
   );
 }
@@ -520,7 +532,7 @@ function TestCard({
   return (
     <li>
       <Link
-        to={`/simulation/${scenario.slug}`}
+        to={`/simulation/${scenario.slug}?mode=test`}
         className="flex items-center justify-between rounded-xl border-2 border-amber-600/60 bg-amber-900/20 px-6 py-4 transition hover:border-amber-500 hover:bg-amber-900/30"
       >
         <div>
@@ -535,7 +547,7 @@ function TestCard({
           </p>
         </div>
         <span className="ml-4 shrink-0 rounded-lg bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-400">
-          Take Test →
+          {t("Take Test →")}
         </span>
       </Link>
     </li>

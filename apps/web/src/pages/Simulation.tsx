@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useGameStore } from "../store/gameStore";
+import type { AttemptMode } from "../store/gameStore";
 import SimulationScene from "../simulation/scene";
 import ScenarioHUD from "../components/ScenarioHUD";
 import ResultsScreen from "../components/ResultsScreen";
@@ -9,21 +10,28 @@ import { getScenario } from "../simulation/scenarios";
 
 export default function Simulation() {
   const { scenarioId } = useParams<{ scenarioId: string }>();
+  const [searchParams] = useSearchParams();
   const carState = useGameStore((s) => s.carState);
   const isPaused = useGameStore((s) => s.isPaused);
   const setPaused = useGameStore((s) => s.setPaused);
   const startScenario = useGameStore((s) => s.startScenario);
   const setDriveMode = useGameStore((s) => s.setDriveMode);
+  const setAttemptMode = useGameStore((s) => s.setAttemptMode);
 
-  // Load scenario config + drive mode into the store once on mount
+  // ?mode=test launches the scored MCQ flow; anything else defaults to practice.
+  const attemptMode: AttemptMode =
+    searchParams.get("mode") === "test" ? "test" : "practice";
+
+  // Load scenario config + drive mode + attempt mode into the store on mount
   useEffect(() => {
     if (!scenarioId) return;
     const def = getScenario(scenarioId);
     if (def) {
+      setAttemptMode(attemptMode);
       startScenario(def.config);
       setDriveMode(def.driveMode ?? "manual");
     }
-  }, [scenarioId, startScenario, setDriveMode]);
+  }, [scenarioId, attemptMode, startScenario, setDriveMode, setAttemptMode]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-gray-900">

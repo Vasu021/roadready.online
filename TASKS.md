@@ -32,6 +32,19 @@
 - Verified: `GET /api/scenarios/:slug/questions` returns 3–4 questions × 4 shuffled options with `isCorrect` hidden; `apps/api` `tsc --noEmit` clean.
 - **Not yet done (later steps):** frontend simulation modules for the new slugs (Steps 6–7), per-scenario Practice/Test UI (Steps 2–3). Until registered in `apps/web/src/simulation/scenarios/index.ts`, new slugs will show as not-yet-playable in the UI.
 
+### Practice/Test Plumbing (PROMPT.md — Step 2) ✅
+
+State, routing, scenario-list buttons and the questions data hook for the two attempt modes. No overlays yet (Step 3) — this is the machinery the overlays plug into.
+
+- **gameStore — attempt mode + MCQ sequence state.** Added `attemptMode: 'practice' | 'test'` (default `practice`) + `setAttemptMode`. New types `McqQuestion` (`{ id, questionText, order, options: {id,text}[], correctOptionId?, explanation? }`), `McqOption`, `McqResult`. New state: `mcqQueue`, `activeMcq`, `mcqResult`, `mcqSelectedOptionId`, `mcqAsked`, `mcqCorrect`. New actions: `startMcqSequence`, `selectMcqOption` (only while `pending`), `submitMcq` (scores against `correctOptionId`, bumps asked/correct), `advanceMcq` (pops the queue or finishes), `resetMcq`. `startScenario` + `resetScenario` now reset the MCQ run — deliberately **not** `attemptMode`, so the route-driven `setAttemptMode` call is order-independent. `mcqActive` is derived in components as `activeMcq !== null`.
+- **New auth-guarded endpoint `GET /api/scenarios/:slug/questions/answers`** (`apps/api/src/routes/scenarios.ts`) returns each question with `correctOptionId` + `explanation` for client-side per-scenario scoring. Declared before `/:slug/questions` and `/:slug`. The existing isCorrect-hidden `/:slug/questions` is untouched (reserved for the graded Full Test). Verified live: 3 questions for `rechts-vor-links` with a valid `correctOptionId`; **401** without a token; plain endpoint still hides the key.
+- **api.ts:** added `api.scenarios.getQuestions(slug)` (hidden) and `getQuestionsWithAnswers(slug)` (with key), plus `QuestionOption` / `ScenarioQuestion` / `ScenarioQuestionWithAnswer` types.
+- **`useScenarioQuestions(slug)` hook** (`apps/web/src/hooks/useScenarioQuestions.ts`, new) — fetches the answer-keyed bank once per slug, caches per session in a ref, maps to `McqQuestion[]`, exposes `{ questions, loading, error }`.
+- **Routing:** `Simulation.tsx` reads `?mode=practice|test` via `useSearchParams` (defaults to `practice`) and calls `setAttemptMode` alongside `startScenario` + `setDriveMode`.
+- **Home.tsx:** each PRACTICE scenario now shows BOTH a **Practice** (`?mode=practice`) and a **Test** (`?mode=test`) button; the TEST card links to `?mode=test`. Lock/premium gating (order ≤ 3 unless `isPremium`) unchanged. Added a local `t()` i18n placeholder for the new labels (Step 8 swaps in `utils/i18n.ts`).
+- `tsc --noEmit` clean in both apps; Prettier applied.
+- **Not yet done (Step 3):** `MCQOverlay` + `TeachingOverlay` components, `CarController` brake-while-overlay + practice-vs-test trigger, per-scenario results screen, migrating `basicControls`/`trafficLights` decision points.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -128,6 +141,8 @@
 
 The product vision: car drives itself, pauses at a key moment, a **transparent draggable popup** appears with an MCQ question (A/B/C/D). User can drag the popup aside to see the full road scene before answering. Correct → resume with brief explanation shown. Wrong → fail (Test mode) OR show correct answer + continue (Practice mode).
 
+> **Status:** the underlying state + data plumbing landed in PROMPT.md Step 2 ✅ (see Done above). What remains below — the overlay components, CarController integration and per-scenario results — is PROMPT.md Step 3.
+
 - [ ] Design the `MCQOverlay.tsx` component
   - [ ] Transparent/frosted panel — user can still see the 3D scene behind it
   - [ ] Draggable: mouse down + move repositions the popup
@@ -135,8 +150,8 @@ The product vision: car drives itself, pauses at a key moment, a **transparent d
   - [ ] "Confirm" button to submit (or auto-submit on click with no confirm)
   - [ ] Show ✅ / ❌ state + explanation text after answer
   - [ ] "Continue" button re-starts autopilot (resume simulation)
-- [ ] Wire `gameStore` for MCQ state: `pausedForMCQ`, `activeMCQQuestion`, `mcqResult: 'pending'|'correct'|'wrong'`
-- [ ] `useScenarioQuestions.ts` hook — fetches `GET /api/scenarios/:slug/questions` on scenario start; caches result
+- [x] Wire `gameStore` for MCQ state — Step 2 ✅ (shipped as `attemptMode`, `mcqQueue`, `activeMcq`, `mcqResult`, `mcqSelectedOptionId`, `mcqAsked`, `mcqCorrect` + actions; richer than the original `pausedForMCQ`/`activeMCQQuestion` sketch)
+- [x] `useScenarioQuestions.ts` hook — Step 2 ✅ (fetches the auth-guarded `…/questions/answers` bank once per slug, caches in a ref, returns `McqQuestion[]`)
 - [ ] **Practice mode**: wrong answer → show correct option + explanation → Continue (car resumes)
 - [ ] **Test mode**: wrong answer → fail (current behavior stays)
 - [ ] Migrate `basicControls` challenges from key-press to MCQ format as proof of concept

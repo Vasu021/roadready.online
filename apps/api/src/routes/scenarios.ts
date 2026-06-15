@@ -106,6 +106,64 @@ router.get(
   },
 );
 
+// GET /api/scenarios/:slug/questions/answers — protected
+// Returns questions WITH correctOptionId + explanation, for CLIENT-SIDE scoring
+// of per-scenario Practice/Test (low stakes). The graded Full Test must keep
+// using the isCorrect-hidden endpoint + server-side checking instead.
+// Declared before /:slug/questions and /:slug so neither shadows it.
+router.get(
+  "/:slug/questions/answers",
+  requireAuth,
+  async (req: AuthRequest, res) => {
+    try {
+      const scenario = await prisma.scenario.findUnique({
+        where: { slug: req.params.slug },
+        include: {
+          questions: {
+            orderBy: { order: "asc" },
+            include: {
+              options: {
+                orderBy: { order: "asc" },
+                select: {
+                  id: true,
+                  optionText: true,
+                  order: true,
+                  isCorrect: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!scenario) {
+        res.status(404).json({ error: "Scenario not found" });
+        return;
+      }
+
+      res.json(
+        scenario.questions.map((q) => ({
+          id: q.id,
+          questionText: q.questionText,
+          order: q.order,
+          explanation: q.explanation,
+          correctOptionId: q.options.find((o) => o.isCorrect)?.id ?? null,
+          options: shuffle(
+            q.options.map((o) => ({
+              id: o.id,
+              optionText: o.optionText,
+              order: o.order,
+            })),
+          ),
+        })),
+      );
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to fetch question answers" });
+    }
+  },
+);
+
 // GET /api/scenarios/:slug/questions — must come before /:slug to avoid shadowing
 router.get("/:slug/questions", async (req, res) => {
   try {
