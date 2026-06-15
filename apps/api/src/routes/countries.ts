@@ -1,10 +1,11 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
+import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
 // GET /api/countries
-router.get("/", async (_req, res) => {
+router.get("/", requireAuth, async (_req, res) => {
   try {
     const countries = await prisma.country.findMany({
       where: { isActive: true },
@@ -43,7 +44,7 @@ router.get("/", async (_req, res) => {
 });
 
 // GET /api/countries/:code/facts
-router.get("/:code/facts", async (req, res) => {
+router.get("/:code/facts", requireAuth, async (req, res) => {
   try {
     const country = await prisma.country.findUnique({
       where: { code: req.params.code.toUpperCase() },
@@ -63,7 +64,7 @@ router.get("/:code/facts", async (req, res) => {
 });
 
 // GET /api/countries/:code/scenarios
-router.get("/:code/scenarios", async (req, res) => {
+router.get("/:code/scenarios", requireAuth, async (req, res) => {
   try {
     const country = await prisma.country.findUnique({
       where: { code: req.params.code.toUpperCase() },

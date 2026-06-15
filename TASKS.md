@@ -84,12 +84,12 @@ Made the world look German with **static props only** (moving NPCs are Step 5). 
 | POST   | `/api/auth/register`                           | —    | bcrypt cost 12, returns JWT                                   |
 | POST   | `/api/auth/login`                              | —    | bcrypt compare, returns JWT                                   |
 | GET    | `/api/users/me`                                | ✓    | profile + attempt count                                       |
-| GET    | `/api/countries`                               | —    | active countries with category + scenario counts              |
-| GET    | `/api/countries/:code/facts`                   | —    | `{ facts: string \| null }`                                   |
-| GET    | `/api/countries/:code/scenarios`               | —    | scenarios grouped by category                                 |
-| GET    | `/api/scenarios`                               | —    | flat list of active scenarios                                 |
-| GET    | `/api/scenarios/:slug`                         | —    | single scenario                                               |
-| GET    | `/api/scenarios/:slug/questions`               | —    | questions + shuffled options (`isCorrect` hidden)             |
+| GET    | `/api/countries`                               | ✓    | active countries with category + scenario counts              |
+| GET    | `/api/countries/:code/facts`                   | ✓    | `{ facts: string \| null }`                                   |
+| GET    | `/api/countries/:code/scenarios`               | ✓    | scenarios grouped by category                                 |
+| GET    | `/api/scenarios`                               | ✓    | flat list of active scenarios                                 |
+| GET    | `/api/scenarios/:slug`                         | ✓    | single scenario                                               |
+| GET    | `/api/scenarios/:slug/questions`               | ✓    | questions + shuffled options (`isCorrect` hidden)             |
 | GET    | `/api/scenarios/progress/:userId/:countryCode` | ✓    | returns/creates `UserScenarioProgress[]`                      |
 | POST   | `/api/user-country-access`                     | ✓    | upserts `UserCountryAccess`; returns `{ alreadyExisted }`     |
 | POST   | `/api/test-sessions`                           | ✓    | creates `TestSession`, sets `maxScore`                        |

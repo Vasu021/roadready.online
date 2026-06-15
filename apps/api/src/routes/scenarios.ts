@@ -15,7 +15,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 // GET /api/scenarios
-router.get("/", async (_req, res) => {
+router.get("/", requireAuth, async (_req, res) => {
   try {
     const scenarios = await prisma.scenario.findMany({
       where: { isActive: true },
@@ -165,7 +165,7 @@ router.get(
 );
 
 // GET /api/scenarios/:slug/questions — must come before /:slug to avoid shadowing
-router.get("/:slug/questions", async (req, res) => {
+router.get("/:slug/questions", requireAuth, async (req, res) => {
   try {
     const scenario = await prisma.scenario.findUnique({
       where: { slug: req.params.slug },
@@ -201,7 +201,7 @@ router.get("/:slug/questions", async (req, res) => {
 });
 
 // GET /api/scenarios/:slug
-router.get("/:slug", async (req, res) => {
+router.get("/:slug", requireAuth, async (req, res) => {
   try {
     const scenario = await prisma.scenario.findUnique({
       where: { slug: req.params.slug },
