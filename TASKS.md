@@ -76,6 +76,20 @@ Made the world look German with **static props only** (moving NPCs are Step 5). 
 - Not wired per-scenario yet — Step 6 introduces the declarative per-scenario placement (`def.signs` / `def.npcs`). For now a small demonstrative set renders in the shared scene.
 - `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
 
+### NPC Traffic System (PROMPT.md — Step 5) ✅
+
+Reusable, **procedural** moving NPCs that scenarios will place declaratively in Step 6. This step builds the SYSTEM (vehicles, pedestrian, manager, light cycle, types) and proves it with a temporary dev mount — it does not yet choreograph specific scenarios.
+
+- **`useTrafficPath.ts`** (new, `simulation/traffic/`) — the shared kinematic path follower. Drives a group ref along a `Waypoint[]` at constant speed per segment with yaw lerped toward the direction of travel (`atan2(-dx, -dz)`, local **-Z** is the NPC's front, matching the player autopilot). **No Rapier** — NPCs can't fight the player car's physics. All-scalar maths (no per-frame `Vector3` allocation); delta clamped to 1/30 s. Options: `path`, `speed`, `loop`, `startDelay`, `paused`, `turnRate`, `onArrive`. `useFrame` auto-unregisters and R3F disposes the JSX geometry on unmount, so NPCs clean up automatically.
+- **`NPCVehicle.tsx`** (new) — one component, four procedural meshes via a `variant` prop: **car** (chassis + cabin + glass + 4 wheels, `color` prop), **bus** (long body + window band + windshield + 3 axles/side), **ambulance** (white RTW van + red stripes + roof bar with **two alternating BLUE strobes** — German emergency colour, animated emissive ~6 Hz), **cyclist** (two in-line wheels + frame + handlebars + capsule rider + head). Front authored at local -Z. Props: `variant`, `path`, `speed`, `loop`, `startDelay`, `paused`, `color`, `onArrive`.
+- **`Pedestrian.tsx`** (new) — capsule torso + sphere head + two hip-pivoted legs that swing while walking (clock-driven; frozen when `paused`). Default ~1.3 m/s. Same path/`paused` props.
+- **`TrafficManager.tsx`** (new) — renders a declarative `NpcSpawn[]` (dispatching pedestrian → `Pedestrian`, else `NPCVehicle`) and resolves each spawn's hold flag per its `behavior`: `stop-at-red` (held unless `lightPhase==='green'`, or until `goWhenResolvedId` resolves — it subscribes to `resolvedChallengeIds`), `yield` (held while its id is in the `heldIds` prop), `emergency`/`free` (never held). Collision handling is intentionally minimal (path spacing + stop flags), not an AI solver. Exports a `TrafficPhase` type.
+- **`TrafficLight.tsx`** — added an **optional self-cycling mode** (`autoCycle`, `cycle={red,green,yellow}` durations, `startPhase`, `onPhaseChange`) that runs red→green→yellow→red on its own clock; the existing **controlled `phase`** path is unchanged (still default 'red'), so the traffic-lights scenario's challenge-driven flip keeps working. Emissive update + listener notification moved to a single `useEffect` on the effective phase.
+- **`NpcSpawn` types** added to `scenarios/types.ts`: `NpcVehicleVariant`, `NpcVariant` (+ pedestrian), `NpcBehavior`, and `NpcSpawn` (`id`, `variant`, `path`, `speed?`, `loop?`, `startDelay?`, `behavior?`, `goWhenResolvedId?`). The `ScenarioDef.npcs` field itself is deferred to Step 6 as specified.
+- **Temporary dev mount** — `TrafficDemo.tsx` (new) renders an auto-cycling light + a `TrafficManager` of six spawns: a car **held at the red light then released on green** (then parks clear of the junction), a free cruising car, a bus, an **ambulance approaching from behind with flashing blue lights**, a **cyclist on the red bike lane**, and a **pedestrian crossing the zebra**. `SimulationScene` mounts it **only when the URL has `?trafficDemo=1`** (e.g. `/simulation/basic-controls?trafficDemo=1`), so it never appears in normal play and is trivially removable in Step 6.
+- Junction clearance / `CityEnvironment` margins untouched (no static props added). `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
+- **Not yet done (Step 6):** add `npcs?: NpcSpawn[]` to `ScenarioDef`, replace the `isTrafficLights` boolean in `SimulationScene` with a generic declarative renderer, remove the dev mount, and choreograph the flagship scenarios with these NPCs.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -210,13 +224,15 @@ Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and
 - [ ] Complete session via `PATCH /api/test-sessions/:id/complete`
 - [ ] `TestResultsScreen.tsx` — per-question breakdown, total score, grade (A/B/C/F), pass/fail
 
-### AI Traffic
+### AI Traffic (PROMPT.md — Step 5 ✅ — system built; choreography is Steps 6–7)
 
-- [ ] `TrafficVehicle` component — procedural box car, Rapier body
-- [ ] `useTrafficAI.ts` — waypoint path following + stop at red lights
-- [ ] `TrafficManager.tsx` — spawns N vehicles, basic collision avoidance
-- [ ] Traffic light timed cycle (red→yellow→green→yellow→red, configurable durations)
-- [ ] NPC pedestrian for pedestrian-crossing scenario
+- [x] `NPCVehicle` component — procedural car/bus/ambulance/cyclist (kinematic, no Rapier) — Step 5 ✅
+- [x] `useTrafficPath.ts` — waypoint path following (yaw lerp) + `paused` hold — Step 5 ✅ (replaces the planned `useTrafficAI`)
+- [x] `TrafficManager.tsx` — renders an `NpcSpawn[]`, coordinates stop-at-red / yield / emergency holds — Step 5 ✅
+- [x] Traffic light timed cycle (red→green→yellow→red, configurable durations) — Step 5 ✅ (`TrafficLight` `autoCycle`)
+- [x] NPC `Pedestrian` (walks a path, `paused` to wait) — Step 5 ✅
+- [ ] Wire NPCs into scenarios declaratively (`ScenarioDef.npcs`) + remove the `?trafficDemo=1` dev mount — Step 6
+- [ ] Per-scenario choreography: give-way car, rechts-vor-links car, pedestrian on the zebra, ambulance from behind, cyclist in the blind spot — Step 6
 
 ### Stripe Payments
 
