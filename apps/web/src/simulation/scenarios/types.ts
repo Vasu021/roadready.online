@@ -47,6 +47,51 @@ export interface ChallengePoint {
   correctKeyLabel?: string;
 }
 
+// ─── NPC traffic (Step 5) ───────────────────────────────────────────────────
+// Declarative, procedural traffic the <TrafficManager/> renders. The motion
+// reuses the player's waypoint convention (yaw = atan2(-dx, -dz), local -Z is
+// the NPC's front) but runs kinematically — no Rapier — so NPCs never fight the
+// player car's physics.
+
+/** Procedural NPC vehicle meshes the traffic system can render. */
+export type NpcVehicleVariant = "car" | "bus" | "ambulance" | "cyclist";
+
+/** Everything a scenario can spawn — the vehicles plus the walking pedestrian. */
+export type NpcVariant = NpcVehicleVariant | "pedestrian";
+
+/**
+ * How the TrafficManager coordinates a spawn:
+ *  - 'free'         drive the path, never hold.
+ *  - 'stop-at-red'  hold while the junction light is red — or, if
+ *                   `goWhenResolvedId` is set, until that challenge resolves.
+ *  - 'yield'        hold while the manager lists this spawn's id in `heldIds`
+ *                   (give-way / rechts-vor-links choreography in Step 6).
+ *  - 'emergency'    sirens on; drives through and does not yield (the player is
+ *                   expected to pull over).
+ */
+export type NpcBehavior = "free" | "stop-at-red" | "yield" | "emergency";
+
+/**
+ * A declarative NPC spawn. Step 6 lets a `ScenarioDef` carry `npcs: NpcSpawn[]`,
+ * which `SimulationScene` feeds to `<TrafficManager/>`.
+ */
+export interface NpcSpawn {
+  id: string;
+  variant: NpcVariant;
+  /** Kinematic path (same Waypoint shape as the player autopilot). */
+  path: Waypoint[];
+  /** Fallback speed (m/s) when a waypoint doesn't carry its own. */
+  speed?: number;
+  /** Loop back to the path start once the end is reached. */
+  loop?: boolean;
+  /** Seconds the NPC waits at the path start before setting off. */
+  startDelay?: number;
+  /** Coordinated behaviour; defaults to 'free'. */
+  behavior?: NpcBehavior;
+  /** 'stop-at-red': the `resolvedChallengeId` that, once true, releases the NPC. */
+  goWhenResolvedId?: string;
+}
+
 /** Full scenario definition — config + runtime logic. */
 export interface ScenarioDef {
   config: ScenarioConfig;

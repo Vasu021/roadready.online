@@ -10,6 +10,7 @@ import CarController from "../vehicles/CarController";
 import ScenarioRunner from "../scenarios/ScenarioRunner";
 import TriggerWatcher from "../scenarios/TriggerWatcher";
 import StopZone from "../scenarios/StopZone";
+import TrafficDemo from "../traffic/TrafficDemo";
 import { getScenario } from "../scenarios";
 import { useGameStore } from "../../store/gameStore";
 import type { McqQuestion } from "../../store/gameStore";
@@ -38,6 +39,12 @@ export default function SimulationScene({
 }: SimulationSceneProps) {
   const def = scenarioId ? getScenario(scenarioId) : undefined;
   const isTrafficLights = scenarioId === "traffic-lights";
+  // Temporary Step-5 smoke test for the NPC traffic system; opt-in via the URL
+  // (?trafficDemo=1) so it never shows in normal play. Removed once Step 6 wires
+  // NPCs declaratively per scenario.
+  const showTrafficDemo =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("trafficDemo") === "1";
 
   return (
     <Canvas
@@ -56,6 +63,8 @@ export default function SimulationScene({
         <CityEnvironment />
 
         {isTrafficLights && <TrafficLightSet />}
+
+        {showTrafficDemo && <TrafficDemo />}
 
         <CarController waypoints={def?.waypoints} />
 
