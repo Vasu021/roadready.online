@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type * as THREE from "three";
+import { useGameStore } from "../../store/gameStore";
 import type { Waypoint } from "../scenarios/types";
 
 // ─── Tuning ─────────────────────────────────────────────────────────────────
@@ -31,9 +32,10 @@ export interface TrafficPathOptions {
  * the player autopilot's `atan2(-dx, -dz)`). No Rapier body — NPCs never fight
  * the player car's physics.
  *
- * All work is scalar (no per-frame Vector3 allocation). `useFrame` auto-unregisters
- * on unmount and the JSX-declared geometry/materials are disposed by R3F, so the
- * NPC cleans up automatically.
+ * NPCs only move while the scenario is `running`, and re-arm to the path start
+ * on a new run (mount / Retry, tracked via `runId`) so replays stay in sync.
+ * All work is scalar (no per-frame Vector3 allocation); `useFrame` auto-unregisters
+ * and R3F disposes the JSX geometry on unmount, so the NPC cleans up automatically.
  */
 export function useTrafficPath(
   groupRef: React.RefObject<THREE.Group | null>,
@@ -45,6 +47,7 @@ export function useTrafficPath(
   const doneRef = useRef(false);
   const initedRef = useRef(false);
   const arriveFiredRef = useRef(false);
+  const runIdRef = useRef(useGameStore.getState().runId);
 
   useFrame((_, delta) => {
     const group = groupRef.current;
@@ -59,6 +62,23 @@ export function useTrafficPath(
       group.rotation.y = initialYaw(path);
       initedRef.current = true;
     }
+
+    const store = useGameStore.getState();
+
+    // New run (mount / Retry): re-arm the path so the NPC restarts cleanly.
+    if (runIdRef.current !== store.runId) {
+      runIdRef.current = store.runId;
+      group.position.set(path[0].x, group.position.y, path[0].z);
+      group.rotation.y = initialYaw(path);
+      targetIndexRef.current = 1;
+      delayRef.current = 0;
+      doneRef.current = false;
+      arriveFiredRef.current = false;
+      return;
+    }
+
+    // Only drive while the scenario is actually running.
+    if (store.isPaused || store.scenarioPhase !== "running") return;
 
     const dt = Math.min(delta, MAX_STEP);
 
@@ -75,16 +95,19 @@ export function useTrafficPath(
     let target = path[targetIndexRef.current];
     if (!target) {
       if (opts.loop) {
-        targetIndexRef.current = 0;
-        target = path[0];
-      } else {
-        doneRef.current = true;
-        if (!arriveFiredRef.current) {
-          arriveFiredRef.current = true;
-          opts.onArrive?.();
-        }
+        // Teleport back to the start and set off again (one-way loop). For a
+        // ping-pong, give a path that ends where it starts, e.g. [A, B, A].
+        group.position.set(path[0].x, group.position.y, path[0].z);
+        group.rotation.y = initialYaw(path);
+        targetIndexRef.current = 1;
         return;
       }
+      doneRef.current = true;
+      if (!arriveFiredRef.current) {
+        arriveFiredRef.current = true;
+        opts.onArrive?.();
+      }
+      return;
     }
 
     const px = group.position.x;

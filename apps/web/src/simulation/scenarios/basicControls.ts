@@ -79,6 +79,8 @@ const basicControls: ScenarioDef = {
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
   stopZone: STOP_ZONE,
+  // Stop sign on the north kerb, facing the westbound car at the stop line.
+  signs: [{ kind: "stop", position: [-44, 0, -9], rotationY: Math.PI / 2 }],
 };
 
 export default basicControls;

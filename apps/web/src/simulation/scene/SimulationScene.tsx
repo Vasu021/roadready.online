@@ -6,11 +6,12 @@ import GermanCityRoad from "./GermanCityRoad";
 import FollowCamera from "./FollowCamera";
 import CityEnvironment from "./CityEnvironment";
 import TrafficLight from "./TrafficLight";
+import RoadSign, { type SignKind } from "./RoadSign";
 import CarController from "../vehicles/CarController";
 import ScenarioRunner from "../scenarios/ScenarioRunner";
 import TriggerWatcher from "../scenarios/TriggerWatcher";
 import StopZone from "../scenarios/StopZone";
-import TrafficDemo from "../traffic/TrafficDemo";
+import TrafficManager from "../traffic/TrafficManager";
 import { getScenario } from "../scenarios";
 import { useGameStore } from "../../store/gameStore";
 import type { McqQuestion } from "../../store/gameStore";
@@ -21,15 +22,20 @@ interface SimulationSceneProps {
   questions?: McqQuestion[];
 }
 
-/** Traffic lights for the traffic-lights scenario — phase follows challenge state */
-function TrafficLightSet() {
+/** A traffic light whose phase follows a challenge: red until it resolves, then green. */
+function ChallengeLight({
+  position,
+  resolvedId,
+}: {
+  position: [number, number, number];
+  resolvedId: string;
+}) {
   const resolved = useGameStore((s) => s.resolvedChallengeIds);
-  const phase = resolved["red-light-stop"] ? "green" : "red";
   return (
-    <>
-      <TrafficLight position={[5, 0, -5]} phase={phase} />
-      <TrafficLight position={[-5, 0, -5]} phase={phase} />
-    </>
+    <TrafficLight
+      position={position}
+      phase={resolved[resolvedId] ? "green" : "red"}
+    />
   );
 }
 
@@ -38,13 +44,6 @@ export default function SimulationScene({
   questions = [],
 }: SimulationSceneProps) {
   const def = scenarioId ? getScenario(scenarioId) : undefined;
-  const isTrafficLights = scenarioId === "traffic-lights";
-  // Temporary Step-5 smoke test for the NPC traffic system; opt-in via the URL
-  // (?trafficDemo=1) so it never shows in normal play. Removed once Step 6 wires
-  // NPCs declaratively per scenario.
-  const showTrafficDemo =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("trafficDemo") === "1";
 
   return (
     <Canvas
@@ -62,9 +61,39 @@ export default function SimulationScene({
         <GermanCityRoad />
         <CityEnvironment />
 
-        {isTrafficLights && <TrafficLightSet />}
+        {/* ── Declarative scene props from the ScenarioDef ───────────────── */}
+        {def?.lights?.map((l, i) =>
+          l.goWhenResolvedId ? (
+            <ChallengeLight
+              key={`light-${i}`}
+              position={l.position}
+              resolvedId={l.goWhenResolvedId}
+            />
+          ) : (
+            <TrafficLight
+              key={`light-${i}`}
+              position={l.position}
+              autoCycle={l.autoCycle}
+              cycle={l.cycle}
+              startPhase={l.startPhase}
+            />
+          ),
+        )}
 
-        {showTrafficDemo && <TrafficDemo />}
+        {def?.signs?.map((s, i) => (
+          <RoadSign
+            key={`sign-${i}`}
+            position={s.position}
+            kind={s.kind as SignKind}
+            rotationY={s.rotationY}
+            number={s.number}
+            label={s.label}
+          />
+        ))}
+
+        {def?.npcs && def.npcs.length > 0 && (
+          <TrafficManager spawns={def.npcs} />
+        )}
 
         <CarController waypoints={def?.waypoints} />
 

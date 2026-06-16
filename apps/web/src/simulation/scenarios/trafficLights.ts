@@ -60,6 +60,11 @@ const trafficLights: ScenarioDef = {
   driveMode: "auto",
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
+  // Two lights flanking the junction; both go green once the stop is resolved.
+  lights: [
+    { position: [5, 0, -5], goWhenResolvedId: "red-light-stop" },
+    { position: [-5, 0, -5], goWhenResolvedId: "red-light-stop" },
+  ],
 };
 
 export default trafficLights;

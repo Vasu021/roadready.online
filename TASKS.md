@@ -90,6 +90,23 @@ Reusable, **procedural** moving NPCs that scenarios will place declaratively in 
 - Junction clearance / `CityEnvironment` margins untouched (no static props added). `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
 - **Not yet done (Step 6):** add `npcs?: NpcSpawn[]` to `ScenarioDef`, replace the `isTrafficLights` boolean in `SimulationScene` with a generic declarative renderer, remove the dev mount, and choreograph the flagship scenarios with these NPCs.
 
+### Declarative Scene Props + Core Scenarios (PROMPT.md — Step 6) ✅
+
+Scenarios now declare the signs / lights / NPCs they need; `SimulationScene` renders them generically — no per-scenario special-casing. Five flagship German scenarios are choreographed end-to-end with NPCs, playable in both Practice and Test.
+
+- **`ScenarioDef` declarative scene data** (`types.ts`): added `signs?: SceneSign[]` (`kind`, `position`, `rotationY?`, `number?`, `label?`), `npcs?: NpcSpawn[]`, and `lights?: SceneLight[]` (`position` + either `goWhenResolvedId` for a challenge-driven light or `autoCycle`/`cycle`/`startPhase` for a self-cycling one).
+- **`SimulationScene` is now generic** — removed the `isTrafficLights` boolean and the `TrafficLightSet` special case (and the Step-5 `?trafficDemo=1` dev mount + `TrafficDemo.tsx`). It maps `def.lights` → `<TrafficLight/>` (challenge-driven via a small `ChallengeLight` that reads `resolvedChallengeIds`, or self-cycling), `def.signs` → `<RoadSign/>`, `def.npcs` → `<TrafficManager/>`. `def.stopZone` / `def.challenges` rendering unchanged.
+- **Five flagship scenarios** (new modules, registered in `index.ts`; each: waypoints + ONE decision whose id == objective id, teaching text, and `questionOrders` omitted so test mode asks all the scenario's seeded MCQs):
+  - **give-way-sign** (`give-way`) — give-way sign on the approach; a priority-road car loops across the junction from the west; teaches Vorfahrt gewähren.
+  - **rechts-vor-links** (`yield-right`) — unmarked junction (no signs); a car comes from the right; teaches §8 StVO right-before-left.
+  - **pedestrian-crossing** (`stop-for-pedestrian`) — drives to the zebra at x≈-46.5; a pedestrian paces across (`[N,S,N]` loop); pedestrian-crossing sign + stop zone; teaches Zebrastreifen priority.
+  - **emergency-vehicle** (`make-way`) — an ambulance (flashing blue) closes from behind; the car pulls to the right kerb; teaches §38 StVO / Rettungsgasse.
+  - **cyclist-blind-spot** (`shoulder-check`) — a cyclist rides the red bike lane straight on as the car turns left; teaches Schulterblick / toter Winkel.
+- **Migrated** `traffic-lights` (now declares its two junction lights via `lights` with `goWhenResolvedId: "red-light-stop"` — same red→green-on-resolve behaviour, no special-casing) and `basic-controls` (added a declarative `stop` sign at the stop line).
+- **`useTrafficPath` hardened for scenarios:** NPCs now move only while `scenarioPhase === "running"` and **re-arm to their path start on a new run (`runId`)** so Retry stays in sync; `loop` now teleports back to the path start (clean one-way recurrence for vehicles; ping-pong achieved with an `[A,B,A]` path, used by the pedestrian).
+- Junction clearance respected (signs sit outside the turn arc; NPCs are kinematic, not static obstacles). `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
+- **Deferred to Step 7:** the remaining Germany scenarios (roundabout, autobahn, priority-road-signs, vorfahrt-priority-intersection, etc.) via a `makeScenario` helper; roundabout/autobahn/railway use simplified representations.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -209,13 +226,16 @@ The product vision: car drives itself, pauses at a key moment, a **transparent d
 
 Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and any new road/scene components.
 
-- [ ] `rechts-vor-links.ts` — 4-way intersection, NPC car from right, yield detection; challenge: who has right of way?
-- [ ] `roundabout.ts` — circular road mesh, entry/exit MCQ; challenge: yield to traffic already in roundabout
-- [ ] `pedestrian-crossing.ts` — zebra crossing, pedestrian presence, challenge: must stop or can continue?
-- [ ] `autobahn-rules.ts` — straight highway with lane markings, speed challenge, Reißverschluss (zipper merge) MCQ
-- [ ] `emergency-vehicle.ts` — approach from behind, challenge: move to right + form emergency lane
-- [ ] `priority-road-signs.ts` — yellow diamond vs triangle signs, challenge: who yields?
-- [ ] `vorfahrt-priority-intersection.ts` — advance warning sign scenario
+- [x] `give-way-sign.ts` — give-way sign + priority-road car crossing; teaches Vorfahrt gewähren — Step 6 ✅
+- [x] `rechts-vor-links.ts` — unmarked junction, NPC car from the right; teaches right-before-left — Step 6 ✅
+- [x] `pedestrian-crossing.ts` — zebra crossing, pedestrian paces across; teaches Zebrastreifen priority — Step 6 ✅
+- [x] `emergency-vehicle.ts` — ambulance from behind, pull right; teaches §38 / Rettungsgasse — Step 6 ✅
+- [x] `cyclist-blind-spot.ts` — cyclist on the bike lane while turning; teaches Schulterblick / toter Winkel — Step 6 ✅
+- [ ] `roundabout.ts` — circular road mesh, entry/exit MCQ; challenge: yield to traffic already in roundabout — Step 7
+- [ ] `autobahn-rules.ts` — straight highway with lane markings, speed challenge, Reißverschluss (zipper merge) MCQ — Step 7
+- [ ] `priority-road-signs.ts` — yellow diamond vs triangle signs, challenge: who yields? — Step 7
+- [ ] `vorfahrt-priority-intersection.ts` — advance warning sign scenario — Step 7
+- [ ] All remaining Appendix-A slugs via a `makeScenario` helper — Step 7
 
 ### Test Mode Flow (full test session)
 
@@ -231,8 +251,8 @@ Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and
 - [x] `TrafficManager.tsx` — renders an `NpcSpawn[]`, coordinates stop-at-red / yield / emergency holds — Step 5 ✅
 - [x] Traffic light timed cycle (red→green→yellow→red, configurable durations) — Step 5 ✅ (`TrafficLight` `autoCycle`)
 - [x] NPC `Pedestrian` (walks a path, `paused` to wait) — Step 5 ✅
-- [ ] Wire NPCs into scenarios declaratively (`ScenarioDef.npcs`) + remove the `?trafficDemo=1` dev mount — Step 6
-- [ ] Per-scenario choreography: give-way car, rechts-vor-links car, pedestrian on the zebra, ambulance from behind, cyclist in the blind spot — Step 6
+- [x] Wire NPCs into scenarios declaratively (`ScenarioDef.npcs`) + remove the `?trafficDemo=1` dev mount — Step 6 ✅
+- [x] Per-scenario choreography: give-way car, rechts-vor-links car, pedestrian on the zebra, ambulance from behind, cyclist in the blind spot — Step 6 ✅
 
 ### Stripe Payments
 
