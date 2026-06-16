@@ -92,7 +92,36 @@ export interface NpcSpawn {
   goWhenResolvedId?: string;
 }
 
-/** Full scenario definition — config + runtime logic. */
+// ─── Declarative scene props (Step 6) ───────────────────────────────────────
+// A scenario declares the signs / lights / NPCs it needs; SimulationScene renders
+// them generically (no per-scenario special-casing in the scene).
+
+/** A German road sign placed by a scenario. `kind` is a RoadSign `SignKind`. */
+export interface SceneSign {
+  kind: string;
+  position: [number, number, number];
+  /** Yaw so the face points at oncoming traffic. */
+  rotationY?: number;
+  /** Number for speed-limit (and similar) signs. */
+  number?: number;
+  label?: string;
+}
+
+/** A traffic light placed by a scenario. */
+export interface SceneLight {
+  position: [number, number, number];
+  /**
+   * Challenge-driven light: phase is 'green' once this resolvedChallengeId is
+   * true, otherwise 'red' (the traffic-lights scenario uses this).
+   */
+  goWhenResolvedId?: string;
+  /** Otherwise self-cycle red → green → yellow → red. */
+  autoCycle?: boolean;
+  cycle?: { red: number; green: number; yellow: number };
+  startPhase?: "red" | "yellow" | "green";
+}
+
+/** Full scenario definition — config + runtime logic + declarative scene data. */
 export interface ScenarioDef {
   config: ScenarioConfig;
   check: ScenarioChecker;
@@ -102,6 +131,12 @@ export interface ScenarioDef {
   driveMode?: "manual" | "auto";
   /** Autopilot path — used when driveMode === 'auto'. */
   waypoints?: Waypoint[];
-  /** Key-press challenges along the path. */
+  /** Decision points (teaching/MCQ) along the path. */
   challenges?: ChallengePoint[];
+  /** Road signs to render for this scenario. */
+  signs?: SceneSign[];
+  /** Moving NPC traffic for this scenario (rendered via TrafficManager). */
+  npcs?: NpcSpawn[];
+  /** Traffic lights for this scenario. */
+  lights?: SceneLight[];
 }
