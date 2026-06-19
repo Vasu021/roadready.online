@@ -56,6 +56,7 @@ const cyclistBlindSpot: ScenarioDef = {
   check,
   driveMode: "auto",
   waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   // Cyclist on the red bike lane (x≈-2.85), continuing straight south through
   // the junction — alongside / just ahead of the turning car. Loops.
   npcs: [

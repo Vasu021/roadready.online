@@ -56,6 +56,7 @@ const giveWaySign: ScenarioDef = {
   check,
   driveMode: "auto",
   waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   // Give-way sign on the right kerb, facing the southbound car.
   signs: [{ kind: "give-way", position: [-4, 0, 4], rotationY: 0 }],
   // A priority-road car crossing the junction from the left (west), looping so
