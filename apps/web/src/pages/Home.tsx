@@ -8,10 +8,7 @@ import type {
 } from "../utils/api";
 import { useUserStore } from "../store/userStore";
 import type { ProgressStatus } from "../store/userStore";
-
-// i18n placeholder — returns English now; Step 8 swaps in a real t() from
-// utils/i18n.ts. Wrap user-facing strings so they are translation-ready today.
-const t = (s: string): string => s;
+import { t } from "../utils/i18n";
 
 // ── State A: Landing Page (logged out) ────────────────────────────────────────
 

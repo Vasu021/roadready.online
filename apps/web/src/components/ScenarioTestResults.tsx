@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useGameStore } from "../store/gameStore";
 import { useUserStore } from "../store/userStore";
 import { api } from "../utils/api";
-
-// i18n placeholder (Step 8 swaps in utils/i18n.ts)
-const t = (s: string): string => s;
+import { t } from "../utils/i18n";
 
 const PASS_THRESHOLD = 0.6; // ≥ 60% correct passes the per-scenario test
 

@@ -87,6 +87,9 @@ interface GameStore {
   mcqAsked: number; // running per-scenario score (accumulates across decisions)
   mcqCorrect: number;
   mcqAnswers: McqAnswerRecord[]; // recap for the per-scenario test results
+  // ── Full Test (graded, server-scored TestSession) ──────────────────────────
+  ftSessionId: string | null; // active TestSession id; non-null ⇒ full-test run
+  ftSubmitting: boolean; // an answer POST is in flight
   // ── Actions ───────────────────────────────────────────────────────────────
   startScenario: (scenario: ScenarioConfig) => void;
   setScenarioPhase: (phase: ScenarioPhase) => void;
@@ -113,6 +116,10 @@ interface GameStore {
   advanceMcq: () => void;
   finishMcq: () => void;
   resetMcq: () => void;
+  // Full Test (server-scored)
+  setFtSession: (id: string | null) => void;
+  setFtSubmitting: (submitting: boolean) => void;
+  submitMcqServer: (isCorrect: boolean, explanation?: string) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -136,6 +143,8 @@ export const useGameStore = create<GameStore>((set) => ({
   mcqAsked: 0,
   mcqCorrect: 0,
   mcqAnswers: [],
+  ftSessionId: null,
+  ftSubmitting: false,
 
   startScenario: (scenario) =>
     set((s) => ({
@@ -157,6 +166,8 @@ export const useGameStore = create<GameStore>((set) => ({
       mcqAsked: 0,
       mcqCorrect: 0,
       mcqAnswers: [],
+      ftSessionId: null,
+      ftSubmitting: false,
     })),
 
   setScenarioPhase: (scenarioPhase) => set({ scenarioPhase }),
@@ -314,6 +325,37 @@ export const useGameStore = create<GameStore>((set) => ({
       mcqAnswers: [],
     }),
 
+  // ── Full Test (server-scored) ────────────────────────────────────────────────
+  setFtSession: (ftSessionId) => set({ ftSessionId }),
+  setFtSubmitting: (ftSubmitting) => set({ ftSubmitting }),
+
+  // Like submitMcq, but the verdict + explanation come from the server (the Full
+  // Test uses the isCorrect-hidden bank). Injects the explanation into activeMcq
+  // so the overlay can show it, and accumulates the running score + recap.
+  submitMcqServer: (isCorrect, explanation) =>
+    set((s) => {
+      const q = s.activeMcq;
+      if (!q || s.mcqResult !== "pending" || !s.mcqSelectedOptionId) {
+        return {};
+      }
+      const selected = q.options.find((o) => o.id === s.mcqSelectedOptionId);
+      const record: McqAnswerRecord = {
+        questionId: q.id,
+        questionText: q.questionText,
+        selectedOptionId: s.mcqSelectedOptionId,
+        selectedOptionText: selected?.text ?? "",
+        isCorrect,
+        explanation,
+      };
+      return {
+        activeMcq: { ...q, explanation },
+        mcqResult: isCorrect ? "correct" : "wrong",
+        mcqAsked: s.mcqAsked + 1,
+        mcqCorrect: s.mcqCorrect + (isCorrect ? 1 : 0),
+        mcqAnswers: [...s.mcqAnswers, record],
+      };
+    }),
+
   resetScenario: () =>
     set((s) => ({
       scenarioPhase: "running",
@@ -330,6 +372,8 @@ export const useGameStore = create<GameStore>((set) => ({
       mcqAsked: 0,
       mcqCorrect: 0,
       mcqAnswers: [],
+      ftSessionId: null,
+      ftSubmitting: false,
       objectives:
         s.activeScenario?.objectives.map((o) => ({
           ...o,

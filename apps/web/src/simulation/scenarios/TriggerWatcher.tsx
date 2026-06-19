@@ -8,6 +8,11 @@ interface Props {
   decisions: ChallengePoint[];
   /** The scenario's full MCQ bank (with answers), from useScenarioQuestions. */
   questions: McqQuestion[];
+  /**
+   * Full Test: spread `questions` evenly across the decision zones (chunk by zone
+   * index) instead of filtering each decision by its `questionOrders`.
+   */
+  fullTest?: boolean;
 }
 
 /** Pick the questions a decision asks; empty `orders` / undefined = all. */
@@ -17,13 +22,29 @@ function selectQuestions(all: McqQuestion[], orders?: number[]): McqQuestion[] {
   return all.filter((q) => wanted.has(q.order));
 }
 
+/** Full Test: the slice of `all` this zone presents (spread evenly across zones). */
+function chunkForZone(
+  all: McqQuestion[],
+  decisions: ChallengePoint[],
+  zoneId: string,
+): McqQuestion[] {
+  const idx = decisions.findIndex((d) => d.id === zoneId);
+  if (idx < 0) return [];
+  const size = Math.ceil(all.length / decisions.length);
+  return all.slice(idx * size, (idx + 1) * size);
+}
+
 /**
  * Invisible R3F component that watches the car against each decision point and,
  * on first crossing, opens the right overlay for the current attempt mode:
  * practice → teaching panel, test → MCQ sequence. Uses getState() so it never
  * re-renders. The car brakes while an overlay is open (handled in CarController).
  */
-export default function TriggerWatcher({ decisions, questions }: Props) {
+export default function TriggerWatcher({
+  decisions,
+  questions,
+  fullTest,
+}: Props) {
   const firedRef = useRef(new Set<string>());
   const runIdRef = useRef(useGameStore.getState().runId);
 
@@ -60,7 +81,9 @@ export default function TriggerWatcher({ decisions, questions }: Props) {
       if (store.attemptMode === "test") {
         // Wait for the question bank to load before consuming the trigger.
         if (questions.length === 0) return;
-        const queue = selectQuestions(questions, d.questionOrders);
+        const queue = fullTest
+          ? chunkForZone(questions, decisions, d.id)
+          : selectQuestions(questions, d.questionOrders);
         firedRef.current.add(d.id);
         if (queue.length > 0) {
           store.startMcqSequence(d.id, queue);

@@ -68,27 +68,30 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 
 - ✅ 3D browser-based driving simulation — no download required
 - ✅ Autopilot car — the car drives itself; users only make decisions at key moments
-- ✅ Key-press challenge system — simulation pauses, user must press the correct key (e.g. ← to turn, SPACE to stop)
-- ✅ Pass / fail per scenario — wrong choice fails the scenario; correct choice advances it
-- ✅ Progress saved to database after each scenario run
-- ✅ Procedural 3D city environment — L-shaped German road, trees, buildings, traffic lights
-- ✅ Multi-country DB: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice + 1 test scenario seeded
+- ✅ **MCQ pop-up** — transparent, draggable A/B/C/D popup the user can move aside to see the road
+- ✅ **Practice vs Test** — practice teaches the rule (panel, then the car does it right); test scores each answer
+- ✅ **All 28 Germany practice scenarios + the graded Full Test**, each playable in both Practice and Test
+- ✅ **Graded Full Test** — questions sampled across scenarios, server-scored, with an A/B/C/F grade and a per-question breakdown
+- ✅ **Procedural NPC traffic** — cars, bus, ambulance (blue lights), cyclist and pedestrians, choreographed per scenario
+- ✅ **German environment** — altbau/fachwerk facades, road signs, red bike lane, shark-teeth markings, street furniture
+- ✅ Pass / fail per scenario — progress saved to the database after each run
+- ✅ Multi-country DB: Germany 🇩🇪 (28 practice + 1 test) and France 🇫🇷 (9 practice + 1 test)
 - ✅ Three-state UI: marketing landing page → country selector with facts → scenario list
 - ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium (dev toggle)
 - ✅ User accounts and progress tracking (JWT auth, no third-party provider)
-- ✅ Two Germany simulation scenarios with full autopilot: Basic Controls, Traffic Lights
+- ✅ i18n scaffolding — user-facing strings wrapped in a `t()` helper, ready for translation
 
 ### In Progress / Next Up
 
-- 🔨 MCQ pop-up overlay — transparent, draggable popup with A/B/C/D options; correct → continue simulation; wrong → explanation shown
-- 🔨 Practice vs Test mode — practice shows correct answer on wrong; test fails immediately
-- 🔨 More Germany simulation scenarios (Roundabout, Rechts vor Links, Pedestrian Crossing, etc.)
+- 🔨 Deeper bespoke scenes — a true roundabout ring, a long multi-lane Autobahn, a railway level-crossing prop
+- 🔨 Weather & day/night conditions for the adverse-conditions scenario
+- 🔨 France parity — bring the French scenarios up to the same depth as Germany
 
 ### Planned Features
 
-- 🔜 Full test mode — all scenarios in sequence, graded (A/B/C/F) at the end
-- 🔜 AI traffic — other cars, pedestrians, cyclists
-- 🔜 Day/night and weather conditions
+- 🔜 Stripe payments — replace the dev Premium toggle with real subscriptions
+- 🔜 Dashboard — completion, best scores and attempt history per country
+- 🔜 Richer AI-traffic choreography and collisions
 - 🔜 Leaderboards and scoring
 - 🔜 Mobile support
 - 🔜 Multilingual UI (German, English, Turkish, Arabic, Hindi)
@@ -98,22 +101,43 @@ RoadReady is designed to scale globally. We start small and expand city by city.
 
 ## 🧩 Scenario Library
 
-Scenarios are database-driven. Each pauses the car at a key moment and asks an MCQ question about the relevant rule.
+Scenarios are database-driven. The car pauses at each decision point; in **Practice** a panel teaches the rule and the car then performs it, while in **Test** an MCQ pop-up scores the answer. Every Germany scenario below is playable in both modes.
 
-### 🇩🇪 Germany
+### 🇩🇪 Germany — 28 practice + 1 graded test
 
-| Scenario                                 | Category      | Type     |
-| ---------------------------------------- | ------------- | -------- |
-| Basic Controls                           | Basic Skills  | PRACTICE |
-| Rechts vor Links — Right before Left     | Traffic Rules | PRACTICE |
-| Roundabout                               | Traffic Rules | PRACTICE |
-| Traffic Lights                           | Traffic Rules | PRACTICE |
-| Priority Road Signs (Vorfahrtstraße)     | Road Signs    | PRACTICE |
-| Vorfahrt — Priority at Next Intersection | Road Signs    | PRACTICE |
-| Emergency Vehicle                        | Traffic Rules | PRACTICE |
-| Pedestrian Crossing                      | Traffic Rules | PRACTICE |
-| Autobahn Rules                           | Traffic Rules | PRACTICE |
-| Full Test — Germany                      | Traffic Rules | TEST     |
+| Scenario                                 | Category                     | Type     |
+| ---------------------------------------- | ---------------------------- | -------- |
+| Basic Controls                           | Basic Skills                 | PRACTICE |
+| Mirror, Signal, Maneuver                 | Basic Skills                 | PRACTICE |
+| Speed & Stopping Distance                | Basic Skills                 | PRACTICE |
+| Parking & Stopping                       | Basic Skills                 | PRACTICE |
+| Rechts vor Links — Right before Left     | Right of Way & Priority      | PRACTICE |
+| Give Way / Yield                         | Right of Way & Priority      | PRACTICE |
+| Stop Sign                                | Right of Way & Priority      | PRACTICE |
+| Priority Road Signs (Vorfahrtstraße)     | Right of Way & Priority      | PRACTICE |
+| Vorfahrt — Priority at Next Intersection | Right of Way & Priority      | PRACTICE |
+| Turning Left with Oncoming Traffic       | Right of Way & Priority      | PRACTICE |
+| Roundabout (Kreisverkehr) \*             | Right of Way & Priority      | PRACTICE |
+| Traffic Lights                           | Traffic Lights & Signals     | PRACTICE |
+| Green Arrow — Right Turn on Red          | Traffic Lights & Signals     | PRACTICE |
+| Signal Priority Order                    | Traffic Lights & Signals     | PRACTICE |
+| Prohibition Signs                        | Road Signs                   | PRACTICE |
+| Mandatory Direction Signs                | Road Signs                   | PRACTICE |
+| Speed Limits & Tempo-30 Zone             | Road Signs                   | PRACTICE |
+| Warning Signs                            | Road Signs                   | PRACTICE |
+| Pedestrian Crossing (Zebrastreifen)      | Vulnerable Road Users        | PRACTICE |
+| Cyclists & Blind Spot                    | Vulnerable Road Users        | PRACTICE |
+| Tram Priority                            | Vulnerable Road Users        | PRACTICE |
+| School Zone & Children                   | Vulnerable Road Users        | PRACTICE |
+| Emergency Vehicle & Rettungsgasse        | Special Situations & Highway | PRACTICE |
+| Bus Stop                                 | Special Situations & Highway | PRACTICE |
+| Autobahn Rules \*                        | Special Situations & Highway | PRACTICE |
+| Zipper Merge                             | Special Situations & Highway | PRACTICE |
+| Railway Crossing \*                      | Special Situations & Highway | PRACTICE |
+| Fog, Rain & Night Driving \*             | Special Situations & Highway | PRACTICE |
+| Full Test — Germany                      | Test                         | TEST     |
+
+\* Simplified representation for now (uses the shared road with a stand-in) — scheduled to be deepened. See `TASKS.md`.
 
 ### 🇫🇷 France
 

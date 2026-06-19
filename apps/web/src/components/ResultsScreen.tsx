@@ -4,6 +4,7 @@ import { useGameStore } from "../store/gameStore";
 import type { ScenarioPhase } from "../store/gameStore";
 import { useUserStore } from "../store/userStore";
 import { api } from "../utils/api";
+import { t } from "../utils/i18n";
 
 const FEEDBACK: Record<"passed" | "failed", { heading: string; body: string }> =
   {
@@ -75,24 +76,24 @@ export default function ResultsScreen() {
             {isPassed ? "✓" : "✕"}
           </span>
           <div>
-            <p className="text-lg font-bold text-white">{heading}</p>
+            <p className="text-lg font-bold text-white">{t(heading)}</p>
             <p className="text-sm text-gray-400">{scenario?.name}</p>
           </div>
         </div>
 
         {/* Feedback text */}
-        <p className="mb-6 text-sm leading-relaxed text-gray-300">{body}</p>
+        <p className="mb-6 text-sm leading-relaxed text-gray-300">{t(body)}</p>
 
         {/* Stats */}
         <div className="mb-6 grid grid-cols-2 gap-3 rounded-xl bg-gray-900 p-4">
           <div>
-            <p className="text-xs text-gray-500">Objectives</p>
+            <p className="text-xs text-gray-500">{t("Objectives")}</p>
             <p className="font-mono text-lg font-semibold text-white">
               {completedCount} / {objectives.length}
             </p>
           </div>
           <div>
-            <p className="text-xs text-gray-500">Time</p>
+            <p className="text-xs text-gray-500">{t("Time")}</p>
             <p className="font-mono text-lg font-semibold text-white">
               {mins}:{secs.toString().padStart(2, "0")}
             </p>
@@ -120,7 +121,7 @@ export default function ResultsScreen() {
         {/* Auth nudge for guests */}
         {!user && (
           <p className="mb-4 text-center text-xs text-gray-500">
-            Sign in to save your results across sessions.
+            {t("Sign in to save your results across sessions.")}
           </p>
         )}
 
@@ -130,13 +131,13 @@ export default function ResultsScreen() {
             onClick={resetScenario}
             className="flex-1 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
           >
-            Try Again
+            {t("Try Again")}
           </button>
           <button
             onClick={() => navigate("/")}
             className="flex-1 rounded-lg border border-gray-700 py-2.5 text-sm font-semibold text-gray-300 transition hover:bg-gray-800"
           >
-            Back to Menu
+            {t("Back to Menu")}
           </button>
         </div>
       </div>

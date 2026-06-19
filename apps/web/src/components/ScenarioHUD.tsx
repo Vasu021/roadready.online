@@ -15,7 +15,7 @@ export default function ScenarioHUD() {
   const timerWarn = remaining < 20;
 
   return (
-    <div className="absolute left-4 top-16 w-60 rounded-xl bg-black/55 p-4 backdrop-blur">
+    <div className="absolute left-4 top-16 w-56 max-w-[58vw] rounded-xl bg-black/55 p-3 backdrop-blur sm:w-60 sm:p-4">
       {/* Scenario name */}
       <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-400">
         {scenario.name}

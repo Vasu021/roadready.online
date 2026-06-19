@@ -34,6 +34,8 @@ import autobahnRules from "./autobahn-rules";
 import zipperMerge from "./zipper-merge";
 import railwayCrossing from "./railway-crossing";
 import adverseConditions from "./adverse-conditions";
+// ── Test ──────────────────────────────────────────────────────────────────────
+import fullTestGermany from "./fullTestGermany";
 
 // slug → ScenarioDef. A slug is playable from Home only if it appears here and
 // exactly matches the seeded DB slug. (full-test-germany is wired in Step 8.)
@@ -72,6 +74,8 @@ const registry: Record<string, ScenarioDef> = {
   "zipper-merge": zipperMerge,
   "railway-crossing": railwayCrossing,
   "adverse-conditions": adverseConditions,
+  // Test
+  "full-test-germany": fullTestGermany,
 };
 
 export function getScenario(id: string): ScenarioDef | undefined {
