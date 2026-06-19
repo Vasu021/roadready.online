@@ -133,6 +133,48 @@ export interface ScenarioQuestionWithAnswer extends ScenarioQuestion {
   correctOptionId: string | null;
 }
 
+// ── Full Test (graded TestSession, server-scored) ─────────────────────────────
+
+export interface TestSession {
+  id: string;
+  userId: string;
+  countryId: string;
+  startedAt: string;
+  completedAt: string | null;
+  totalScore: number;
+  maxScore: number;
+  passed: boolean | null;
+  grade: string | null;
+}
+
+/** POST /api/test-sessions/:id/answers result. */
+export interface TestAnswerResult {
+  id: string;
+  isCorrect: boolean;
+  explanation: string;
+}
+
+/** GET /api/test-sessions/:id — full session with per-answer breakdown. */
+export interface TestSessionDetail extends TestSession {
+  country: { code: string; name: string; flagEmoji: string };
+  answers: {
+    id: string;
+    isCorrect: boolean;
+    question: { questionText: string; explanation: string; order: number };
+    selectedOption: { optionText: string; isCorrect: boolean };
+  }[];
+}
+
+/** GET /api/countries/:code/test-questions — sampled, `isCorrect` hidden. */
+export interface FullTestQuestionsResponse {
+  countryId: string;
+  questions: {
+    id: string;
+    questionText: string;
+    options: { id: string; optionText: string }[];
+  }[];
+}
+
 export const api = {
   auth: {
     register: (payload: AuthPayload) =>
@@ -152,6 +194,33 @@ export const api = {
       request<{ facts: string | null }>(`/api/countries/${code}/facts`),
     scenarios: (code: string) =>
       request<CountryScenariosResponse>(`/api/countries/${code}/scenarios`),
+  },
+  // Graded Full Test: sampled cross-scenario questions + a server-scored session.
+  fullTest: {
+    getQuestions: (code: string, limit?: number) =>
+      request<FullTestQuestionsResponse>(
+        `/api/countries/${code}/test-questions${limit ? `?limit=${limit}` : ""}`,
+      ),
+  },
+  testSessions: {
+    create: (payload: { countryId: string; maxScore?: number }) =>
+      request<TestSession>("/api/test-sessions", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    answer: (
+      id: string,
+      payload: { questionId: string; selectedOptionId: string },
+    ) =>
+      request<TestAnswerResult>(`/api/test-sessions/${id}/answers`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    complete: (id: string) =>
+      request<TestSession>(`/api/test-sessions/${id}/complete`, {
+        method: "PATCH",
+      }),
+    get: (id: string) => request<TestSessionDetail>(`/api/test-sessions/${id}`),
   },
   scenarios: {
     list: () => request<ScenarioConfig[]>("/api/scenarios"),

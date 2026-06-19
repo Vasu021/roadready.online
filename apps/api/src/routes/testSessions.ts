@@ -12,17 +12,29 @@ function computeGrade(pct: number): string {
 }
 
 // POST /api/test-sessions
+// Body: { countryId, maxScore? }. `maxScore` lets a curated exam (e.g. the Full
+// Test, which presents a sampled subset across scenarios) grade out of the number
+// of questions actually asked. It is clamped to [1, all active questions]; omit
+// it to default to the full active-question count. Answers are always scored
+// server-side, so the grade can't be faked by under-reporting maxScore.
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { countryId } = req.body as { countryId?: string };
+  const { countryId, maxScore: maxScoreOverride } = req.body as {
+    countryId?: string;
+    maxScore?: number;
+  };
   if (!countryId) {
     res.status(400).json({ error: "countryId is required" });
     return;
   }
 
   try {
-    const maxScore = await prisma.question.count({
+    const allActive = await prisma.question.count({
       where: { scenario: { countryId, isActive: true } },
     });
+    const maxScore =
+      typeof maxScoreOverride === "number" && maxScoreOverride > 0
+        ? Math.min(Math.floor(maxScoreOverride), allActive)
+        : allActive;
 
     const session = await prisma.testSession.create({
       data: { userId: req.userId!, countryId, maxScore },

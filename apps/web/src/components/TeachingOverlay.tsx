@@ -1,7 +1,5 @@
 import { useGameStore } from "../store/gameStore";
-
-// i18n placeholder (Step 8 swaps in utils/i18n.ts)
-const t = (s: string): string => s;
+import { t } from "../utils/i18n";
 
 /**
  * PRACTICE-mode teaching panel. The car pauses at a decision point, this panel

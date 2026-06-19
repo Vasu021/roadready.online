@@ -124,6 +124,18 @@ Every Germany **practice** scenario is now playable in BOTH practice and test �
 - `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
 - **Deferred to Step 8:** the aggregate graded `full-test-germany` flow, i18n scaffolding (`utils/i18n.ts`), responsive/QA polish, and docs.
 
+### Aggregate Full Test, Polish, i18n & Docs (PROMPT.md — Step 8) ✅
+
+Finishes the graded "Full Test — Germany", scaffolds i18n, hardens the experience, and refreshes the docs.
+
+- **Graded Full Test (`full-test-germany`, `fullTest: true`).** New module `fullTestGermany.ts` (registered in `index.ts`) drives the shared L-route past **three checkpoints**. On start, `Simulation.tsx` fetches a sample of questions drawn across all active DE scenarios and opens a server-scored `TestSession`; `TriggerWatcher`'s full-test branch (`chunkForZone`) spreads the questions across the checkpoints. Each answer posts to the server (`isCorrect` never reaches the client); `TestResultsScreen.tsx` completes the session and shows the **A/B/C/F grade (pass ≥ 75 %)**, score, and a per-question breakdown. Verified end-to-end against the live API: create → answer → complete → breakdown, with idempotent re-complete → 409.
+- **Reuses the existing overlay + braking.** The full test rides the same `activeMcq` / `MCQOverlay` / `CarController` braking path as the per-scenario test — the only additions are `ftSessionId` + `submitMcqServer` (server verdict instead of client-side scoring). No second physics or overlay path.
+- **New API.** `GET /api/countries/:code/test-questions?limit=N` (auth-guarded) — sampled cross-scenario questions with `isCorrect` hidden, returns `countryId`. `POST /api/test-sessions` gains an optional, **clamped** `maxScore` (`[1, all active questions]`) so a curated exam grades out of the number actually asked; answers are still scored server-side, so the grade can't be faked by under-reporting. `api.ts` gains `fullTest.getQuestions` + `testSessions.{create,answer,complete,get}` (+ types).
+- **i18n scaffold.** New `utils/i18n.ts` exporting `t(key, fallback?)` (English now; `setLocale` + per-locale dictionaries ready for real translations). Replaced the per-file `const t = (s) => s` placeholders in `MCQOverlay`, `TeachingOverlay`, `ScenarioTestResults`, `TestResultsScreen`, `Home`, and `Simulation` with the shared helper.
+- **Polish & QA.** HUD made responsive (`max-w-[58vw]`, smaller padding on mobile); the MCQ popup already clamps within the viewport when dragged; the keyboard-controls hint is hidden on small screens. The car brakes for every open overlay and resumes cleanly; decisions don't double-fire (`TriggerWatcher` fired-set + `runId`). Per-scenario progress saving (`POST /api/progress`) is unchanged and still works.
+- `tsc --noEmit` clean in both apps; `npm run build` (api + web + shared) succeeds; Prettier applied.
+- **Docs.** README — features refreshed + the full 28-practice + 1-test Germany table grouped by the six categories (simplified scenarios flagged). SIMULATION_DESIGN.md — new "Practice vs Test" section covering both overlays + the server-scored Full Test. TASKS.md — this entry.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -261,13 +273,15 @@ Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and
 - [ ] `railway-crossing` — a level-crossing prop: Andreaskreuz sign, barriers, tracks (currently a stop zone + teaching only)
 - [ ] `adverse-conditions` — reduced-visibility / day-night scene effects (currently teaching/MCQ only)
 - [ ] Dedicated sign faces for `mandatory-signs` (blue direction arrows) and `vorfahrt-priority-intersection` (Zeichen 301) instead of the closest existing face
+- [ ] France parity — bring the French scenarios up to the same depth as Germany (modules, NPCs, MCQ banks)
+- [ ] Weather / day-night scene effects (powers the `adverse-conditions` scenario visually)
 
-### Test Mode Flow (full test session)
+### Test Mode Flow (full test session) — Step 8 ✅
 
-- [ ] Create `TestSession` at start of `full-test-germany` scenario via `POST /api/test-sessions`
-- [ ] Submit each MCQ answer to `POST /api/test-sessions/:id/answers`
-- [ ] Complete session via `PATCH /api/test-sessions/:id/complete`
-- [ ] `TestResultsScreen.tsx` — per-question breakdown, total score, grade (A/B/C/F), pass/fail
+- [x] Create `TestSession` at start of `full-test-germany` scenario via `POST /api/test-sessions` (curated `maxScore`) — Step 8 ✅
+- [x] Submit each MCQ answer to `POST /api/test-sessions/:id/answers` (server-scored) — Step 8 ✅
+- [x] Complete session via `PATCH /api/test-sessions/:id/complete` — Step 8 ✅
+- [x] `TestResultsScreen.tsx` — per-question breakdown, total score, grade (A/B/C/F), pass/fail — Step 8 ✅
 
 ### AI Traffic (PROMPT.md — Step 5 ✅ — system built; choreography is Steps 6–7)
 

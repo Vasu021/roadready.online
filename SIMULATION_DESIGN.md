@@ -137,7 +137,7 @@ Reads `activeChallenge` from `gameStore`. When `result === 'pending'`, adds a `k
 
 ---
 
-## MCQ Overlay (Planned — Next Priority)
+## MCQ Overlay (Implemented — see "Practice vs Test" below)
 
 The product vision for challenges:
 
@@ -178,6 +178,30 @@ User selects option → clicks Confirm
 4. **`CarController`** — when `pausedForMCQ`, apply braking (same as current challenge pending)
 5. **Question trigger** — `ScenarioRunner` or `CarController` sets `pausedForMCQ = true` when car enters a question zone; question is selected from the cached list by `questionId`
 6. **After confirm** — submit answer to `POST /api/test-sessions/:id/answers` (test mode) or just evaluate locally (practice mode); show result; set timer to resume
+
+---
+
+## Practice vs Test (Implemented)
+
+Both modes share the same autopilot + decision-point machinery; they differ only in what happens when the car reaches a decision and how the run is scored.
+
+**Launching:** `Home` links each practice scenario to `/simulation/:slug?mode=practice` and `?mode=test`; the TEST card links the Full Test to `/simulation/full-test-germany?mode=test`. `Simulation.tsx` reads `?mode` into `gameStore.attemptMode`.
+
+**At a decision point** — `TriggerWatcher` is an invisible `useFrame` watcher that fires once per decision (guarded by a fired-set + `runId`), one decision at a time:
+
+- **Practice** → `triggerTeaching(point)` → `TeachingOverlay` shows the situation + the rule. **Continue** marks the objective complete (`resolveTeaching`) and the car performs the correct action automatically. No score.
+- **Test (per scenario)** → `startMcqSequence(decisionId, queue)` (questions filtered by the decision's `questionOrders`) → `MCQOverlay`. Answers are scored **client-side** against the answer key from `GET /api/scenarios/:slug/questions/answers`. A wrong answer is never instant-fail — it shows the correct option + explanation and continues. `ScenarioTestResults` shows `X / N` (pass ≥ 60%) and saves via `POST /api/progress`.
+
+**The car brakes** whenever any overlay is open — `CarController` halts on `activeChallenge || activeTeaching || activeMcq` (one shared braking path) and resumes when it clears.
+
+### The graded Full Test (`full-test-germany`, `fullTest: true`)
+
+A separate, **server-scored** flow that reuses the same overlay + braking:
+
+1. On start, `Simulation.tsx` fetches a sample of questions drawn across all active DE scenarios (`GET /api/countries/DE/test-questions?limit=N`, `isCorrect` hidden) and opens a `TestSession` (`POST /api/test-sessions { countryId, maxScore = N }`, so the grade is out of what's actually asked).
+2. The car drives the shared L-route and pauses at three checkpoints; `TriggerWatcher`'s full-test branch spreads the questions evenly across them (`chunkForZone`).
+3. Each answer posts to `POST /api/test-sessions/:id/answers`; the server returns `{ isCorrect, explanation }`, which the overlay shows via `submitMcqServer` (the answer key never reaches the client).
+4. When the final checkpoint is done, `TestResultsScreen` calls `PATCH …/complete` (grade A/B/C/F, pass ≥ 75%) and renders the per-question breakdown from `GET …/:id`. **Retake** opens a fresh session.
 
 ---
 

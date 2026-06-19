@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
 import { useGameStore } from "../store/gameStore";
-
-// i18n placeholder (Step 8 swaps in utils/i18n.ts)
-const t = (s: string): string => s;
+import { api } from "../utils/api";
+import { t } from "../utils/i18n";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -21,6 +20,11 @@ export default function MCQOverlay() {
   const submitMcq = useGameStore((s) => s.submitMcq);
   const advanceMcq = useGameStore((s) => s.advanceMcq);
   const finishMcq = useGameStore((s) => s.finishMcq);
+  // Full Test: answers are scored server-side via the active TestSession.
+  const ftSessionId = useGameStore((s) => s.ftSessionId);
+  const ftSubmitting = useGameStore((s) => s.ftSubmitting);
+  const setFtSubmitting = useGameStore((s) => s.setFtSubmitting);
+  const submitMcqServer = useGameStore((s) => s.submitMcqServer);
 
   // ── Dragging ────────────────────────────────────────────────────────────────
   const panelRef = useRef<HTMLDivElement>(null);
@@ -58,6 +62,27 @@ export default function MCQOverlay() {
   const isPending = mcqResult === "pending";
   const answered = mcqResult === "correct" || mcqResult === "wrong";
   const hasNext = queueLength > 0;
+
+  // Full Test → submit to the server and use its verdict; otherwise score locally.
+  async function handleConfirm() {
+    if (!activeMcq || !selectedId) return;
+    if (!ftSessionId) {
+      submitMcq();
+      return;
+    }
+    setFtSubmitting(true);
+    try {
+      const r = await api.testSessions.answer(ftSessionId, {
+        questionId: activeMcq.id,
+        selectedOptionId: selectedId,
+      });
+      submitMcqServer(r.isCorrect, r.explanation);
+    } catch (err) {
+      console.error(err); // stay pending so the user can retry
+    } finally {
+      setFtSubmitting(false);
+    }
+  }
 
   return (
     <div
@@ -146,11 +171,11 @@ export default function MCQOverlay() {
           {isPending ? (
             <button
               type="button"
-              disabled={!selectedId}
-              onClick={submitMcq}
+              disabled={!selectedId || ftSubmitting}
+              onClick={handleConfirm}
               className="rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {t("Confirm")}
+              {ftSubmitting ? t("Checking…") : t("Confirm")}
             </button>
           ) : (
             <button

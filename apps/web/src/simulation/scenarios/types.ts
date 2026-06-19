@@ -139,4 +139,10 @@ export interface ScenarioDef {
   npcs?: NpcSpawn[];
   /** Traffic lights for this scenario. */
   lights?: SceneLight[];
+  /**
+   * Marks the aggregate graded Full Test. Its decision zones present questions
+   * sampled across scenarios and scored server-side via a TestSession (rather
+   * than the per-scenario client-side scoring). Simulation.tsx branches on this.
+   */
+  fullTest?: boolean;
 }

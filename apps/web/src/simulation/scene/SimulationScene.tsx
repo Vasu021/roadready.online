@@ -20,6 +20,8 @@ interface SimulationSceneProps {
   scenarioId?: string;
   /** Scenario MCQ bank (with answers), used by TriggerWatcher in test mode. */
   questions?: McqQuestion[];
+  /** Full Test: TriggerWatcher spreads `questions` across the checkpoints. */
+  fullTest?: boolean;
 }
 
 /** A traffic light whose phase follows a challenge: red until it resolves, then green. */
@@ -42,6 +44,7 @@ function ChallengeLight({
 export default function SimulationScene({
   scenarioId,
   questions = [],
+  fullTest = false,
 }: SimulationSceneProps) {
   const def = scenarioId ? getScenario(scenarioId) : undefined;
 
@@ -107,7 +110,11 @@ export default function SimulationScene({
         )}
 
         {def?.challenges && def.challenges.length > 0 && (
-          <TriggerWatcher decisions={def.challenges} questions={questions} />
+          <TriggerWatcher
+            decisions={def.challenges}
+            questions={questions}
+            fullTest={fullTest}
+          />
         )}
 
         {def && (
