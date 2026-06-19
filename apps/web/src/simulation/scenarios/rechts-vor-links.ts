@@ -55,6 +55,7 @@ const rechtsVorLinks: ScenarioDef = {
   check,
   driveMode: "auto",
   waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   // No signs — this is an unmarked junction.
   // A car approaching the junction from the right (west), looping.
   npcs: [

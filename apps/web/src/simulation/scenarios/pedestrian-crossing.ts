@@ -56,6 +56,7 @@ const pedestrianCrossing: ScenarioDef = {
   check,
   driveMode: "auto",
   waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   stopZone: { cx: -45, cz: -5, hw: 5, hd: 4 },
   // Pedestrian-crossing sign just before the zebra, facing the westbound car.
   signs: [

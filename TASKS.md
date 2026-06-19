@@ -107,6 +107,23 @@ Scenarios now declare the signs / lights / NPCs they need; `SimulationScene` ren
 - Junction clearance respected (signs sit outside the turn arc; NPCs are kinematic, not static obstacles). `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
 - **Deferred to Step 7:** the remaining Germany scenarios (roundabout, autobahn, priority-road-signs, vorfahrt-priority-intersection, etc.) via a `makeScenario` helper; roundabout/autobahn/railway use simplified representations.
 
+### Remaining Germany Scenarios (PROMPT.md — Step 7) ✅
+
+Every Germany **practice** scenario is now playable in BOTH practice and test — no "Coming soon", no crash. A shared `makeScenario` builder keeps each module short and guarantees the challenge wiring is correct. Slugs verified against the seed: **28/28 Germany practice slugs registered, exact match, no typos/extras** (`full-test-germany` is Step 8).
+
+- **`makeScenario.ts`** (new) — builds a standard auto-drive `ScenarioDef` from `{ slug, name, description, decisions, signs?, npcs?, lights?, stopZone? }`. It wires each decision into BOTH `config.objectives` AND `challenges` using the decision id as the shared key (the "challenge id === objective id" invariant `TriggerWatcher` + `ScenarioRunner` depend on), and derives `check` (passes once every decision id is completed). Defaults: shared `L_ROUTE`, `driveMode:"auto"`, `timeLimit:300` (generous so test-mode MCQs aren't rushed). Exports helpers: `approachSign` (Road-1 −X kerb, faces southbound car), `road2Sign` (Road-2 north kerb z=−9, faces westbound car), `crossingCar` (looping cross traffic to yield to), `leadCar` (slower car ahead), `yieldingVehicle` (waits at its start until a `goWhenResolvedId` resolves, then drives off — for traffic that yields to the player).
+- **21 new scenario modules** (all registered in `index.ts`):
+  - **Basic Skills:** `mirror-signal-maneuver` (Spiegel–Blinker–Schulterblick; cyclist on the bike lane), `speed-stopping-distance` (lead car + 50 sign), `parking-rules-de` (Halten vs Parken, decision on Road 2).
+  - **Right of Way & Priority:** `stop-sign` (full stop + stop zone), `priority-road-signs` (Vorfahrtstraße diamond; side car waits then pulls away), `vorfahrt-priority-intersection` (Zeichen 301), `turning-left-oncoming` (oncoming car has priority), `roundabout` (_simplified_).
+  - **Traffic Lights & Signals:** `green-arrow` (Grünpfeil — junction light goes green on resolve), `signals-override` (officer > lights > signs > markings; self-cycling light).
+  - **Road Signs:** `prohibition-signs` (no-entry + no-overtaking), `mandatory-signs`, `speed-limit-tempo30` (30 sign), `warning-signs` (children + crossing triangles).
+  - **Vulnerable Road Users:** `tram-priority` (tram sign), `school-zone` (children sign + child pacing the crossing + stop zone).
+  - **Special & Highway:** `bus-stop` (bus pulls out once you yield), `autobahn-rules` (_simplified_ fast straight + lead car + autobahn sign), `zipper-merge` (converging merge car), `railway-crossing` (_simplified_), `adverse-conditions` (_simplified_).
+- **Fixed a Step-6 regression:** the five flagship modules (`give-way-sign`, `rechts-vor-links`, `pedestrian-crossing`, `emergency-vehicle`, `cyclist-blind-spot`) exported a `CHALLENGES` const but never set `challenges:` on their `ScenarioDef`, so `<TriggerWatcher/>` never mounted and their decision could never fire (the car drove the path but the scenario could never complete in either mode). Added `challenges: CHALLENGES` to all five — they now complete correctly.
+- **Full vs simplified-for-now:** _full_ = a real sign/NPC choreography on the shared L-road (the majority). _Simplified_ (playable now on the shared road with a stand-in, flagged below for deepening): `roundabout` (no true ring mesh — L-junction + roundabout/give-way signs + circulating car), `autobahn-rules` (short fast section, not a long multi-lane Autobahn), `railway-crossing` (stop zone + teaching only — no Andreaskreuz/barrier/track prop), `adverse-conditions` (no weather/visibility scene effects yet). `mandatory-signs` and `vorfahrt-priority-intersection` reuse the closest existing sign face (a dedicated blue-arrow / Zeichen-301 face is later polish).
+- `tsc --noEmit` clean in both apps; `vite build` succeeds; Prettier applied.
+- **Deferred to Step 8:** the aggregate graded `full-test-germany` flow, i18n scaffolding (`utils/i18n.ts`), responsive/QA polish, and docs.
+
 ### Backend — Express API (all routes live)
 
 | Method | Route                                          | Auth | Notes                                                         |
@@ -231,11 +248,19 @@ Each new scenario needs: waypoints (autopilot path), MCQ challenge point(s), and
 - [x] `pedestrian-crossing.ts` — zebra crossing, pedestrian paces across; teaches Zebrastreifen priority — Step 6 ✅
 - [x] `emergency-vehicle.ts` — ambulance from behind, pull right; teaches §38 / Rettungsgasse — Step 6 ✅
 - [x] `cyclist-blind-spot.ts` — cyclist on the bike lane while turning; teaches Schulterblick / toter Winkel — Step 6 ✅
-- [ ] `roundabout.ts` — circular road mesh, entry/exit MCQ; challenge: yield to traffic already in roundabout — Step 7
-- [ ] `autobahn-rules.ts` — straight highway with lane markings, speed challenge, Reißverschluss (zipper merge) MCQ — Step 7
-- [ ] `priority-road-signs.ts` — yellow diamond vs triangle signs, challenge: who yields? — Step 7
-- [ ] `vorfahrt-priority-intersection.ts` — advance warning sign scenario — Step 7
-- [ ] All remaining Appendix-A slugs via a `makeScenario` helper — Step 7
+- [x] `roundabout.ts` — yield to traffic in the roundabout (simplified ring) — Step 7 ✅
+- [x] `autobahn-rules.ts` — keep right / overtake left (simplified fast straight) — Step 7 ✅
+- [x] `priority-road-signs.ts` — Vorfahrtstraße diamond, side car yields — Step 7 ✅
+- [x] `vorfahrt-priority-intersection.ts` — Zeichen 301 priority at next junction — Step 7 ✅
+- [x] All remaining Appendix-A slugs via a `makeScenario` helper — Step 7 ✅ (28/28 Germany practice scenarios registered + slug-matched)
+
+### Deepen-later (deferred from Step 7's simplified scenarios)
+
+- [ ] `roundabout` — a true circular road mesh + proper entry/exit waypoints (currently the shared L-junction stands in)
+- [ ] `autobahn-rules` — a dedicated long multi-lane Autobahn section (currently a short fast straight on Road 1)
+- [ ] `railway-crossing` — a level-crossing prop: Andreaskreuz sign, barriers, tracks (currently a stop zone + teaching only)
+- [ ] `adverse-conditions` — reduced-visibility / day-night scene effects (currently teaching/MCQ only)
+- [ ] Dedicated sign faces for `mandatory-signs` (blue direction arrows) and `vorfahrt-priority-intersection` (Zeichen 301) instead of the closest existing face
 
 ### Test Mode Flow (full test session)
 

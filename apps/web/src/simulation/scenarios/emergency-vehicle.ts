@@ -56,6 +56,7 @@ const emergencyVehicle: ScenarioDef = {
   check,
   driveMode: "auto",
   waypoints: WAYPOINTS,
+  challenges: CHALLENGES,
   // Ambulance approaching from behind (north), passing on the left, then west.
   npcs: [
     {
