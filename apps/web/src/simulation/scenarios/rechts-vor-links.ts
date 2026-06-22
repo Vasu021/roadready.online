@@ -12,9 +12,9 @@ export const WAYPOINTS: Waypoint[] = [
   { x: 0, z: 30, speed: 7 },
   { x: 0, z: 5, speed: 3.5 }, // slow on the approach
   { x: 0, z: -1, speed: 2 }, // junction mouth
-  { x: -10, z: -5, speed: 4 }, // left-turn arc
-  { x: -30, z: -5, speed: 7 },
-  { x: -44, z: -5, speed: 2 },
+  { x: -11, z: -6.2, speed: 4 }, // left turn into the right-hand lane
+  { x: -30, z: -6.4, speed: 7 },
+  { x: -44, z: -6.4, speed: 2 },
 ];
 
 // ─── Decision point ───────────────────────────────────────────────────────────
@@ -57,17 +57,18 @@ const rechtsVorLinks: ScenarioDef = {
   waypoints: WAYPOINTS,
   challenges: CHALLENGES,
   // No signs — this is an unmarked junction.
-  // A car approaching the junction from the right (west), looping.
+  // A car approaching the junction from the player's right (west → east) in its
+  // own lane, looping. Starts/ends off-screen so the loop never "pops".
   npcs: [
     {
       id: "rvl-cross",
       variant: "car",
       behavior: "free",
       loop: true,
-      speed: 7,
+      speed: 6,
       path: [
-        { x: -56, z: -3.25, speed: 7 },
-        { x: 12, z: -3.25, speed: 7 },
+        { x: -84, z: -3.25, speed: 6 },
+        { x: 24, z: -3.25, speed: 6 },
       ],
     },
   ],

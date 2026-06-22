@@ -12,10 +12,10 @@ export const WAYPOINTS: Waypoint[] = [
   { x: 0, z: 30, speed: 7 },
   { x: 0, z: 4, speed: 4 },
   { x: 0, z: -1, speed: 2 }, // junction mouth
-  { x: -10, z: -5, speed: 4 }, // left-turn arc
-  { x: -30, z: -5, speed: 7 }, // cruise toward the crossing
-  { x: -42, z: -5, speed: 2 }, // brake for the zebra
-  { x: -44, z: -5, speed: 1 },
+  { x: -11, z: -6.2, speed: 4 }, // left turn into the right-hand lane
+  { x: -30, z: -6.4, speed: 7 }, // cruise toward the crossing
+  { x: -42, z: -6.4, speed: 2 }, // brake for the zebra
+  { x: -44, z: -6.4, speed: 1 },
 ];
 
 // ─── Decision point ───────────────────────────────────────────────────────────

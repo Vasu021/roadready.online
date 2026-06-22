@@ -12,9 +12,9 @@ export const WAYPOINTS: Waypoint[] = [
   { x: 0, z: 30, speed: 7 }, // accelerate from spawn
   { x: 0, z: 5, speed: 3.5 }, // slow at the give-way sign
   { x: 0, z: -1, speed: 2 }, // junction mouth
-  { x: -10, z: -5, speed: 4 }, // left-turn arc onto Road 2
-  { x: -30, z: -5, speed: 7 }, // cruise west
-  { x: -44, z: -5, speed: 2 }, // settle
+  { x: -11, z: -6.2, speed: 4 }, // left turn into the right-hand lane
+  { x: -30, z: -6.4, speed: 7 }, // cruise west
+  { x: -44, z: -6.4, speed: 2 }, // settle
 ];
 
 // ─── Decision point ───────────────────────────────────────────────────────────
@@ -59,18 +59,19 @@ const giveWaySign: ScenarioDef = {
   challenges: CHALLENGES,
   // Give-way sign on the right kerb, facing the southbound car.
   signs: [{ kind: "give-way", position: [-4, 0, 4], rotationY: 0 }],
-  // A priority-road car crossing the junction from the left (west), looping so
-  // there is always traffic to yield to whenever the user pauses to decide.
+  // A priority-road car crossing the junction from the right (west → east) in
+  // its own lane, looping so there is always traffic to yield to whenever the
+  // user pauses to decide. Starts/ends off-screen so the loop never "pops".
   npcs: [
     {
       id: "gws-cross",
       variant: "car",
       behavior: "free",
       loop: true,
-      speed: 8,
+      speed: 6,
       path: [
-        { x: -56, z: -3.25, speed: 8 },
-        { x: 12, z: -3.25, speed: 8 },
+        { x: -84, z: -3.25, speed: 6 },
+        { x: 24, z: -3.25, speed: 6 },
       ],
     },
   ],

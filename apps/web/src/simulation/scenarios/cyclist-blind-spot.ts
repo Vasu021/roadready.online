@@ -12,9 +12,9 @@ export const WAYPOINTS: Waypoint[] = [
   { x: 0, z: 30, speed: 7 },
   { x: 0, z: 6, speed: 4 }, // slow before the turn
   { x: 0, z: -1, speed: 2 }, // junction mouth
-  { x: -10, z: -5, speed: 3.5 }, // left-turn arc across the bike lane
-  { x: -30, z: -5, speed: 7 },
-  { x: -44, z: -5, speed: 2 },
+  { x: -11, z: -6.2, speed: 3.5 }, // left turn across the bike lane
+  { x: -30, z: -6.4, speed: 7 },
+  { x: -44, z: -6.4, speed: 2 },
 ];
 
 // ─── Decision point ───────────────────────────────────────────────────────────
