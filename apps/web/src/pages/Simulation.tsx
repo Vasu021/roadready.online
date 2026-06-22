@@ -12,13 +12,14 @@ import ChallengeOverlay from "../components/ChallengeOverlay";
 import MCQOverlay from "../components/MCQOverlay";
 import TeachingOverlay from "../components/TeachingOverlay";
 import { getScenario } from "../simulation/scenarios";
+import { FT_SCENE_SLUGS } from "../simulation/scenarios/fullTestGermany";
 import { useScenarioQuestions } from "../hooks/useScenarioQuestions";
 import { api } from "../utils/api";
 import { t } from "../utils/i18n";
 
-// Questions sampled across scenarios for the graded Full Test (spread across its
-// checkpoints). maxScore is set to this count so the grade is out of what's asked.
-const FULL_TEST_LENGTH = 12;
+// The graded Full Test is scene-based: one question per scene, in scene order
+// (see fullTestGermany.ts). maxScore is the number of scenes so the grade is out
+// of what's actually asked.
 const FULL_TEST_COUNTRY = "DE";
 
 export default function Simulation() {
@@ -80,24 +81,39 @@ export default function Simulation() {
     setFtQuestions([]);
     (async () => {
       try {
-        const { countryId, questions } = await api.fullTest.getQuestions(
-          FULL_TEST_COUNTRY,
-          FULL_TEST_LENGTH,
+        const countries = await api.countries.list();
+        const country = countries.find((c) => c.code === FULL_TEST_COUNTRY);
+        if (cancelled || !country) return;
+
+        // One question per scene, fetched in scene order. `order` is the scene
+        // index (NOT compacted) so TriggerWatcher can match each scene to its
+        // question even if a scene's bank happens to be empty.
+        const banks = await Promise.all(
+          FT_SCENE_SLUGS.map((slug) =>
+            api.scenarios.getQuestions(slug).catch(() => []),
+          ),
         );
-        if (cancelled || questions.length === 0) return;
-        const session = await api.testSessions.create({
-          countryId,
-          maxScore: questions.length,
-        });
         if (cancelled) return;
-        setFtQuestions(
-          questions.map((q, i) => ({
+
+        const built: McqQuestion[] = [];
+        banks.forEach((bank, i) => {
+          const q = bank[0];
+          if (!q) return;
+          built.push({
             id: q.id,
             questionText: q.questionText,
             order: i,
             options: q.options.map((o) => ({ id: o.id, text: o.optionText })),
-          })),
-        );
+          });
+        });
+        if (cancelled || built.length === 0) return;
+
+        const session = await api.testSessions.create({
+          countryId: country.id,
+          maxScore: built.length,
+        });
+        if (cancelled) return;
+        setFtQuestions(built);
         setFtSession(session.id);
       } catch (err) {
         console.error("Failed to start full test:", err);

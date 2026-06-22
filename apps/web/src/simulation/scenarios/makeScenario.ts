@@ -42,14 +42,22 @@ export interface MakeScenarioInput {
   stopZone?: { cx: number; cz: number; hw: number; hd: number };
 }
 
-/** The canonical L-route: accelerate south, slow at the junction, turn left, cruise west, settle. */
+// Lane convention on Road 2 (E-W, z∈[-8.5,-1.5], centre z=-5):
+//   • the player drives WEST in the right-hand (north) lane  → z ≈ -6.4
+//   • oncoming / cross traffic drives EAST in the south lane → z ≈ -3.25
+// Keeping the two apart (≈3 m) means NPCs no longer share the player's lane,
+// which is what made earlier builds look like cars driving head-on through you.
+export const ROAD2_DRIVE_Z = -6.4; // player's lane going west
+export const ROAD2_ONCOMING_Z = -3.25; // eastbound traffic's lane
+
+/** The canonical L-route: accelerate south, slow at the junction, turn left into the right-hand lane, cruise west, settle. */
 export const L_ROUTE: Waypoint[] = [
   { x: 0, z: 30, speed: 7 },
   { x: 0, z: 6, speed: 3.5 },
   { x: 0, z: -1, speed: 2 },
-  { x: -10, z: -5, speed: 4 },
-  { x: -30, z: -5, speed: 7 },
-  { x: -44, z: -5, speed: 2 },
+  { x: -11, z: -6.2, speed: 4 }, // ease into the right-hand lane through the turn
+  { x: -30, z: ROAD2_DRIVE_Z, speed: 7 },
+  { x: -44, z: ROAD2_DRIVE_Z, speed: 2 },
 ];
 
 export function makeScenario(input: MakeScenarioInput): ScenarioDef {
@@ -124,10 +132,12 @@ export function road2Sign(kind: string, x: number, num?: number): SceneSign {
 // ─── NPC helpers ──────────────────────────────────────────────────────────────
 
 /**
- * Cross traffic on Road 2 (west → east through the junction), looping — used
- * where the player must yield to traffic that always has someone coming.
+ * Cross traffic on Road 2 (west → east through the junction) in its own
+ * (south) lane, looping — used where the player must yield to traffic that
+ * always has someone coming. The path starts/ends well off-screen so the loop's
+ * respawn is never visible, and the lane is clear of the player's west-bound lane.
  */
-export function crossingCar(id: string, speed = 7): NpcSpawn {
+export function crossingCar(id: string, speed = 6): NpcSpawn {
   return {
     id,
     variant: "car",
@@ -135,15 +145,15 @@ export function crossingCar(id: string, speed = 7): NpcSpawn {
     loop: true,
     speed,
     path: [
-      { x: -56, z: -3.25, speed },
-      { x: 12, z: -3.25, speed },
+      { x: -84, z: ROAD2_ONCOMING_Z, speed },
+      { x: 24, z: ROAD2_ONCOMING_Z, speed },
     ],
   };
 }
 
 /**
- * A slower car ahead on the player's L-route (non-looping), driving off west —
- * used for following-distance / overtaking situations.
+ * A slower car ahead on the player's L-route (non-looping), driving off west in
+ * the player's lane — used for following-distance / overtaking situations.
  */
 export function leadCar(id: string, speed = 5): NpcSpawn {
   return {
@@ -154,8 +164,8 @@ export function leadCar(id: string, speed = 5): NpcSpawn {
     path: [
       { x: 0, z: 18, speed },
       { x: 0, z: -1, speed: 3 },
-      { x: -10, z: -5, speed: 4 },
-      { x: -60, z: -5, speed: speed + 1 },
+      { x: -11, z: -6.2, speed: 4 },
+      { x: -70, z: ROAD2_DRIVE_Z, speed: speed + 1 },
     ],
   };
 }

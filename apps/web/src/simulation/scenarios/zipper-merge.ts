@@ -17,7 +17,8 @@ const zipperMerge = makeScenario({
     },
   ],
   objectiveText: { "zipper-merge": "Merge using the zipper system" },
-  // A car in the adjacent lane that converges toward the player's lane.
+  // A car in the adjacent lane that converges toward the player's lane, then
+  // runs alongside (just south of the player's west-bound lane) without overlapping.
   npcs: [
     {
       id: "zm-merger",
@@ -27,8 +28,8 @@ const zipperMerge = makeScenario({
       path: [
         { x: 2.4, z: 28, speed: 6 },
         { x: 0.9, z: 4, speed: 4 },
-        { x: -10, z: -5, speed: 4 },
-        { x: -52, z: -5, speed: 6 },
+        { x: -11, z: -4.2, speed: 4 },
+        { x: -52, z: -3.8, speed: 6 },
       ],
     },
   ],
