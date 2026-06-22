@@ -20,13 +20,16 @@ const priorityRoadSigns = makeScenario({
     },
   ],
   objectiveText: { "priority-road": "Use your priority correctly" },
+  // A side-road car waiting on the south side; it holds until the player asserts
+  // priority, then pulls out into the eastbound (south) lane — clear of the
+  // player's west-bound lane.
   npcs: [
     yieldingVehicle({
       id: "prs-side",
       goWhenResolvedId: "priority-road",
       path: [
-        { x: -16, z: -6.5, speed: 6 },
-        { x: -54, z: -6.5, speed: 6 },
+        { x: -16, z: -2.8, speed: 6 },
+        { x: 26, z: -3.25, speed: 6 },
       ],
     }),
   ],

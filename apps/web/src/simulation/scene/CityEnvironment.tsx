@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import Tree from "./Tree";
 import Building from "./Building";
 import type { BuildingStyle } from "./Building";
-import RoadSign from "./RoadSign";
 import StreetLamp from "./StreetLamp";
 import Bench from "./Bench";
 import Bollard from "./Bollard";
 import BusStop from "./BusStop";
+import CityDistrict from "./CityDistrict";
 
 function seededRand(seed: number) {
   const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
@@ -327,10 +327,14 @@ function Sidewalks() {
   );
 }
 
-// ─── Street furniture + a demonstrative sign set ───────────────────────────────
-// Static props only (Step 4). Everything sits in the documented safe zones —
-// the turn arc (x∈[0,-14], z∈[-2,-6]) and building margins stay clear.
-// Step 6 will place signs/props declaratively per scenario.
+// ─── Neutral street furniture (NO regulatory signs) ────────────────────────────
+// IMPORTANT: this scene is shared by every scenario, so it must NOT render any
+// traffic signs of its own. The whole product concept is "a specific scene
+// appears and the learner reacts to it" — each scenario declares exactly the
+// sign(s) it tests via `ScenarioDef.signs` (rendered in SimulationScene). Only
+// generic, sign-free furniture (lamps, bench, bollards, a bus shelter) lives
+// here. Everything sits in the documented safe zones — the turn arc
+// (x∈[0,-14], z∈[-2,-6]) and building margins stay clear.
 
 function StreetFurniture() {
   return (
@@ -357,23 +361,9 @@ function StreetFurniture() {
       <Bollard position={[4.1, 0, 16]} />
       <Bollard position={[4.1, 0, 13.5]} />
 
-      {/* Bus stop on Road 2 south sidewalk */}
-      <BusStop position={[-30, 0, 2.2]} rotationY={Math.PI} />
-
-      {/* Sign gallery on Road 1 right kerb, facing approaching (southbound) traffic */}
-      <RoadSign position={[6.4, 0, 33]} kind="give-way" />
-      <RoadSign position={[6.4, 0, 28]} kind="stop" />
-      <RoadSign position={[6.4, 0, 23]} kind="priority-road" />
-      <RoadSign position={[6.4, 0, 18]} kind="speed-limit" number={30} />
-      <RoadSign position={[6.4, 0, 13]} kind="roundabout" />
-      <RoadSign position={[6.4, 0, 8]} kind="pedestrian-crossing" />
-
-      {/* Pedestrian-crossing sign by the actual zebra (faces the westbound car) */}
-      <RoadSign
-        position={[-46.5, 0, -9.5]}
-        kind="pedestrian-crossing"
-        rotationY={Math.PI / 2}
-      />
+      {/* Bus shelter far down Road 2 — generic city ambiance, kept well away from
+          the decision zones so it never reads as the sign under test. */}
+      <BusStop position={[-58, 0, 2.2]} rotationY={Math.PI} />
     </group>
   );
 }
@@ -387,6 +377,9 @@ export default function CityEnvironment() {
       <Road1Buildings />
       <Road2Buildings />
       <StreetFurniture />
+      {/* Surrounding skyline so the playable streets sit inside a real city
+          rather than two roads on an empty field. Purely visual + clearance-safe. */}
+      <CityDistrict />
     </group>
   );
 }
