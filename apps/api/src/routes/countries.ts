@@ -1,120 +1,134 @@
 import { Router } from "express";
+import type {
+  CategoryWithTopics,
+  CountryTopicsResponse,
+  TopicSummary,
+} from "@roadready/shared";
 import prisma from "../lib/prisma";
+import { notFound, route } from "../lib/http";
+import { optionalAuth, type AuthRequest } from "../middleware/auth";
+import { toCountryDetail, toCountrySummary } from "../lib/serialize";
 
 const router = Router();
 
 // GET /api/countries
-router.get("/", async (_req, res) => {
-  try {
+router.get(
+  "/",
+  route(async (_req, res) => {
     const countries = await prisma.country.findMany({
       where: { isActive: true },
-      orderBy: { name: "asc" },
+      orderBy: [{ order: "asc" }, { name: "asc" }],
       include: {
-        categories: {
-          orderBy: { order: "asc" },
-          include: {
-            _count: { select: { scenarios: { where: { isActive: true } } } },
-          },
+        topics: {
+          where: { isActive: true },
+          select: { _count: { select: { questions: true } } },
         },
-        _count: { select: { scenarios: { where: { isActive: true } } } },
       },
     });
 
     res.json(
-      countries.map((c) => ({
-        id: c.id,
-        code: c.code,
-        name: c.name,
-        flagEmoji: c.flagEmoji,
-        isActive: c.isActive,
-        scenarioCount: c._count.scenarios,
-        categories: c.categories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-          order: cat.order,
-          scenarioCount: cat._count.scenarios,
-        })),
-      })),
+      countries.map((c) =>
+        toCountrySummary(c, {
+          topics: c.topics.length,
+          questions: c.topics.reduce((sum, t) => sum + t._count.questions, 0),
+        }),
+      ),
     );
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch countries" });
-  }
-});
+  }),
+);
 
-// GET /api/countries/:code/facts
-router.get("/:code/facts", async (req, res) => {
-  try {
-    const country = await prisma.country.findUnique({
-      where: { code: req.params.code.toUpperCase() },
-      select: { facts: true },
-    });
+async function loadCountry(code: string) {
+  const country = await prisma.country.findUnique({
+    where: { code: code.toUpperCase() },
+    include: {
+      topics: {
+        where: { isActive: true },
+        select: { _count: { select: { questions: true } } },
+      },
+    },
+  });
+  if (!country) throw notFound("Country not found");
+  return {
+    country,
+    counts: {
+      topics: country.topics.length,
+      questions: country.topics.reduce((sum, t) => sum + t._count.questions, 0),
+    },
+  };
+}
 
-    if (!country) {
-      res.status(404).json({ error: "Country not found" });
-      return;
-    }
+// GET /api/countries/:code
+router.get(
+  "/:code",
+  route(async (req, res) => {
+    const { country, counts } = await loadCountry(req.params.code);
+    res.json(toCountryDetail(country, counts));
+  }),
+);
 
-    res.json({ facts: country.facts ?? null });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch country facts" });
-  }
-});
+// GET /api/countries/:code/topics — topics grouped by category.
+// Progress is merged in when the request carries a valid token.
+router.get(
+  "/:code/topics",
+  optionalAuth,
+  route(async (req: AuthRequest, res) => {
+    const { country, counts } = await loadCountry(req.params.code);
 
-// GET /api/countries/:code/scenarios
-router.get("/:code/scenarios", async (req, res) => {
-  try {
-    const country = await prisma.country.findUnique({
-      where: { code: req.params.code.toUpperCase() },
+    const categories = await prisma.category.findMany({
+      where: { countryId: country.id },
+      orderBy: { order: "asc" },
       include: {
-        categories: {
+        topics: {
+          where: { isActive: true },
           orderBy: { order: "asc" },
-          include: {
-            scenarios: {
-              where: { isActive: true },
-              orderBy: { order: "asc" },
-              include: { _count: { select: { questions: true } } },
-            },
-          },
+          include: { _count: { select: { questions: true } } },
         },
       },
     });
 
-    if (!country) {
-      res.status(404).json({ error: "Country not found" });
-      return;
+    const progressByTopic = new Map<string, TopicSummary["progress"]>();
+
+    if (req.userId) {
+      const rows = await prisma.topicProgress.findMany({
+        where: { userId: req.userId, topic: { countryId: country.id } },
+      });
+      for (const row of rows) {
+        progressByTopic.set(row.topicId, {
+          status: row.status,
+          bestScorePercent: row.bestScorePercent,
+          attemptCount: row.attemptCount,
+          passCount: row.passCount,
+          lastAttemptAt: row.lastAttemptAt?.toISOString() ?? null,
+        });
+      }
     }
 
-    res.json({
-      country: {
-        id: country.id,
-        code: country.code,
-        name: country.name,
-        flagEmoji: country.flagEmoji,
-      },
-      categories: country.categories.map((cat) => ({
-        id: cat.id,
-        name: cat.name,
-        order: cat.order,
-        scenarios: cat.scenarios.map((s) => ({
-          id: s.id,
-          slug: s.slug,
-          name: s.name,
-          description: s.description,
-          order: s.order,
-          isActive: s.isActive,
-          isPremium: s.isPremium,
-          type: s.type,
-          videoUrl: s.videoUrl,
-          questionCount: s._count.questions,
-        })),
-      })),
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch scenarios" });
-  }
-});
+    const payload: CountryTopicsResponse = {
+      country: toCountryDetail(country, counts),
+      categories: categories
+        .map<CategoryWithTopics>((cat) => ({
+          id: cat.id,
+          slug: cat.slug,
+          name: cat.name,
+          description: cat.description,
+          order: cat.order,
+          topics: cat.topics.map<TopicSummary>((t) => ({
+            id: t.id,
+            slug: t.slug,
+            name: t.name,
+            description: t.description,
+            iconEmoji: t.iconEmoji,
+            order: t.order,
+            isPremium: t.isPremium,
+            questionCount: t._count.questions,
+            progress: progressByTopic.get(t.id) ?? null,
+          })),
+        }))
+        .filter((cat) => cat.topics.length > 0),
+    };
+
+    res.json(payload);
+  }),
+);
 
 export default router;

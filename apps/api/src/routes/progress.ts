@@ -1,148 +1,126 @@
 import { Router } from "express";
+import type { ProgressOverview, TopicMastery } from "@roadready/shared";
 import prisma from "../lib/prisma";
+import { notFound, route } from "../lib/http";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
+import { toCountrySummary, toQuizSummary } from "../lib/serialize";
 
 const router = Router();
 
-// GET /api/progress/:userId
-router.get("/:userId", requireAuth, async (req: AuthRequest, res) => {
-  if (req.userId !== req.params.userId) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+/**
+ * GET /api/progress/overview
+ *
+ * Everything the dashboard needs in one round trip. `?country=DE` overrides the
+ * user's selected country; with neither, the totals still come back so a user
+ * who has not picked a country yet sees an empty dashboard rather than an error.
+ */
+router.get(
+  "/overview",
+  requireAuth,
+  route(async (req: AuthRequest, res) => {
+    const userId = req.userId!;
 
-  try {
-    const rows = await prisma.scenarioAttempt.findMany({
-      where: { userId: req.params.userId },
-      orderBy: { completedAt: "desc" },
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { selectedCountry: true },
     });
-    res.json(rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch progress" });
-  }
-});
+    if (!user) throw notFound("User not found");
 
-// POST /api/progress
-// Creates a ScenarioAttempt and upserts UserProgress + UserScenarioProgress in a transaction.
-// Accepts scenarioId as a scenario slug or DB id.
-router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { scenarioId, passed, score, timeSeconds, mode } = req.body as {
-    scenarioId: string;
-    passed: boolean;
-    score?: number;
-    timeSeconds?: number;
-    mode?: "PRACTICE" | "TEST";
-  };
+    const requestedCode =
+      typeof req.query.country === "string"
+        ? req.query.country.toUpperCase()
+        : null;
 
-  if (!scenarioId || passed === undefined) {
-    res.status(400).json({ error: "scenarioId and passed are required" });
-    return;
-  }
+    const country = requestedCode
+      ? await prisma.country.findUnique({ where: { code: requestedCode } })
+      : user.selectedCountry;
 
-  const userId = req.userId!;
-  const newScore = score ?? 0;
-  const newTime = timeSeconds ?? 0;
-  const attemptMode = mode ?? "PRACTICE";
-  const now = new Date();
+    const [
+      completedQuizzes,
+      stats,
+      bookmarkCount,
+      mistakeCount,
+      recentQuizzes,
+    ] = await Promise.all([
+      prisma.quiz.aggregate({
+        where: { userId, status: "COMPLETED" },
+        _count: { _all: true },
+      }),
+      prisma.questionStat.aggregate({
+        where: { userId },
+        _sum: { timesSeen: true, timesCorrect: true },
+      }),
+      prisma.questionStat.count({ where: { userId, isBookmarked: true } }),
+      prisma.questionStat.count({ where: { userId, timesWrong: { gt: 0 } } }),
+      prisma.quiz.findMany({
+        where: { userId, status: "COMPLETED" },
+        orderBy: { completedAt: "desc" },
+        take: 8,
+        include: {
+          country: true,
+          topic: true,
+          items: { select: { answeredAt: true } },
+        },
+      }),
+    ]);
 
-  try {
-    const attempt = await prisma.$transaction(async (tx) => {
-      // Resolve scenarioId: accept either a DB id or a slug
-      const scenario = await tx.scenario.findFirst({
-        where: { OR: [{ id: scenarioId }, { slug: scenarioId }] },
-      });
-      const resolvedId = scenario?.id ?? scenarioId;
+    const answered = stats._sum.timesSeen ?? 0;
+    const correct = stats._sum.timesCorrect ?? 0;
 
-      const attempt = await tx.scenarioAttempt.create({
-        data: {
-          userId,
-          scenarioId: resolvedId,
-          mode: attemptMode,
-          passed,
-          score: newScore,
-          timeSeconds: newTime,
+    let topics: TopicMastery[] = [];
+    let topicsCompleted = 0;
+
+    if (country) {
+      const rows = await prisma.topic.findMany({
+        where: { countryId: country.id, isActive: true },
+        orderBy: { order: "asc" },
+        include: {
+          category: { select: { name: true } },
+          _count: { select: { questions: { where: { isActive: true } } } },
+          progress: { where: { userId } },
         },
       });
 
-      // Legacy UserProgress upsert
-      const existing = await tx.userProgress.findUnique({
-        where: { userId_scenarioId: { userId, scenarioId: resolvedId } },
+      topics = rows.map((t) => {
+        const p = t.progress[0];
+        return {
+          topicSlug: t.slug,
+          topicName: t.name,
+          iconEmoji: t.iconEmoji,
+          categoryName: t.category?.name ?? null,
+          questionCount: t._count.questions,
+          status: p?.status ?? "NOT_STARTED",
+          bestScorePercent: p?.bestScorePercent ?? 0,
+          attemptCount: p?.attemptCount ?? 0,
+        };
       });
+      topicsCompleted = topics.filter((t) => t.status === "COMPLETED").length;
+    }
 
-      if (!existing) {
-        await tx.userProgress.create({
-          data: {
-            userId,
-            scenarioId: resolvedId,
-            bestScore: newScore,
-            bestTimeSeconds: passed ? newTime : null,
-            attemptCount: 1,
-            passCount: passed ? 1 : 0,
-            lastAttemptAt: now,
-          },
-        });
-      } else {
-        const betterTime =
-          passed &&
-          (existing.bestTimeSeconds === null ||
-            newTime < existing.bestTimeSeconds);
+    const payload: ProgressOverview = {
+      country: country
+        ? toCountrySummary(country, {
+            topics: topics.length,
+            questions: topics.reduce((sum, t) => sum + t.questionCount, 0),
+          })
+        : null,
+      totals: {
+        quizzesCompleted: completedQuizzes._count._all,
+        questionsAnswered: answered,
+        questionsCorrect: correct,
+        accuracyPercent:
+          answered === 0 ? 0 : Math.round((correct / answered) * 100),
+        topicsCompleted,
+        topicsTotal: topics.length,
+        bookmarkCount,
+        mistakeCount,
+      },
+      topics,
+      recentQuizzes: recentQuizzes.map(toQuizSummary),
+    };
 
-        await tx.userProgress.update({
-          where: { userId_scenarioId: { userId, scenarioId: resolvedId } },
-          data: {
-            attemptCount: { increment: 1 },
-            ...(passed && { passCount: { increment: 1 } }),
-            ...(newScore > existing.bestScore && { bestScore: newScore }),
-            ...(betterTime && { bestTimeSeconds: newTime }),
-            lastAttemptAt: now,
-          },
-        });
-      }
-
-      // UserScenarioProgress upsert (only when scenario exists in DB)
-      if (scenario) {
-        const existingProgress = await tx.userScenarioProgress.findUnique({
-          where: { userId_scenarioId: { userId, scenarioId: scenario.id } },
-        });
-
-        const newStatus = passed ? "COMPLETED" : "IN_PROGRESS";
-        const keepCompleted =
-          existingProgress?.status === "COMPLETED" &&
-          newStatus === "IN_PROGRESS";
-
-        await tx.userScenarioProgress.upsert({
-          where: { userId_scenarioId: { userId, scenarioId: scenario.id } },
-          create: {
-            userId,
-            scenarioId: scenario.id,
-            status: newStatus,
-            lastAttemptAt: now,
-            bestScore: newScore,
-            attemptCount: 1,
-            passCount: passed ? 1 : 0,
-          },
-          update: {
-            status: keepCompleted ? "COMPLETED" : newStatus,
-            lastAttemptAt: now,
-            attemptCount: { increment: 1 },
-            ...(passed && { passCount: { increment: 1 } }),
-            ...((existingProgress == null ||
-              newScore > existingProgress.bestScore) && {
-              bestScore: newScore,
-            }),
-          },
-        });
-      }
-
-      return attempt;
-    });
-
-    res.status(201).json(attempt);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to save progress" });
-  }
-});
+    res.json(payload);
+  }),
+);
 
 export default router;

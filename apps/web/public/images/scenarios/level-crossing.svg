@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img">
+  <rect width="400" height="300" fill="#c9d6c2"/>
+
+  
+  <rect x="150" y="0" width="100" height="300" fill="#4b525c"/>
+  <rect x="150" y="0" width="2" height="300" fill="#3a404a"/>
+  <rect x="248" y="0" width="2" height="300" fill="#3a404a"/>
+  
+  <rect x="198" y="0" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="28" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="56" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="84" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  
+  <rect x="198" y="190" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="218" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="246" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="274" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="0" y="128" width="400" height="44" fill="#8b7355"/>
+  <rect x="0" y="136" width="400" height="5" fill="#6b7280"/>
+  <rect x="0" y="160" width="400" height="5" fill="#6b7280"/>
+  <rect x="0" y="188" width="400" height="6" fill="#f2f4f7"/>
+  <rect x="118" y="150" width="8" height="110" rx="4" fill="#5b6570"/>
+  <g transform="translate(122 122)">
+    <circle cx="-14" cy="0" r="11" fill="#ff3b30"/>
+    <circle cx="14" cy="0" r="11" fill="#4a4f55"/>
+  </g>
+  
+  <g transform="translate(226 244) rotate(0)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#2563eb"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#bfdbfe"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#bfdbfe" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  <g transform="translate(226 244)">
+    <circle cx="0" cy="0" r="31" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.9"/>
+  </g>
+  
+  <rect x="12" y="7" width="221.6" height="24" rx="6" fill="#16191d" opacity="0.78"/>
+  <text x="22" y="24" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">Approaching a level crossing</text>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img">
+  <rect width="400" height="300" fill="#c9d6c2"/>
+
+  
+  <rect x="160" y="0" width="80" height="300" fill="#4b525c"/>
+  <rect x="160" y="0" width="2" height="300" fill="#3a404a"/>
+  <rect x="238" y="0" width="2" height="300" fill="#3a404a"/>
+  
+  <rect x="0" y="110" width="400" height="80" fill="#4b525c"/>
+  <rect x="0" y="110" width="400" height="2" fill="#3a404a"/>
+  <rect x="0" y="188" width="400" height="2" fill="#3a404a"/>
+  <circle cx="200" cy="150" r="86" fill="#4b525c"/>
+  <circle cx="200" cy="150" r="34" fill="#b9c9b2" stroke="#f2f4f7" stroke-width="3"/>
+  <circle cx="200" cy="150" r="60" fill="none" stroke="#f2f4f7" stroke-width="2" stroke-dasharray="10 9"/>
+  <text x="352" y="104" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#16191d">1st</text>
+  <text x="186" y="26" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#16191d">2nd</text>
+  <text x="14" y="104" font-family="system-ui, sans-serif" font-size="13" font-weight="700" fill="#16191d">3rd</text>
+  
+  <g transform="translate(200 268) rotate(0)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#2563eb"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#bfdbfe"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#bfdbfe" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  <g transform="translate(200 268)">
+    <circle cx="0" cy="0" r="31" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.9"/>
+  </g>
+  
+  <defs><marker id="ah506" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+    <path d="M0,0 L7,3.5 L0,7 z" fill="#0f766e"/></marker></defs>
+  <line x1="150" y1="130" x2="96" y2="130" stroke="#0f766e" stroke-width="4" stroke-linecap="round"
+        marker-end="url(#ah506)"/>
+  
+  <rect x="12" y="7" width="228.8" height="24" rx="6" fill="#16191d" opacity="0.78"/>
+  <text x="22" y="24" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">You are taking the third exit</text>
+</svg>

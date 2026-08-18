@@ -1,3 +1,6 @@
+// RoadReady — scenario-based driving theory MCQs
+// See REWRITE_PLAN.md for the reasoning behind this model.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,14 +10,33 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ScenarioType {
-  PRACTICE
-  TEST
+enum Role {
+  USER
+  ADMIN
 }
 
-enum AttemptMode {
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuizMode {
   PRACTICE
-  TEST
+  EXAM
+}
+
+enum QuizSource {
+  TOPIC
+  EXAM
+  MISTAKES
+  BOOKMARKS
+}
+
+enum QuizStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
 }
 
 enum ProgressStatus {
@@ -23,196 +45,214 @@ enum ProgressStatus {
   COMPLETED
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  attempts         ScenarioAttempt[]
-  progress         UserProgress[]
-  countryAccess    UserCountryAccess[]
-  scenarioProgress UserScenarioProgress[]
-  testSessions     TestSession[]
-
-  @@map("users")
-}
+// ── Content layer ───────────────────────────────────────────────────────────
 
 model Country {
-  id        String   @id @default(cuid())
-  code      String   @unique
+  id        String  @id @default(cuid())
+  code      String  @unique
   name      String
-  flagEmoji String   @map("flag_emoji")
-  isActive  Boolean  @default(false) @map("is_active")
+  flagEmoji String  @map("flag_emoji")
+  isActive  Boolean @default(false) @map("is_active")
+  order     Int     @default(0)
   facts     String?
+
+  // Mock-exam configuration, per country so rules can differ.
+  examQuestionCount Int @default(20) @map("exam_question_count")
+  examPassPercent   Int @default(75) @map("exam_pass_percent")
+
   createdAt DateTime @default(now()) @map("created_at")
 
-  categories   ScenarioCategory[]
-  scenarios    Scenario[]
-  userAccess   UserCountryAccess[]
-  testSessions TestSession[]
+  categories Category[]
+  topics     Topic[]
+  quizzes    Quiz[]
+  users      User[]
 
   @@map("countries")
 }
 
-model ScenarioCategory {
-  id        String @id @default(cuid())
-  countryId String @map("country_id")
-  name      String
-  order     Int
+model Category {
+  id          String  @id @default(cuid())
+  countryId   String  @map("country_id")
+  slug        String
+  name        String
+  description String?
+  order       Int     @default(0)
 
-  country   Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  scenarios Scenario[]
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  topics  Topic[]
 
-  @@map("scenario_categories")
+  @@unique([countryId, slug])
+  @@map("categories")
 }
 
-model Scenario {
-  id          String       @id @default(cuid())
-  countryId   String       @map("country_id")
-  categoryId  String?      @map("category_id")
-  slug        String       @unique
+/// A themed group of scenario questions — "Roundabouts", "Priority Signs".
+model Topic {
+  id          String  @id @default(cuid())
+  countryId   String  @map("country_id")
+  categoryId  String? @map("category_id")
+  slug        String  @unique
   name        String
   description String
-  order       Int
-  isActive    Boolean      @default(false) @map("is_active")
-  isPremium   Boolean      @default(false) @map("is_premium")
-  type        ScenarioType
-  videoUrl    String?      @map("video_url")
-  createdAt   DateTime     @default(now()) @map("created_at")
+  iconEmoji   String  @default("🚦") @map("icon_emoji")
+  order       Int     @default(0)
+  isActive    Boolean @default(true) @map("is_active")
+  isPremium   Boolean @default(false) @map("is_premium")
 
-  country          Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  category         ScenarioCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  questions        Question[]
-  scenarioAttempts ScenarioAttempt[]
-  userProgress     UserScenarioProgress[]
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@map("scenarios")
+  country   Country         @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  category  Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  questions Question[]
+  progress  TopicProgress[]
+  quizzes   Quiz[]
+
+  @@index([countryId, order])
+  @@map("topics")
 }
 
+/// One scenario-based multiple choice question: an image, a prompt, four options.
 model Question {
-  id           String   @id @default(cuid())
-  scenarioId   String   @map("scenario_id")
-  questionText String   @map("question_text")
-  order        Int
-  explanation  String
-  createdAt    DateTime @default(now()) @map("created_at")
+  id          String     @id @default(cuid())
+  topicId     String     @map("topic_id")
+  order       Int        @default(0)
+  prompt      String
+  /// Relative path under apps/web/public (e.g. "/images/scenarios/x.svg") or an absolute URL.
+  imageUrl    String?    @map("image_url")
+  imageAlt    String?    @map("image_alt")
+  explanation String
+  difficulty  Difficulty @default(MEDIUM)
+  isActive    Boolean    @default(true) @map("is_active")
 
-  scenario           Scenario            @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
-  options            Option[]
-  testSessionAnswers TestSessionAnswer[]
+  createdAt DateTime @default(now()) @map("created_at")
 
+  topic     Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  options   Option[]
+  quizItems QuizItem[]
+  stats     QuestionStat[]
+
+  @@index([topicId, order])
   @@map("questions")
 }
 
 model Option {
   id         String  @id @default(cuid())
   questionId String  @map("question_id")
-  optionText String  @map("option_text")
-  isCorrect  Boolean @map("is_correct")
-  order      Int
+  /// Stable display label — "A", "B", "C", "D".
+  label      String
+  text       String
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int     @default(0)
 
-  question           Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  testSessionAnswers TestSessionAnswer[]
+  question       Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedInQuiz QuizItem[]
 
+  @@index([questionId, order])
   @@map("options")
 }
 
-model UserCountryAccess {
-  id         String   @id @default(cuid())
-  userId     String   @map("user_id")
-  countryId  String   @map("country_id")
-  unlockedAt DateTime @default(now()) @map("unlocked_at")
+// ── User layer ──────────────────────────────────────────────────────────────
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+model User {
+  id                String  @id @default(cuid())
+  email             String  @unique
+  password          String
+  name              String?
+  role              Role    @default(USER)
+  isPremium         Boolean @default(false) @map("is_premium")
+  selectedCountryId String? @map("selected_country_id")
 
-  @@unique([userId, countryId])
-  @@map("user_country_access")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  selectedCountry Country?        @relation(fields: [selectedCountryId], references: [id], onDelete: SetNull)
+  quizzes         Quiz[]
+  topicProgress   TopicProgress[]
+  questionStats   QuestionStat[]
+
+  @@map("users")
 }
 
-model UserScenarioProgress {
-  id            String         @id @default(cuid())
-  userId        String         @map("user_id")
-  scenarioId    String         @map("scenario_id")
-  status        ProgressStatus @default(NOT_STARTED)
-  lastAttemptAt DateTime?      @map("last_attempt_at")
-  bestScore     Int            @default(0) @map("best_score")
-  attemptCount  Int            @default(0) @map("attempt_count")
-  passCount     Int            @default(0) @map("pass_count")
+/// One run through a set of questions. The question set is frozen at creation
+/// time as QuizItem rows so scoring and resuming stay deterministic.
+model Quiz {
+  id        String     @id @default(cuid())
+  userId    String     @map("user_id")
+  countryId String     @map("country_id")
+  topicId   String?    @map("topic_id")
+  mode      QuizMode   @default(PRACTICE)
+  source    QuizSource @default(TOPIC)
+  status    QuizStatus @default(IN_PROGRESS)
 
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  totalQuestions Int      @map("total_questions")
+  correctCount   Int      @default(0) @map("correct_count")
+  scorePercent   Int      @default(0) @map("score_percent")
+  passed         Boolean?
+  grade          String?
 
-  @@unique([userId, scenarioId])
-  @@map("user_scenario_progress")
-}
-
-// Legacy progress model — kept for backwards compat with existing API routes.
-// New code should use UserScenarioProgress.
-model UserProgress {
-  id              String    @id @default(cuid())
-  userId          String    @map("user_id")
-  scenarioId      String    @map("scenario_id")
-  bestScore       Int       @default(0) @map("best_score")
-  bestTimeSeconds Int?      @map("best_time_seconds")
-  attemptCount    Int       @default(0) @map("attempt_count")
-  passCount       Int       @default(0) @map("pass_count")
-  lastAttemptAt   DateTime? @map("last_attempt_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, scenarioId])
-  @@map("user_progress")
-}
-
-model ScenarioAttempt {
-  id          String      @id @default(cuid())
-  userId      String      @map("user_id")
-  scenarioId  String      @map("scenario_id")
-  mode        AttemptMode @default(PRACTICE)
-  passed      Boolean
-  score       Int         @default(0)
-  timeSeconds Int         @map("time_seconds")
-  completedAt DateTime    @default(now()) @map("completed_at")
-
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenario Scenario? @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
-
-  @@map("scenario_attempts")
-}
-
-model TestSession {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  countryId   String    @map("country_id")
   startedAt   DateTime  @default(now()) @map("started_at")
   completedAt DateTime? @map("completed_at")
-  totalScore  Int       @default(0) @map("total_score")
-  maxScore    Int       @map("max_score")
-  passed      Boolean?
-  grade       String?
 
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  country Country             @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  answers TestSessionAnswer[]
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country Country    @relation(fields: [countryId], references: [id], onDelete: Cascade)
+  topic   Topic?     @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  items   QuizItem[]
 
-  @@map("test_sessions")
+  @@index([userId, startedAt])
+  @@map("quizzes")
 }
 
-model TestSessionAnswer {
-  id               String   @id @default(cuid())
-  testSessionId    String   @map("test_session_id")
-  questionId       String   @map("question_id")
-  selectedOptionId String   @map("selected_option_id")
-  isCorrect        Boolean  @map("is_correct")
-  answeredAt       DateTime @default(now()) @map("answered_at")
+model QuizItem {
+  id               String    @id @default(cuid())
+  quizId           String    @map("quiz_id")
+  questionId       String    @map("question_id")
+  order            Int
+  selectedOptionId String?   @map("selected_option_id")
+  isCorrect        Boolean?  @map("is_correct")
+  answeredAt       DateTime? @map("answered_at")
 
-  testSession    TestSession @relation(fields: [testSessionId], references: [id], onDelete: Cascade)
-  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  selectedOption Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  quiz           Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption Option?  @relation(fields: [selectedOptionId], references: [id], onDelete: SetNull)
 
-  @@map("test_session_answers")
+  @@unique([quizId, questionId])
+  @@index([quizId, order])
+  @@map("quiz_items")
+}
+
+model TopicProgress {
+  id      String         @id @default(cuid())
+  userId  String         @map("user_id")
+  topicId String         @map("topic_id")
+  status  ProgressStatus @default(NOT_STARTED)
+
+  bestScorePercent Int       @default(0) @map("best_score_percent")
+  attemptCount     Int       @default(0) @map("attempt_count")
+  passCount        Int       @default(0) @map("pass_count")
+  lastAttemptAt    DateTime? @map("last_attempt_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId])
+  @@map("topic_progress")
+}
+
+/// Per-user, per-question history. Powers "review my mistakes", bookmarks, and
+/// (later) spaced repetition scheduling.
+model QuestionStat {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  questionId   String   @map("question_id")
+  timesSeen    Int      @default(0) @map("times_seen")
+  timesCorrect Int      @default(0) @map("times_correct")
+  timesWrong   Int      @default(0) @map("times_wrong")
+  isBookmarked Boolean  @default(false) @map("is_bookmarked")
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId, isBookmarked])
+  @@map("question_stats")
 }

@@ -1,5 +1,22 @@
-import type { ScenarioConfig } from "@roadready/shared";
-import type { ProgressStatus } from "../store/userStore";
+import type {
+  AnswerQuestionPayload,
+  AnswerQuestionResponse,
+  AuthCredentials,
+  AuthResponse,
+  AuthUser,
+  BookmarkToggleResponse,
+  CountryDetail,
+  CountrySummary,
+  CountryTopicsResponse,
+  CreateQuizPayload,
+  ProgressOverview,
+  QuizDetail,
+  QuizQuestion,
+  QuizResult,
+  QuizSummary,
+  TopicSummary,
+  UpdateProfilePayload,
+} from "@roadready/shared";
 
 const BASE =
   (import.meta.env.VITE_API_URL as string | undefined) ??
@@ -19,141 +36,103 @@ export function clearStoredToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/** Carries the HTTP status so callers can distinguish 401/403/404 from a 500. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(
+  path: string,
+  init?: Omit<RequestInit, "body"> & { body?: unknown },
+): Promise<T> {
   const token = getStoredToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE}${path}`, { ...init, headers });
+  const res = await fetch(`${BASE}${path}`, {
+    ...init,
+    headers,
+    body: init?.body === undefined ? undefined : JSON.stringify(init.body),
+  });
+
   if (!res.ok) {
-    let errorMsg = `API ${res.status}: ${res.statusText}`;
+    let message = `Request failed (${res.status})`;
     try {
       const data = (await res.json()) as { error?: string };
-      if (data && typeof data.error === "string") {
-        errorMsg = data.error;
-      }
+      if (typeof data?.error === "string") message = data.error;
     } catch {
-      // ignore JSON parsing errors for non-JSON responses
+      // Non-JSON error response — keep the generic message.
     }
-    throw new Error(errorMsg);
+    throw new ApiError(res.status, message);
   }
-  return res.json() as Promise<T>;
+
+  if (res.status === 204) return undefined as T;
+  return (await res.json()) as T;
 }
 
-export interface AuthPayload {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: { id: string; email: string };
-  error: string;
-}
-
-export interface AttemptRow {
-  id: string;
-  userId: string;
-  scenarioId: string;
-  passed: boolean;
-  score: number;
-  timeSeconds: number;
-  completedAt: string;
-}
-
-export interface SaveAttemptPayload {
-  scenarioId: string;
-  passed: boolean;
-  score?: number;
-  timeSeconds?: number;
-}
-
-export interface CountryRow {
-  id: string;
-  code: string;
-  name: string;
-  flagEmoji: string;
-  isActive: boolean;
-  scenarioCount: number;
-  categories: {
-    id: string;
-    name: string;
-    order: number;
-    scenarioCount: number;
-  }[];
-}
-
-export interface ScenarioRow {
-  id: string;
-  slug: string;
-  name: string;
-  description: string;
-  order: number;
-  isActive: boolean;
-  isPremium: boolean;
-  type: "PRACTICE" | "TEST";
-  videoUrl: string | null;
-  questionCount: number;
-}
-
-export interface CountryScenariosResponse {
-  country: { id: string; code: string; name: string; flagEmoji: string };
-  categories: {
-    id: string;
-    name: string;
-    order: number;
-    scenarios: ScenarioRow[];
-  }[];
-}
-
-export interface ScenarioProgressRow {
-  scenarioId: string;
-  status: ProgressStatus;
-}
+const get = <T>(path: string) => request<T>(path);
+const post = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: "POST", body });
+const patch = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: "PATCH", body });
 
 export const api = {
   auth: {
-    register: (payload: AuthPayload) =>
-      request<AuthResponse>("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    login: (payload: AuthPayload) =>
-      request<AuthResponse>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
+    register: (payload: AuthCredentials) =>
+      post<AuthResponse>("/api/auth/register", payload),
+    login: (payload: AuthCredentials) =>
+      post<AuthResponse>("/api/auth/login", payload),
+    me: () => get<AuthUser>("/api/auth/me"),
+    updateProfile: (payload: UpdateProfilePayload) =>
+      patch<AuthUser>("/api/auth/me", payload),
   },
+
   countries: {
-    list: () => request<CountryRow[]>("/api/countries"),
-    facts: (code: string) =>
-      request<{ facts: string | null }>(`/api/countries/${code}/facts`),
-    scenarios: (code: string) =>
-      request<CountryScenariosResponse>(`/api/countries/${code}/scenarios`),
+    list: () => get<CountrySummary[]>("/api/countries"),
+    detail: (code: string) => get<CountryDetail>(`/api/countries/${code}`),
+    topics: (code: string) =>
+      get<CountryTopicsResponse>(`/api/countries/${code}/topics`),
   },
-  scenarios: {
-    list: () => request<ScenarioConfig[]>("/api/scenarios"),
-    progress: (userId: string, countryCode: string) =>
-      request<ScenarioProgressRow[]>(
-        `/api/scenarios/progress/${userId}/${countryCode}`,
+
+  topics: {
+    detail: (slug: string) => get<TopicSummary>(`/api/topics/${slug}`),
+  },
+
+  quizzes: {
+    create: (payload: CreateQuizPayload) =>
+      post<QuizDetail>("/api/quizzes", payload),
+    history: () => get<QuizSummary[]>("/api/quizzes"),
+    detail: (id: string) => get<QuizDetail>(`/api/quizzes/${id}`),
+    answer: (id: string, payload: AnswerQuestionPayload) =>
+      post<AnswerQuestionResponse>(`/api/quizzes/${id}/answer`, payload),
+    complete: (id: string) => post<QuizResult>(`/api/quizzes/${id}/complete`),
+  },
+
+  questions: {
+    bookmarks: () => get<QuizQuestion[]>("/api/questions/bookmarks"),
+    toggleBookmark: (id: string) =>
+      post<BookmarkToggleResponse>(`/api/questions/${id}/bookmark`),
+  },
+
+  progress: {
+    overview: (countryCode?: string) =>
+      get<ProgressOverview>(
+        `/api/progress/overview${countryCode ? `?country=${countryCode}` : ""}`,
       ),
   },
-  userCountryAccess: {
-    record: (countryCode: string) =>
-      request<{ alreadyExisted: boolean }>("/api/user-country-access", {
-        method: "POST",
-        body: JSON.stringify({ countryCode }),
-      }),
-  },
-  progress: {
-    save: (payload: SaveAttemptPayload) =>
-      request<AttemptRow>("/api/progress", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      }),
-    getByUser: (userId: string) =>
-      request<AttemptRow[]>(`/api/progress/${userId}`),
-  },
 };
+
+/** Normalises anything thrown by a fetch call into a message safe to render. */
+export function errorMessage(err: unknown): string {
+  if (err instanceof ApiError) return err.message;
+  if (err instanceof Error) return err.message;
+  return "Something went wrong";
+}

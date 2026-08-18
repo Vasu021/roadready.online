@@ -2,23 +2,31 @@
 
 ## Project Overview
 
-RoadReady (roadready.online) is a browser-based 3D driving simulation platform.
-Users practice driving in realistic city environments with country-specific traffic rules.
-MVP: Aachen, Germany. Expanding to more cities and countries over time.
+RoadReady (roadready.online) is a **scenario-based driving theory trainer**.
+
+Each question shows an illustrated road situation — a junction, a sign, a hazard — and asks what
+the driver should do. Four options, one correct, and an explanation of the rule behind it. Users
+work through topics, drill the questions they get wrong, and sit a mock exam.
+
+Countries live: Germany 🇩🇪 and France 🇫🇷, 9 topics and 45 questions each.
+
+> **The 3D driving simulation was removed.** Everything under `apps/web/src/simulation/`, the
+> Three.js / R3F / Rapier dependencies and `SIMULATION_DESIGN.md` are gone as of the `Idea-rewrite`
+> branch. See `REWRITE_PLAN.md` for why. Do not reintroduce them.
 
 ## Tech Stack
 
 - **Frontend:** React 18 + TypeScript + Vite (port 5173)
-- **3D Engine:** Three.js via React Three Fiber (R3F) + @react-three/drei
-- **Physics:** Rapier.js (@dimforge/rapier3d-compat)
 - **State:** Zustand
 - **Styling:** Tailwind CSS
 - **Backend:** Node.js + Express + TypeScript (port 3001)
-- **ORM:** Prisma **6.0.0** — do NOT upgrade to 7.x (requires driver adapter we don't use)
-- **Database:** PostgreSQL — local during dev, swap `DATABASE_URL` for production (AWS RDS, Google Cloud SQL, etc.)
-- **Auth:** Custom JWT (bcryptjs + jsonwebtoken) — token stored in `localStorage` as `rr_token`
+- **ORM:** Prisma **6.0.0** — do NOT upgrade to 7.x (requires a driver adapter we don't use)
+- **Database:** PostgreSQL — local in dev, swap `DATABASE_URL` for production
+- **Auth:** Custom JWT (bcryptjs + jsonwebtoken) — token in `localStorage` as `rr_token`
 - **Payments:** Stripe (later)
 - **Hosting:** Vercel (frontend), Railway (backend)
+
+There is no 3D, no physics engine, and no canvas rendering anywhere in the project.
 
 ## Monorepo Structure
 
@@ -28,320 +36,237 @@ roadready.online/
 │   ├── web/          # React frontend (Vite, port 5173)
 │   └── api/          # Express backend (port 3001)
 ├── packages/
-│   └── shared/       # Shared TypeScript types
+│   └── shared/       # The API contract — types shared by both apps
 ├── CLAUDE.md
+├── REWRITE_PLAN.md   # Why the product changed, and the design of the new one
 ├── TASKS.md
-├── README.md
-├── .gitignore
-└── package.json      # Root workspace package.json
+├── DEVELOPER_GUIDE.md
+└── README.md
 ```
 
-## Frontend Structure (apps/web/src/)
+## Domain Vocabulary
+
+The word "scenario" used to mean two different things. It now means exactly one:
+
+| Term         | Meaning                                                                  |
+| ------------ | ------------------------------------------------------------------------ |
+| **Scenario** | The road situation an individual question depicts. Not a database table. |
+| **Question** | One scenario-based MCQ: image + prompt + 4 options + explanation.        |
+| **Topic**    | A themed group of questions ("Roundabouts"). The unit users start.       |
+| **Category** | A group of topics ("Traffic Rules"). Used to section the topic list.     |
+| **Quiz**     | One run through a frozen set of questions. Practice or exam.             |
+
+## Database Schema (Prisma 6.0.0)
+
+Ten models — see `apps/api/prisma/schema.prisma`.
 
 ```
-src/
-├── components/
-│   ├── AuthModal.tsx
-│   ├── ChallengeOverlay.tsx     # key-press challenge popup (shown over simulation)
-│   ├── ResultsScreen.tsx        # pass/fail modal; saves progress to DB
-│   └── ScenarioHUD.tsx          # top-left overlay: name, objectives, countdown
-├── pages/                       # Route-level pages (Home, Simulation, Dashboard)
-├── simulation/
-│   ├── scene/
-│   │   ├── SimulationScene.tsx  # Canvas root; wires all scene elements
-│   │   ├── GermanCityRoad.tsx   # L-shaped road (N-S + E-W), stop line, crosswalk, curbs
-│   │   ├── CityEnvironment.tsx  # Trees, buildings, sidewalks (deterministic seed)
-│   │   ├── FollowCamera.tsx     # Yaw-aware follow camera; always behind car
-│   │   ├── TrafficLight.tsx     # Procedural pole + 3 lights; phase prop controls glow
-│   │   ├── Tree.tsx             # Procedural tree (3 foliage variants)
-│   │   ├── Building.tsx         # Box building with roof; pos/size/color props
-│   │   ├── Ground.tsx
-│   │   └── Lighting.tsx
-│   ├── vehicles/
-│   │   ├── CarController.tsx    # Procedural car mesh + Rapier physics + autopilot
-│   │   ├── useCarPhysics.ts
-│   │   └── useCarControls.ts
-│   └── scenarios/
-│       ├── types.ts             # ScenarioDef, Waypoint, ChallengePoint, ScenarioChecker
-│       ├── index.ts             # Registry: slug → ScenarioDef
-│       ├── ScenarioRunner.tsx   # Frame checker; merges resolvedChallengeIds → completed
-│       ├── StopZone.tsx         # Visual AABB that dims on car entry
-│       ├── basicControls.ts     # 6 waypoints, 2 challenges (left-turn + stop-at-line)
-│       ├── trafficLights.ts     # 3 waypoints, 1 challenge (red-light-stop)
-│       └── rules/               # Traffic rule helper functions (future)
-├── store/
-│   ├── gameStore.ts             # ScenarioPhase, CarState, DriveMode, ActiveChallenge
-│   └── userStore.ts
-└── utils/
-    └── api.ts                   # Central fetch client (reads rr_token from localStorage)
+── Content ────────────────────────────────────────────────────
+Country       code (unique), name, flagEmoji, isActive, order, facts,
+              examQuestionCount, examPassPercent
+Category      countryId, slug, name, description, order   UNIQUE(countryId, slug)
+Topic         countryId, categoryId?, slug (unique), name, description,
+              iconEmoji, order, isActive, isPremium
+Question      topicId, order, prompt, imageUrl?, imageAlt?, explanation,
+              difficulty (EASY|MEDIUM|HARD), isActive
+Option        questionId, label ("A".."D"), text, isCorrect, order
+
+── Users & progress ───────────────────────────────────────────
+User          email (unique), password (bcrypt 12), name?, role (USER|ADMIN),
+              isPremium, selectedCountryId?
+Quiz          userId, countryId, topicId?, mode (PRACTICE|EXAM),
+              source (TOPIC|EXAM|MISTAKES|BOOKMARKS),
+              status (IN_PROGRESS|COMPLETED|ABANDONED),
+              totalQuestions, correctCount, scorePercent, passed?, grade?
+QuizItem      quizId, questionId, order, selectedOptionId?, isCorrect?, answeredAt?
+              UNIQUE(quizId, questionId)
+TopicProgress userId, topicId, status, bestScorePercent, attemptCount,
+              passCount, lastAttemptAt   UNIQUE(userId, topicId)
+QuestionStat  userId, questionId, timesSeen, timesCorrect, timesWrong,
+              isBookmarked, lastSeenAt   UNIQUE(userId, questionId)
 ```
+
+**Rules that matter:**
+
+- **`QuizItem` freezes the question set at quiz creation.** Never re-derive a quiz's questions at
+  read time — resuming, scoring and reviewing all depend on that snapshot.
+- **`QuestionStat` is written at quiz completion, not on each answer.** An abandoned quiz must not
+  pollute the user's mistake list.
+- **A topic that has been passed stays `COMPLETED`.** A later bad run updates the score but never
+  removes the completion.
+- Migrations live in `apps/api/prisma/migrations/` and are committed. There is one baseline,
+  `20260818000000_init`.
+- No `prisma.config.ts` — Prisma 6 reads `DATABASE_URL` from env.
 
 ## Backend Structure (apps/api/src/)
 
 ```
 src/
-├── index.ts          # Express entry — imports dotenv/config FIRST
+├── index.ts              # Express entry — dotenv/config FIRST, errorHandler LAST
 ├── lib/
-│   ├── prisma.ts     # PrismaClient singleton (globalThis pattern)
-│   └── jwt.ts        # signToken / verifyToken (7-day expiry)
-├── middleware/
-│   └── auth.ts       # requireAuth — verifies Bearer JWT, sets req.userId + req.userEmail
+│   ├── prisma.ts         # PrismaClient singleton (globalThis pattern)
+│   ├── jwt.ts            # signToken / verifyToken (7-day expiry)
+│   ├── http.ts           # HttpError, route() async wrapper, body parsing helpers
+│   ├── serialize.ts      # Prisma rows → shared API types
+│   └── quiz.ts           # Question selection, premium gating, grading
+├── middleware/auth.ts    # requireAuth + optionalAuth
 └── routes/
-    ├── auth.ts               # POST /api/auth/register, POST /api/auth/login
-    ├── countries.ts          # GET /api/countries, GET /api/countries/:code/facts, GET /api/countries/:code/scenarios
-    ├── scenarios.ts          # GET /api/scenarios, GET /api/scenarios/:slug, GET /api/scenarios/:slug/questions,
-    │                         #   GET /api/scenarios/progress/:userId/:countryCode
-    ├── userCountryAccess.ts  # POST /api/user-country-access
-    ├── testSessions.ts       # POST /api/test-sessions, POST …/:id/answers, PATCH …/:id/complete, GET …/:id
-    ├── users.ts              # GET /api/users/me
-    └── progress.ts           # GET /api/progress/:userId, POST /api/progress
+    ├── auth.ts       # register, login, GET/PATCH me
+    ├── countries.ts  # list, detail, topics-by-category
+    ├── topics.ts     # topic detail + progress
+    ├── quizzes.ts    # create, history, detail, answer, complete
+    ├── questions.ts  # bookmarks list, bookmark toggle
+    └── progress.ts   # dashboard overview
 ```
 
-## Simulation Workflow
+**Non-negotiables:**
 
-**The car always drives itself (autopilot).** The user never touches the steering wheel — they only make decisions at challenge moments.
+- **Never spread a Prisma row into a response.** Every payload goes through `lib/serialize.ts`.
+  That is what keeps `Option.isCorrect` and `User.password` off the wire.
+- **`reveal` is derived server-side only** — from quiz mode and status, never from a client flag.
+  Exam mode withholds correctness and explanations until `/complete`.
+- **Access control lives in `lib/quiz.ts`, not the routes.** `MISTAKES` and `BOOKMARKS` are filtered
+  to unlocked topics too, so no source can be a side door onto premium content.
+- Throw `HttpError` subclasses (`badRequest`, `notFound`, …) and wrap handlers in `route()`.
+  Anything else that escapes becomes a generic 500 — internal details never leak.
+- A quiz belonging to another user is reported as **404, not 403**, so ids cannot be probed.
 
-### Current implementation (key-press challenges)
+## API Surface
 
-1. Car follows `Waypoint[]` via proportional yaw controller
-2. At a `ChallengePoint` trigger (`triggerZ` or `triggerX`), the car brakes to a stop
-3. `ChallengeOverlay` appears with a prompt and key instruction
-4. User presses a key:
-   - Correct key → `resolveChallenge('correct')` → objective marked done → overlay clears → car resumes
-   - Wrong key → `resolveChallenge('wrong')` → overlay shows ❌ → `setScenarioPhase('failed')` after 1.6 s
-5. `ScenarioRunner` merges `resolvedChallengeIds` into the objectives `completed` map
-6. When all objectives are resolved, `check()` returns `passed: true` → `ResultsScreen` shows
+| Method | Route                         | Auth | Purpose                                   |
+| ------ | ----------------------------- | ---- | ----------------------------------------- |
+| GET    | `/api/health`                 | —    | liveness                                  |
+| POST   | `/api/auth/register`          | —    | bcrypt 12, returns JWT                    |
+| POST   | `/api/auth/login`             | —    | returns JWT                               |
+| GET    | `/api/auth/me`                | ✓    | current user                              |
+| PATCH  | `/api/auth/me`                | ✓    | update `name` / `countryCode`             |
+| GET    | `/api/countries`              | —    | active countries + counts                 |
+| GET    | `/api/countries/:code`        | —    | one country incl. `facts`                 |
+| GET    | `/api/countries/:code/topics` | opt  | topics by category (+ progress if authed) |
+| GET    | `/api/topics/:slug`           | opt  | topic detail                              |
+| POST   | `/api/quizzes`                | ✓    | create quiz, freeze question set          |
+| GET    | `/api/quizzes`                | ✓    | history                                   |
+| GET    | `/api/quizzes/:id`            | ✓    | quiz + questions                          |
+| POST   | `/api/quizzes/:id/answer`     | ✓    | record answer                             |
+| POST   | `/api/quizzes/:id/complete`   | ✓    | grade + breakdown (idempotent)            |
+| GET    | `/api/progress/overview`      | ✓    | dashboard data                            |
+| POST   | `/api/questions/:id/bookmark` | ✓    | toggle                                    |
+| GET    | `/api/questions/bookmarks`    | ✓    | saved questions, answers revealed         |
 
-### Next implementation (MCQ pop-up)
+`POST /api/quizzes` takes `{ countryCode, mode, source, topicSlug?, limit? }`:
 
-The key-press system will evolve to an **MCQ pop-up**:
+| source      | question set                                      |
+| ----------- | ------------------------------------------------- |
+| `TOPIC`     | all active questions in `topicSlug`, in order     |
+| `EXAM`      | random sample across the user's unlocked topics   |
+| `MISTAKES`  | questions with `timesWrong > 0`, most-wrong first |
+| `BOOKMARKS` | bookmarked questions                              |
 
-1. Car stops at challenge zone
-2. **Transparent, draggable popup** appears with 4 A/B/C/D options — user can drag it aside to see the road
-3. User selects an option and confirms
-4. Practice mode: wrong → show correct + explanation → Continue (car resumes)
-   Test mode: wrong → fail scenario
-5. MCQ questions come from `GET /api/scenarios/:slug/questions`
+**Grading:** `scorePercent = round(correct / total * 100)`. Grade A ≥ 90, B ≥ 80, C ≥ 70, D ≥ 60,
+else F. Pass threshold is `Country.examPassPercent` (75), so it can differ per country.
 
-**Practice mode** — individual scenario, no final grade.  
-**Test mode** — all scenarios in sequence; answers accumulated; grade and pass/fail shown at the end.
-
-### Autopilot math
+## Frontend Structure (apps/web/src/)
 
 ```
-desiredYaw = atan2(-dx, -dz)   where dx = target.x - car.x, dz = target.z - car.z
-angularError = desiredYaw - currentYaw   (normalised to [-π, π])
-Apply angular impulse ∝ angularError
-Apply forward impulse toward waypoint's speed target
-Advance waypointIndex when distance to current target < 3 m
+src/
+├── App.tsx                 # Routes + boot-time session restore
+├── i18n/index.ts           # t() and tn() — every user-facing string goes through these
+├── components/
+│   ├── layout/index.tsx    # AppHeader, PageShell, Spinner, LoadingPanel, ErrorBanner, EmptyState
+│   ├── auth/               # AuthModal, ProtectedRoute
+│   ├── quiz/index.tsx      # ScenarioImage, QuizProgressBar, OptionButton, optionState,
+│   │                       #   ExplanationPanel, BookmarkButton, ModeBadge
+│   ├── results/index.tsx   # ScoreRing, StatTile, QuestionReviewRow
+│   └── home/index.tsx      # TopicCard, CountryFacts
+├── pages/
+│   ├── Home.tsx            # THREE STATES — landing / country select / topic list
+│   ├── Quiz.tsx            # One question at a time
+│   ├── Results.tsx         # Score, grade, per-question review
+│   ├── Dashboard.tsx       # Totals, topic mastery, recent quizzes
+│   └── Review.tsx          # Mistakes + bookmarks
+├── store/
+│   ├── userStore.ts        # user, isBootstrapping, selectedCountry, auth modal
+│   └── quizStore.ts        # active quiz, index, pending selections, submit/bookmark
+├── utils/api.ts            # The only place `fetch` is called
+└── scripts/generate-scenario-images.mjs   # Generates public/images/scenarios/*.svg
 ```
 
-Three.js coordinate system: **-Z is forward**, **+Y rotation is left turn**, car forward = `(-sin θ, 0, -cos θ)`
+### Routes
 
-## Database Schema (Prisma 6.0.0)
+| Route              | Guard     |
+| ------------------ | --------- |
+| `/`                | public    |
+| `/quiz/:quizId`    | protected |
+| `/results/:quizId` | protected |
+| `/dashboard`       | protected |
+| `/review`          | protected |
 
-Twelve tables — see `apps/api/prisma/schema.prisma` for full definitions.
+## Scenario Images
+
+Questions reference an image by path: `/images/scenarios/<name>.svg`.
+
+The whole set is **generated**, not hand-drawn, by `apps/web/scripts/generate-scenario-images.mjs`
+(`npm run gen:images --workspace=apps/web`). One script means one visual language — the same road
+colour, the same car glyph, the same sign proportions everywhere — and a tweak to that language is
+a one-line change rather than 49 file edits.
+
+- The user's own car is always blue with a dashed ring; other traffic is red or amber.
+- `Question.imageUrl` also accepts an absolute `http(s)` URL, so a real photo can replace a diagram
+  per-question with no schema change.
+- **`imageAlt` is required on every question.** The image carries the question's information; a
+  missing alt makes it unanswerable with a screen reader. The seed validator enforces this.
+- Adding an image: add an entry to `scenes` or `signs` in the generator, run it, commit the SVG.
+
+## Seed Content
 
 ```
-── Content layer ──────────────────────────────────────────────
-Country              → countries
-  id, code (unique, e.g. "DE"), name, flagEmoji, isActive, facts?, createdAt
-
-ScenarioCategory     → scenario_categories
-  id, countryId (FK Country), name, order
-
-Scenario             → scenarios
-  id, countryId (FK Country), categoryId? (FK ScenarioCategory),
-  slug (unique), name, description, order, isActive, isPremium,
-  type (PRACTICE | TEST), videoUrl?, createdAt
-
-Question             → questions
-  id, scenarioId (FK Scenario), questionText, order, explanation, createdAt
-
-Option               → options
-  id, questionId (FK Question), optionText, isCorrect, order
-
-── User progress layer ────────────────────────────────────────
-User                 → users
-  id, email (unique), password (bcrypt), name?, createdAt, updatedAt
-
-UserCountryAccess    → user_country_access
-  id, userId (FK User), countryId (FK Country), unlockedAt
-  UNIQUE(userId, countryId)
-
-UserScenarioProgress → user_scenario_progress  ← primary progress model
-  id, userId (FK User), scenarioId (FK Scenario),
-  status (NOT_STARTED | IN_PROGRESS | COMPLETED),
-  lastAttemptAt?, bestScore, attemptCount, passCount
-  UNIQUE(userId, scenarioId)
-
-UserProgress         → user_progress  ← legacy, kept for existing routes
-  id, userId (FK User), scenarioId (plain String), bestScore,
-  bestTimeSeconds?, attemptCount, passCount, lastAttemptAt?
-  UNIQUE(userId, scenarioId)
-
-ScenarioAttempt      → scenario_attempts
-  id, userId (FK User), scenarioId (FK Scenario, nullable on delete),
-  mode (PRACTICE | TEST), passed, score, timeSeconds, completedAt
-
-TestSession          → test_sessions
-  id, userId (FK User), countryId (FK Country),
-  startedAt, completedAt?, totalScore, maxScore, passed?, grade?
-
-TestSessionAnswer    → test_session_answers
-  id, testSessionId (FK TestSession), questionId (FK Question),
-  selectedOptionId (FK Option), isCorrect, answeredAt
+apps/api/prisma/seed/
+├── index.ts     # Validates, then upserts. Run with `npm run db:seed`
+├── types.ts     # CountrySeed / TopicSeed / QuestionSeed shapes
+├── germany.ts   # 9 topics × 5 questions
+└── france.ts    # 9 topics × 5 questions
 ```
 
-**Seeded data** (`apps/api/prisma/seed.ts`):
+The seed is the source of truth for the question bank — there is no admin CMS.
 
-- Germany (code: `DE`, isActive: true) + France (code: `FR`, isActive: true) — both with `facts` HTML
-- Each country has categories: Basic Skills, Traffic Rules, Road Signs
-- Germany: 9 PRACTICE + 1 TEST scenario; France: 9 PRACTICE + 1 TEST scenario
-- All scenarios `isActive: true`, each with one 4-option MCQ question
-
-**Prisma notes:**
-
-- Schema file: `apps/api/prisma/schema.prisma` — datasource has `url = env("DATABASE_URL")`
-- No `prisma.config.ts` — it was removed; Prisma 6 reads `DATABASE_URL` from env automatically
-- `src/lib/prisma.ts` uses globalThis singleton to avoid multiple connections during hot reload
-- Migrations live in `apps/api/prisma/migrations/` and are committed to git
-- New code should use `UserScenarioProgress`; `UserProgress` is legacy
-
-## Auth Architecture
-
-- **Register:** `POST /api/auth/register` → bcrypt hash (cost 12) → create `User` → return `{ token, user }`
-- **Login:** `POST /api/auth/login` → find user → bcrypt compare → return `{ token, user }`
-- **Token storage:** JWT stored in `localStorage` as `rr_token`; cleared on logout
-- **Session restore:** `App.tsx` decodes the token from localStorage on mount via `parseJwt()` and restores `userStore`
-- **API requests:** `apps/web/src/utils/api.ts` reads `rr_token` from localStorage and sets `Authorization: Bearer <token>` on all requests
-- **Backend guard:** `requireAuth` middleware calls `verifyToken()` from `src/lib/jwt.ts` — sets `req.userId` and `req.userEmail`
+- **`validate()` runs before any DB write** and fails loudly on a duplicate topic slug, an unknown
+  category, a question without exactly 4 options or exactly 1 correct one, or a missing
+  `imageAlt` / `explanation`.
+- **Content files list the correct answer first** because that is far easier to write and review.
+  The seed then shuffles options with a hash of `topic#order`, so answers spread across A–D but
+  re-running the seed never reshuffles an existing question out from under quiz history.
+- Questions are keyed by `(topic, order)` and **updated in place**, so re-seeding edits rows rather
+  than orphaning `QuizItem` references.
+- `isPremium` is derived: topics with `order > 3` are premium. First 3 topics per country are free.
 
 ## Key Conventions
 
-- All code in **TypeScript** — no plain JS files
-- Use **functional components** with hooks only — no class components
-- Use **Zustand** for global state — no Redux, no Context API for state
-- Use **React Three Fiber** for all 3D — never raw Three.js imperative code in components
-- CSS via **Tailwind** utility classes — no CSS modules, no styled-components
-- All API calls go through `src/utils/api.ts` — never call `fetch` directly in components
-- All environment variables prefixed with `VITE_` on frontend
-- Backend routes follow REST conventions: `GET /api/scenarios`, `POST /api/auth/login`, etc.
+- All code in **TypeScript** — no plain JS files (the image generator is the one `.mjs` build script)
+- **Functional components** with hooks only
+- **Zustand** for global state — no Redux, no Context for state
+- Tailwind utility classes — no CSS modules, no styled-components
+- **All API calls go through `src/utils/api.ts`** — never call `fetch` in a component
+- **All user-facing strings go through `t()`** (or `tn()` for plurals) from `src/i18n`
+- Frontend env vars are prefixed `VITE_`
+- Backend routes follow REST conventions
 
 ## Naming Conventions
 
-- Components: PascalCase (`CarController.tsx`, `AuthModal.tsx`)
-- Hooks: camelCase with `use` prefix (`useCarPhysics.ts`, `useScenario.ts`)
-- Stores: camelCase with `Store` suffix (`gameStore.ts`, `userStore.ts`)
-- Utils: camelCase (`formatScore.ts`, `osmParser.ts`)
-- Types/Interfaces: PascalCase with descriptive names (`ScenarioConfig`, `CarState`)
-
-## Current MVP Scope
-
-1. A 3D city environment (L-shaped Aachen-inspired road, trees, buildings, traffic lights)
-2. An autopilot car — **no manual steering**; car follows waypoints; user only makes decisions
-3. Key-press challenge system — car pauses, user presses correct key; wrong → fail; correct → continue
-4. MCQ pop-up overlay (next to build) — transparent draggable popup with A/B/C/D options
-5. Multi-country support — Germany 🇩🇪 and France 🇫🇷 seeded; each with 9 PRACTICE + 1 TEST scenario
-6. Three-state UI flow in `Home.tsx`:
-   - **State A** (logged out): marketing landing page with CTA buttons
-   - **State B** (logged in, no country): country selector with facts panel
-   - **State C** (logged in, country chosen): scenario list grouped by category
-7. Pass/fail per scenario; progress saved to database — ✅ working
-8. User auth (sign up / login) — ✅ working
-9. Free tier: first 3 scenarios unlocked; rest require Premium (dev toggle available)
-
-## gameStore — Key Fields for Simulation
-
-```typescript
-// Drive mode
-driveMode: 'manual' | 'auto'    // 'auto' for all current scenarios
-
-// Key-press challenge system (current)
-activeChallenge: ActiveChallenge | null   // non-null when waiting for key press
-  // ActiveChallenge: { id, prompt, instruction, correctKey, correctKeyLabel, result, wrongKeyLabel? }
-resolvedChallengeIds: Record<string, boolean>  // challenge.id → true when correctly resolved
-triggerChallenge(point: ChallengePoint): void
-resolveChallenge(result: 'correct'|'wrong', wrongKeyLabel?: string): void
-clearChallenge(): void
-
-// Scenario lifecycle
-startScenario(scenario, objectives): void   // resets challenge state, resolvedChallengeIds
-setScenarioPhase(phase): void  // 'idle'|'running'|'passed'|'failed'
-
-// Car state (exported from CarController each frame)
-carState: CarState | null   // { position: [x,y,z], rotation: [x,y,z], velocity: [x,y,z], speed }
-```
-
-**CRITICAL:** `challenge.id` MUST match the corresponding `objective.id` in `ScenarioDef.config.objectives`. `resolveChallenge('correct')` marks the matching objective completed using the challenge ID as the key.
-
-## Scenarios Architecture
-
-Scenarios are stored in PostgreSQL and loaded via the API. Each `Scenario` row has a `slug` that maps to a frontend simulation module. Questions and options are loaded from the `questions` / `options` tables.
-
-Frontend simulation modules live in `src/simulation/scenarios/<slug>.ts` and handle the 3D scripted path. MCQ questions are fetched from the API and rendered as overlays on top of the paused simulation.
-
-**Scenario types:**
-
-- `PRACTICE` — single scenario, no final grade, immediate explanation on each question
-- `TEST` — all questions across all active scenarios, graded at end via `TestSession`
-
-**Seeded Germany scenarios (slug → name):**
-
-```
-basic-controls                  → Basic Controls
-rechts-vor-links                → Rechts vor Links — Right before Left
-roundabout                      → Roundabout
-traffic-lights                  → Traffic Lights
-priority-road-signs             → Priority Road Signs
-vorfahrt-priority-intersection  → Vorfahrt — Priority at Next Intersection
-emergency-vehicle               → Emergency Vehicle
-pedestrian-crossing             → Pedestrian Crossing
-autobahn-rules                  → Autobahn Rules
-full-test-germany               → Full Test — Germany  (type: TEST)
-```
-
-**Seeded France scenarios (slug → name):**
-
-```
-fr-basic-controls               → Basic Controls
-fr-priorite-a-droite            → Priorité à droite
-fr-roundabout                   → Roundabout — French Style
-fr-speed-limits                 → Speed Limits
-fr-radar-cameras                → Radar Cameras
-fr-motorway-rules               → Motorway Rules
-fr-pedestrian-crossing          → Pedestrian Crossing
-fr-traffic-lights               → Traffic Lights
-fr-parking-rules                → Parking Rules
-full-test-france                → Full Test — France  (type: TEST)
-```
-
-## Car Controls
-
-- **W / Arrow Up** — Accelerate
-- **S / Arrow Down** — Brake / Reverse
-- **A / Arrow Left** — Steer left
-- **D / Arrow Right** — Steer right
-- **Space** — Handbrake
-- **R** — Reset car position
-
-## German Traffic Rules to Enforce (MVP)
-
-- Rechts vor Links (right before left at unmarked intersections)
-- Speed limits: 50 km/h in city, 100 km/h on country roads, unlimited/130 km/h recommended on Autobahn
-- Stop at red lights
-- Yield at yield signs (Vorfahrt gewähren)
-- Correct roundabout entry/exit behavior
+- Components: PascalCase (`QuestionReviewRow`, `AuthModal`)
+- Hooks: camelCase with `use` prefix
+- Stores: camelCase with `Store` suffix (`quizStore.ts`)
+- Types/Interfaces: PascalCase (`QuizDetail`, `TopicSummary`)
+- Topic slugs are country-prefixed: `de-roundabouts`, `fr-priorite-a-droite`
 
 ## Environment Variables
 
-### Frontend (apps/web/.env.local)
+**Frontend** (`apps/web/.env.local`)
 
 ```
 VITE_API_URL=http://localhost:3001
 ```
 
-### Backend (apps/api/.env)
+**Backend** (`apps/api/.env`)
 
 ```
 DATABASE_URL=postgresql://roadready_user:roadready_pass@localhost:5432/roadready
@@ -352,55 +277,51 @@ PORT=3001
 ## Development Commands
 
 ```bash
-# Root — run API + frontend together
-npm run dev
+npm run dev                              # API + frontend together
+npm run dev:web                          # frontend only (5173)
+npm run dev:api                          # backend only (3001)
+npm run build                            # build all workspaces
+npm run typecheck                        # tsc --noEmit across workspaces
 
-# Frontend only (http://localhost:5173)
-npm run dev:web
-
-# Backend only (http://localhost:3001)
-npm run dev:api
-
-# Prisma
 cd apps/api
-npx prisma studio          # GUI at localhost:5555
-npx prisma migrate dev     # create + apply a new migration
-npx prisma generate        # regenerate client after schema changes
-npm run db:seed            # seed countries, categories, scenarios, questions, options
+npm run db:seed                          # validate + seed content
+npm run db:reset                         # migrate reset --force (drops data, reseeds)
+npx prisma studio                        # GUI at localhost:5555
+npx prisma migrate dev                   # create + apply a migration
 
-# Build all
-npm run build
+npm run gen:images --workspace=apps/web  # regenerate scenario SVGs
 ```
+
+## Adding Content
+
+**A new question:** add it to the topic's `questions` array in `germany.ts` / `france.ts`, pick an
+existing image name (or add one to the generator), then `npm run db:seed`.
+
+**A new topic:** add a `TopicSeed` to the country's `topics` array with a country-prefixed slug and
+a `category` that exists in that country. Order is positional, so inserting into the middle shifts
+`order` — and therefore premium gating — for everything after it.
+
+**A new country:** create `apps/api/prisma/seed/<country>.ts` exporting a `CountrySeed`, add it to
+`COUNTRIES` in `seed/index.ts`. No code changes needed anywhere else.
 
 ## Important Notes for Claude Agent
 
-- **Always read `TASKS.md` at the start of every session** to understand what has been built and what is pending
-- **Always read `SIMULATION_DESIGN.md`** before touching any simulation code — it covers coordinate system, autopilot math, challenge architecture, and MCQ design spec
-- **Always update `TASKS.md`** when work is completed — move items from 📋 Todo to ✅ Done with implementation details
-- Always check existing files before creating new ones
-- **Prisma is pinned to 6.0.0** — do not upgrade; Prisma 7 requires a driver adapter that breaks our setup
-- **No `prisma.config.ts`** — it was removed; do not recreate it
-- **Vite runs on port 5173** with `strictPort: true`; the API is always on 3001
-- Keep Three.js/R3F code performant — use `useMemo` and `useRef` for 3D objects; pre-allocate `THREE.Vector3` outside `useFrame`
-- Physics bodies must be cleaned up on component unmount
-- Never hardcode German traffic rule logic inline — put it in `src/simulation/scenarios/rules/`
-- When adding a new scenario: add DB row (via seed), create `src/simulation/scenarios/<slug>.ts` with waypoints + challenges, register in `index.ts`
-- **Challenge IDs must equal Objective IDs** — `resolveChallenge('correct')` uses challenge.id to mark the matching objective done. If they differ, pass/fail logic breaks silently.
-- Use `UserScenarioProgress` (not `UserProgress`) for all new progress tracking code; `UserProgress` is legacy
-- `Home.tsx` has three states: logged-out landing page / logged-in country select / logged-in scenario list — do not collapse these into separate routes
-- `userStore` holds `selectedCountry`, `isPremium`, `scenarioProgress`, `authModalMode` — update these when user changes country or completes a scenario
-- `isPremium` is a dev-only toggle (default false); free users get first 3 scenarios (order 1–3) unlocked per country
-- `setShowAuthModal(show, mode?)` sets both `showAuthModal` and `authModalMode` atomically — always pass `'login'` or `'register'`
-- `TestSession` + `TestSessionAnswer` power the test-mode grading — create a `TestSession` at start, upsert `TestSessionAnswer` per question, mark `completedAt` + `passed` + `grade` when done
-- The simulation canvas must be responsive — works on all screen sizes
-- **Junction clearance in CityEnvironment**: the car turn arc sweeps `x ∈ [0,-14], z ∈ [-2,-6]`. Do not place buildings or trees in this zone — existing safety margins in `CityEnvironment.tsx` must be preserved.
-- The car is **fully procedural** — no GLB files for the player car. `CarMesh` is defined inline in `CarController.tsx` using Three.js geometry. The `volvo.glb` in `public/models/` is unused.
-- All user-facing text should support i18n from the start (use a `t()` function wrapper even if translations aren't wired up yet)
+- **Read `TASKS.md` at the start of every session**, and update it as work completes
+- **Read `REWRITE_PLAN.md`** before making architectural changes — it records why this design exists
+- **Do not reintroduce 3D, physics or canvas rendering.** That direction was retired deliberately.
+- **Prisma is pinned to 6.0.0** — do not upgrade
+- **Never leak answers**: `isCorrect` must not appear in any payload for an unanswered question in
+  an in-progress quiz. If you touch `lib/serialize.ts` or `routes/quizzes.ts`, re-verify this.
+- `Home.tsx` keeps its three conditional states — do not split them into separate routes
+- `ProtectedRoute` waits on `isBootstrapping`; never gate a route on the raw localStorage token
+- Question images need `imageAlt`; the seed validator will reject content without it
+- Check existing files before creating new ones; component barrels live at `components/<group>/index.tsx`
+- Run `npm run typecheck` and `npm run build` before pushing
 
 ## Git Workflow
 
-- Branch naming: `feature/scenario-roundabout`, `fix/car-physics-drift`, `chore/setup-prisma`
-- Commit messages: conventional commits — `feat:`, `fix:`, `chore:`, `docs:`
-- Never commit `.env` files — `.env.example` files are safe and should be committed
-- Prisma migration files (`prisma/migrations/`) must be committed
-- Always run `npm run build` before pushing to main
+- Branch naming: `feature/topic-motorway`, `fix/quiz-resume`, `chore/seed-validation`
+- Conventional commits — `feat:`, `fix:`, `chore:`, `docs:`
+- Never commit `.env`; `.env.example` files are safe
+- Prisma migrations must be committed
+- Run `npm run build` before pushing to main

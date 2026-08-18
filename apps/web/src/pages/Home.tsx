@@ -1,554 +1,432 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api } from "../utils/api";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type {
-  CountryRow,
-  CountryScenariosResponse,
-  ScenarioRow,
-} from "../utils/api";
+  CountryDetail,
+  CountrySummary,
+  CountryTopicsResponse,
+  CreateQuizPayload,
+} from "@roadready/shared";
+import { api, errorMessage } from "../utils/api";
 import { useUserStore } from "../store/userStore";
-import type { ProgressStatus } from "../store/userStore";
+import {
+  AppHeader,
+  ErrorBanner,
+  LoadingPanel,
+  PageShell,
+  Spinner,
+} from "../components/layout";
+import { CountryFacts, TopicCard } from "../components/home";
+import { t } from "../i18n";
 
-// ── State A: Landing Page (logged out) ────────────────────────────────────────
+/**
+ * Home has three states, chosen by session and country rather than by route:
+ *   A — logged out: the marketing page
+ *   B — logged in, no country: the country picker
+ *   C — logged in, country chosen: the topic list
+ */
+export default function Home() {
+  const user = useUserStore((s) => s.user);
+  const isBootstrapping = useUserStore((s) => s.isBootstrapping);
+  const selectedCountry = useUserStore((s) => s.selectedCountry);
+
+  if (isBootstrapping) {
+    return (
+      <div className="min-h-full bg-slate-950">
+        <LoadingPanel />
+      </div>
+    );
+  }
+  if (!user) return <LandingPage />;
+  if (!selectedCountry) return <CountrySelect />;
+  return <TopicList />;
+}
+
+// ── State A ─────────────────────────────────────────────────────────────────
 
 function LandingPage() {
   const setShowAuthModal = useUserStore((s) => s.setShowAuthModal);
 
   return (
-    <div className="flex min-h-full flex-col bg-gray-950 text-white">
-      <header className="flex items-center justify-between border-b border-gray-800/60 px-8 py-5">
-        <span className="text-xl font-bold tracking-tight">RoadReady</span>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowAuthModal(true, "login")}
-            className="rounded-lg border border-gray-700 px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800"
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => setShowAuthModal(true, "register")}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-500"
-          >
-            Get Started — It's Free
-          </button>
-        </div>
-      </header>
+    <div className="min-h-full bg-slate-950 text-white">
+      <AppHeader />
 
-      <main className="flex flex-1 flex-col">
-        {/* Hero */}
-        <section className="flex flex-col items-center px-8 py-24 text-center">
-          <h1 className="max-w-2xl text-5xl font-bold leading-tight tracking-tight">
-            Learn Traffic Rules. Pass Your Test.
+      <main>
+        <section className="mx-auto flex max-w-3xl flex-col items-center px-5 py-20 text-center sm:px-8 sm:py-28">
+          <span className="mb-5 rounded-full border border-slate-800 bg-slate-900/60 px-3.5 py-1.5 text-xs font-medium text-slate-400">
+            {t("Germany 🇩🇪 and France 🇫🇷 · 90 scenario questions")}
+          </span>
+          <h1 className="max-w-2xl text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl">
+            {t("Learn to read the road, not just the rulebook.")}
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-gray-400">
-            Practice country-specific driving rules through interactive 3D
-            simulations. No downloads. No instructor needed.
+          <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-400">
+            {t(
+              "Every question puts you in a real situation — a junction, a sign, a hazard — and asks what you would do. Answer, see why, and remember it.",
+            )}
           </p>
-          <div className="mt-8 flex gap-4">
+          <div className="mt-9 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => setShowAuthModal(true, "register")}
-              className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500"
+              className="rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold transition hover:bg-blue-500"
             >
-              Get Started — It's Free
+              {t("Start practising — free")}
             </button>
             <button
               onClick={() => setShowAuthModal(true, "login")}
-              className="rounded-xl border border-gray-700 px-6 py-3 text-base text-gray-300 transition hover:bg-gray-800"
+              className="rounded-xl border border-slate-700 px-6 py-3 text-base text-slate-300 transition hover:bg-slate-900"
             >
-              Sign In
+              {t("Sign in")}
             </button>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="bg-gray-900/40 px-8 py-16">
-          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-6 sm:grid-cols-3">
+        <section className="border-y border-slate-800/70 bg-slate-900/25 px-5 py-16 sm:px-8">
+          <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-3">
             {[
               {
-                icon: "🌍",
-                title: "Multiple Countries",
-                desc: "Germany, France, and more coming soon. Learn the rules for your country.",
+                icon: "🖼️",
+                title: t("Scenario questions"),
+                desc: t(
+                  "Each question is built around an illustrated road situation, so you practise reading the scene — not memorising answer letters.",
+                ),
               },
               {
-                icon: "🚗",
-                title: "3D Simulations",
-                desc: "Drive through realistic city environments directly in your browser. No install required.",
+                icon: "💡",
+                title: t("An explanation every time"),
+                desc: t(
+                  "Right or wrong, you get the rule behind the answer with the article it comes from, in plain language.",
+                ),
               },
               {
-                icon: "📊",
-                title: "Track Progress",
-                desc: "See your scores and completion across every scenario and test.",
+                icon: "📈",
+                title: t("Your weak spots, tracked"),
+                desc: t(
+                  "Questions you get wrong come back. Bookmark anything you want to revisit, and take a mock exam when you feel ready.",
+                ),
               },
             ].map((f) => (
               <div
                 key={f.title}
-                className="rounded-xl border border-gray-800 bg-gray-900 px-6 py-8 text-center"
+                className="rounded-2xl border border-slate-800 bg-slate-900/50 px-6 py-7"
               >
-                <div className="mb-3 text-4xl">{f.icon}</div>
-                <h3 className="mb-2 text-base font-semibold">{f.title}</h3>
-                <p className="text-sm text-gray-400">{f.desc}</p>
+                <div className="mb-3 text-3xl" aria-hidden="true">
+                  {f.icon}
+                </div>
+                <h3 className="mb-2 font-semibold">{f.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-400">
+                  {f.desc}
+                </p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="px-8 py-16">
-          <div className="mx-auto max-w-3xl">
-            <h2 className="mb-10 text-center text-2xl font-bold">
-              How it works
-            </h2>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-              {[
-                {
-                  step: "1",
-                  title: "Choose your country",
-                  desc: "Pick from Germany, France, and more.",
-                },
-                {
-                  step: "2",
-                  title: "Practice scenarios",
-                  desc: "Drive through each scenario and answer MCQ questions.",
-                },
-                {
-                  step: "3",
-                  title: "Take the test",
-                  desc: "Complete the full theory test and get your grade.",
-                },
-              ].map((h) => (
-                <div
-                  key={h.step}
-                  className="flex flex-col items-center text-center"
-                >
-                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-lg font-bold">
-                    {h.step}
-                  </div>
-                  <h3 className="mb-1 font-semibold">{h.title}</h3>
-                  <p className="text-sm text-gray-400">{h.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+        <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8">
+          <h2 className="mb-9 text-center text-2xl font-bold">
+            {t("How it works")}
+          </h2>
+          <ol className="grid gap-6 sm:grid-cols-3">
+            {[
+              {
+                n: "1",
+                title: t("Pick your country"),
+                desc: t("Germany or France."),
+              },
+              {
+                n: "2",
+                title: t("Work through topics"),
+                desc: t("Priority rules, signs, motorway, hazards."),
+              },
+              {
+                n: "3",
+                title: t("Sit the mock exam"),
+                desc: t("Graded at the end, with a full review."),
+              },
+            ].map((s) => (
+              <li key={s.n} className="flex flex-col items-center text-center">
+                <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold">
+                  {s.n}
+                </span>
+                <h3 className="mb-1 font-semibold">{s.title}</h3>
+                <p className="text-sm text-slate-400">{s.desc}</p>
+              </li>
+            ))}
+          </ol>
         </section>
       </main>
 
-      <footer className="border-t border-gray-800/60 px-8 py-6 text-center text-sm text-gray-500">
-        roadready.online — Built in Aachen 🇩🇪
+      <footer className="border-t border-slate-800/70 px-5 py-7 text-center text-sm text-slate-500 sm:px-8">
+        roadready.online — {t("Built in Aachen 🇩🇪")}
       </footer>
     </div>
   );
 }
 
-// ── State B: Country Selection (logged in, no country chosen) ─────────────────
+// ── State B ─────────────────────────────────────────────────────────────────
 
 function CountrySelect() {
-  const user = useUserStore((s) => s.user);
   const setSelectedCountry = useUserStore((s) => s.setSelectedCountry);
-  const setScenarioProgress = useUserStore((s) => s.setScenarioProgress);
-  const logout = useUserStore((s) => s.logout);
 
-  const [countries, setCountries] = useState<CountryRow[]>([]);
-  // Store the full country object so handleContinue never needs countries.find()
-  const [chosenCountry, setChosenCountry] = useState<CountryRow | null>(null);
-  const [facts, setFacts] = useState<string | null>(null);
-  const [loadingFacts, setLoadingFacts] = useState(false);
-  const [continuing, setContinuing] = useState(false);
-  const [continueError, setContinueError] = useState<string | null>(null);
+  const [countries, setCountries] = useState<CountrySummary[]>([]);
+  const [chosen, setChosen] = useState<CountrySummary | null>(null);
+  const [detail, setDetail] = useState<CountryDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api.countries
       .list()
       .then((list) => {
         setCountries(list);
-        const germany = list.find((c) => c.code === "DE");
-        setChosenCountry(germany ?? list[0]);
+        setChosen(list[0] ?? null);
       })
-      .catch(console.error);
+      .catch((err) => setError(errorMessage(err)))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    if (!chosenCountry) return;
-    setLoadingFacts(true);
-    setFacts(null);
+    if (!chosen) return;
+    setDetail(null);
     api.countries
-      .facts(chosenCountry.code)
-      .then((r) => setFacts(r.facts))
-      .catch(() => setFacts(null))
-      .finally(() => setLoadingFacts(false));
-  }, [chosenCountry]);
+      .detail(chosen.code)
+      .then(setDetail)
+      .catch(() => setDetail(null));
+  }, [chosen]);
 
   async function handleContinue() {
-    if (!chosenCountry || !user) return;
-    setContinuing(true);
-    setContinueError(null);
+    if (!chosen) return;
+    setSaving(true);
+    setError(null);
     try {
-      await api.userCountryAccess.record(chosenCountry.code);
-
-      const progressRows = await api.scenarios.progress(
-        user.id,
-        chosenCountry.code,
-      );
-      const progressMap: Record<string, ProgressStatus> = {};
-      for (const row of progressRows) {
-        progressMap[row.scenarioId] = row.status;
-      }
-      setScenarioProgress(progressMap);
-      // setSelectedCountry MUST be last — it triggers the render switch to State C
-      setSelectedCountry({
-        id: chosenCountry.id,
-        code: chosenCountry.code,
-        name: chosenCountry.name,
-        flagEmoji: chosenCountry.flagEmoji,
-      });
+      await api.auth.updateProfile({ countryCode: chosen.code });
+      // Set last — this is what flips the page over to state C.
+      setSelectedCountry(chosen);
     } catch (err) {
-      console.error("Failed to continue:", err);
-      setContinueError(
-        "Something went wrong. Check the console and try again.",
-      );
+      setError(errorMessage(err));
     } finally {
-      setContinuing(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-gray-950 text-white">
-      <header className="flex items-center justify-between border-b border-gray-800/60 px-8 py-5">
-        <span className="text-xl font-bold tracking-tight">RoadReady</span>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">{user?.email}</span>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition hover:bg-gray-800"
-          >
-            Sign Out
-          </button>
-        </div>
-      </header>
+    <PageShell>
+      <h1 className="mb-2 text-center text-3xl font-bold">
+        {t("Where are you learning to drive?")}
+      </h1>
+      <p className="mb-9 text-center text-slate-400">
+        {t("You can switch country at any time.")}
+      </p>
 
-      <main className="flex flex-1 flex-col items-center px-8 py-20">
-        <div className="w-full max-w-lg">
-          <h1 className="mb-8 text-center text-3xl font-bold">
-            Where are you learning to drive?
-          </h1>
+      {loading ? (
+        <LoadingPanel />
+      ) : (
+        <div className="mx-auto max-w-lg space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {countries.map((c) => {
+              const active = chosen?.code === c.code;
+              return (
+                <button
+                  key={c.code}
+                  onClick={() => setChosen(c)}
+                  aria-pressed={active}
+                  className={`rounded-xl border px-5 py-4 text-left transition ${
+                    active
+                      ? "border-blue-500 bg-blue-950/40 ring-1 ring-blue-500/40"
+                      : "border-slate-800 bg-slate-900/50 hover:border-slate-600"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl" aria-hidden="true">
+                      {c.flagEmoji}
+                    </span>
+                    <span className="font-semibold">{c.name}</span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    {t("{topics} topics · {questions} questions", {
+                      topics: c.topicCount,
+                      questions: c.questionCount,
+                    })}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
 
-          <label
-            className="mb-1 block text-sm font-medium text-gray-400"
-            htmlFor="country-select"
-          >
-            Select a country
-          </label>
-          <select
-            id="country-select"
-            value={chosenCountry?.code ?? ""}
-            onChange={(e) => {
-              const found = countries.find((c) => c.code === e.target.value);
-              if (found) setChosenCountry(found);
-            }}
-            className="w-full rounded-xl border border-gray-700 bg-gray-900 px-4 py-3 text-base text-white focus:border-blue-500 focus:outline-none"
-          >
-            {countries.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flagEmoji} {c.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Facts panel */}
-          <div className="mt-6 min-h-[100px] rounded-xl border border-gray-800 bg-gray-900/60 px-6 py-5">
-            {loadingFacts ? (
-              <div className="flex h-16 items-center justify-center">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              </div>
-            ) : facts ? (
-              <div
-                className="prose prose-sm prose-invert max-w-none text-gray-300 [&_strong]:text-white"
-                dangerouslySetInnerHTML={{ __html: facts }}
-              />
+          <div className="min-h-[132px] rounded-2xl border border-slate-800 bg-slate-900/40 px-6 py-5">
+            {detail ? (
+              <CountryFacts html={detail.facts} />
             ) : (
-              <p className="text-sm text-gray-500">
-                No information available for this country.
-              </p>
+              <div className="flex h-20 items-center justify-center">
+                <Spinner />
+              </div>
             )}
           </div>
 
-          {continueError && (
-            <p className="mt-3 text-sm text-red-400">{continueError}</p>
-          )}
+          {error && <ErrorBanner message={error} />}
 
           <button
             onClick={handleContinue}
-            disabled={!chosenCountry || continuing}
-            className="mt-4 w-full rounded-xl bg-blue-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!chosen || saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-500 disabled:opacity-50"
           >
-            {continuing ? "Loading..." : "Continue →"}
+            {saving && <Spinner size="sm" />}
+            {t("Continue")}
           </button>
         </div>
-      </main>
-    </div>
+      )}
+    </PageShell>
   );
 }
 
-// ── State C: Scenario List (logged in, country selected) ─────────────────────
+// ── State C ─────────────────────────────────────────────────────────────────
 
-function ScenarioList() {
+function TopicList() {
+  const navigate = useNavigate();
   const user = useUserStore((s) => s.user);
-  const selectedCountry = useUserStore((s) => s.selectedCountry);
+  const selectedCountry = useUserStore((s) => s.selectedCountry)!;
   const setSelectedCountry = useUserStore((s) => s.setSelectedCountry);
-  const isPremium = useUserStore((s) => s.isPremium);
-  const setIsPremium = useUserStore((s) => s.setIsPremium);
-  const scenarioProgress = useUserStore((s) => s.scenarioProgress);
-  const logout = useUserStore((s) => s.logout);
 
-  const [data, setData] = useState<CountryScenariosResponse | null>(null);
+  const [data, setData] = useState<CountryTopicsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!selectedCountry) return;
+  const load = useCallback(() => {
     setLoading(true);
+    setError(null);
     api.countries
-      .scenarios(selectedCountry.code)
+      .topics(selectedCountry.code)
       .then(setData)
-      .catch(console.error)
+      .catch((err) => setError(errorMessage(err)))
       .finally(() => setLoading(false));
-  }, [selectedCountry]);
+  }, [selectedCountry.code]);
 
-  function isUnlocked(scenario: ScenarioRow): boolean {
-    if (isPremium) return true;
-    return scenario.order <= 3;
-  }
+  useEffect(load, [load]);
 
-  function isCompleted(scenario: ScenarioRow): boolean {
-    return scenarioProgress[scenario.id] === "COMPLETED";
-  }
-
-  const isDev = import.meta.env.DEV;
-
-  return (
-    <div className="flex min-h-full flex-col bg-gray-950 text-white">
-      <header className="flex items-center justify-between border-b border-gray-800/60 px-8 py-5">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-bold tracking-tight">RoadReady</span>
-          <span className="text-lg">
-            {selectedCountry?.flagEmoji} {selectedCountry?.name}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <Link
-            to="/dashboard"
-            className="text-sm text-gray-400 transition hover:text-white"
-          >
-            My Progress →
-          </Link>
-          {isDev && (
-            <button
-              onClick={() => setIsPremium(!isPremium)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                isPremium
-                  ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-              }`}
-            >
-              {isPremium ? "⭐ Premium ON" : "⭐ Premium OFF"}
-            </button>
-          )}
-          <span className="text-sm text-gray-400">{user?.email}</span>
-          <button
-            onClick={logout}
-            className="rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 transition hover:bg-gray-800"
-          >
-            Sign Out
-          </button>
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col items-center px-8 py-12">
-        <div className="w-full max-w-3xl">
-          <div className="mb-8 flex items-center justify-between">
-            <h1 className="text-2xl font-bold">
-              {selectedCountry?.flagEmoji} {selectedCountry?.name} — Scenarios
-            </h1>
-            <button
-              onClick={() => setSelectedCountry(null)}
-              className="text-sm text-blue-400 transition hover:text-blue-300"
-            >
-              Change Country
-            </button>
-          </div>
-
-          {!isPremium && (
-            <div className="mb-6 rounded-xl border border-amber-800/50 bg-amber-900/20 px-5 py-3 text-sm text-amber-300">
-              Free plan — first 3 scenarios unlocked.{" "}
-              <span className="font-semibold">Upgrade to Premium</span> to
-              access all scenarios.
-            </div>
-          )}
-
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            </div>
-          ) : data ? (
-            <div className="space-y-8">
-              {data.categories.map((cat) => {
-                const practiceScenarios = cat.scenarios.filter(
-                  (s) => s.type === "PRACTICE",
-                );
-                const testScenarios = cat.scenarios.filter(
-                  (s) => s.type === "TEST",
-                );
-
-                if (cat.scenarios.length === 0) return null;
-
-                return (
-                  <section key={cat.id}>
-                    <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-                      {cat.name}
-                    </h2>
-                    <ul className="space-y-2">
-                      {practiceScenarios.map((s) => (
-                        <ScenarioCard
-                          key={s.id}
-                          scenario={s}
-                          unlocked={isUnlocked(s)}
-                          completed={isCompleted(s)}
-                        />
-                      ))}
-                      {testScenarios.map((s) => (
-                        <TestCard
-                          key={s.id}
-                          scenario={s}
-                          unlocked={isUnlocked(s)}
-                          completed={isCompleted(s)}
-                        />
-                      ))}
-                    </ul>
-                  </section>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-center text-gray-500">
-              Failed to load scenarios.
-            </p>
-          )}
-        </div>
-      </main>
-    </div>
+  const startQuiz = useCallback(
+    async (payload: CreateQuizPayload, key: string) => {
+      setStarting(key);
+      setError(null);
+      try {
+        const quiz = await api.quizzes.create(payload);
+        navigate(`/quiz/${quiz.id}`);
+      } catch (err) {
+        setError(errorMessage(err));
+        setStarting(null);
+      }
+    },
+    [navigate],
   );
-}
 
-function ScenarioCard({
-  scenario,
-  unlocked,
-  completed,
-}: {
-  scenario: ScenarioRow;
-  unlocked: boolean;
-  completed: boolean;
-}) {
-  if (!unlocked) {
-    return (
-      <li>
-        <div className="flex cursor-not-allowed items-center justify-between rounded-xl border border-gray-800/40 bg-gray-900/30 px-6 py-4 opacity-60">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{scenario.name}</span>
-              <span className="rounded bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-400">
-                🔒 Premium
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-gray-500">
-              {scenario.description}
-            </p>
-          </div>
-        </div>
-      </li>
-    );
-  }
+  const isPremium = user?.isPremium ?? false;
 
   return (
-    <li>
-      <Link
-        to={`/simulation/${scenario.slug}`}
-        className="flex items-center justify-between rounded-xl border border-gray-800 bg-gray-900/60 px-6 py-4 transition hover:border-gray-600 hover:bg-gray-900"
-      >
+    <PageShell>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{scenario.name}</span>
-            {completed && <span className="text-emerald-400">✅</span>}
-          </div>
-          <p className="mt-0.5 text-sm text-gray-400">{scenario.description}</p>
-        </div>
-        <span className="ml-4 shrink-0 rounded-lg bg-blue-600/20 px-3 py-1 text-sm font-medium text-blue-400">
-          Practice
-        </span>
-      </Link>
-    </li>
-  );
-}
-
-function TestCard({
-  scenario,
-  unlocked,
-  completed,
-}: {
-  scenario: ScenarioRow;
-  unlocked: boolean;
-  completed: boolean;
-}) {
-  if (!unlocked) {
-    return (
-      <li>
-        <div className="flex cursor-not-allowed items-center justify-between rounded-xl border border-amber-800/30 bg-amber-900/10 px-6 py-4 opacity-60">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">{scenario.name}</span>
-              <span className="rounded bg-amber-900/40 px-2 py-0.5 text-xs font-medium text-amber-400">
-                🔒 Premium
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-gray-500">
-              {scenario.description}
-            </p>
-          </div>
-        </div>
-      </li>
-    );
-  }
-
-  return (
-    <li>
-      <Link
-        to={`/simulation/${scenario.slug}`}
-        className="flex items-center justify-between rounded-xl border-2 border-amber-600/60 bg-amber-900/20 px-6 py-4 transition hover:border-amber-500 hover:bg-amber-900/30"
-      >
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-amber-300">
-              {scenario.name}
-            </span>
-            {completed && <span className="text-emerald-400">✅</span>}
-          </div>
-          <p className="mt-0.5 text-sm text-amber-200/60">
-            {scenario.description}
+          <h1 className="text-2xl font-bold">
+            {selectedCountry.flagEmoji} {selectedCountry.name}
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">
+            {t("{topics} topics · {questions} scenario questions", {
+              topics: selectedCountry.topicCount,
+              questions: selectedCountry.questionCount,
+            })}
           </p>
         </div>
-        <span className="ml-4 shrink-0 rounded-lg bg-amber-500/20 px-3 py-1 text-sm font-semibold text-amber-400">
-          Take Test →
+        <button
+          onClick={() => setSelectedCountry(null)}
+          className="text-sm text-blue-400 transition hover:text-blue-300"
+        >
+          {t("Change country")}
+        </button>
+      </div>
+
+      {!isPremium && (
+        <p className="mb-6 rounded-xl border border-amber-900/50 bg-amber-950/25 px-5 py-3 text-sm text-amber-200">
+          {t("Free plan — the first 3 topics are unlocked.")}{" "}
+          <span className="font-semibold">{t("Upgrade to Premium")}</span>{" "}
+          {t("for the full question bank.")}
+        </p>
+      )}
+
+      <button
+        onClick={() =>
+          startQuiz(
+            {
+              countryCode: selectedCountry.code,
+              mode: "EXAM",
+              source: "EXAM",
+            },
+            "exam",
+          )
+        }
+        disabled={starting !== null}
+        className="mb-9 flex w-full items-center gap-4 rounded-2xl border border-amber-700/50 bg-gradient-to-br from-amber-950/40 to-slate-900/40 px-6 py-5 text-left transition hover:border-amber-600 disabled:opacity-60"
+      >
+        <span className="text-3xl" aria-hidden="true">
+          🎓
         </span>
-      </Link>
-    </li>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold text-amber-200">
+            {t("Mock exam")}
+          </span>
+          <span className="mt-0.5 block text-sm text-amber-100/60">
+            {t(
+              "{n} random questions, graded at the end. Answers stay hidden until you finish.",
+              { n: selectedCountry.examQuestionCount },
+            )}
+          </span>
+        </span>
+        <span className="shrink-0 rounded-lg bg-amber-500/20 px-3.5 py-1.5 text-sm font-semibold text-amber-300">
+          {starting === "exam" ? <Spinner size="sm" /> : t("Start")}
+        </span>
+      </button>
+
+      {error && (
+        <div className="mb-6">
+          <ErrorBanner message={error} onRetry={load} />
+        </div>
+      )}
+
+      {loading ? (
+        <LoadingPanel />
+      ) : (
+        <div className="space-y-9">
+          {data?.categories.map((category) => (
+            <section key={category.id}>
+              <h2 className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
+                {category.name}
+              </h2>
+              {category.description && (
+                <p className="mb-3 text-sm text-slate-500">
+                  {category.description}
+                </p>
+              )}
+              <ul className="space-y-2.5">
+                {category.topics.map((topic) => (
+                  <TopicCard
+                    key={topic.id}
+                    topic={topic}
+                    locked={topic.isPremium && !isPremium}
+                    onStart={() =>
+                      startQuiz(
+                        {
+                          countryCode: selectedCountry.code,
+                          mode: "PRACTICE",
+                          source: "TOPIC",
+                          topicSlug: topic.slug,
+                        },
+                        topic.slug,
+                      )
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </PageShell>
   );
-}
-
-// ── Root component — picks which state to render ──────────────────────────────
-
-export default function Home() {
-  const user = useUserStore((s) => s.user);
-  const selectedCountry = useUserStore((s) => s.selectedCountry);
-
-  if (!user) return <LandingPage />;
-  if (!selectedCountry) return <CountrySelect />;
-  return <ScenarioList />;
 }

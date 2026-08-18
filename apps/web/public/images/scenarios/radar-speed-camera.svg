@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img">
+  <rect width="400" height="300" fill="#c9d6c2"/>
+
+  
+  <rect x="0" y="120" width="400" height="120" fill="#4b525c"/>
+  <rect x="0" y="120" width="400" height="2" fill="#3a404a"/>
+  <rect x="0" y="238" width="400" height="2" fill="#3a404a"/>
+  
+  <rect x="0" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="28" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="56" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="84" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="112" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="140" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="168" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="196" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="224" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="252" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="280" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="308" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="336" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="364" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="392" y="178" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="290" y="70" width="16" height="60" rx="4" fill="#5b6570"/>
+  <rect x="272" y="34" width="54" height="42" rx="6" fill="#3d454f"/>
+  <circle cx="299" cy="55" r="12" fill="#1a1f26"/>
+  <circle cx="299" cy="55" r="5" fill="#9aa5b1"/>
+  
+  <g transform="translate(120 210) rotate(90)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#2563eb"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#bfdbfe"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#bfdbfe" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  <g transform="translate(120 210)">
+    <circle cx="0" cy="0" r="31" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.9"/>
+  </g>
+  
+  <rect x="12" y="7" width="207.20000000000002" height="24" rx="6" fill="#16191d" opacity="0.78"/>
+  <text x="22" y="24" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">A fixed speed camera ahead</text>
+</svg>

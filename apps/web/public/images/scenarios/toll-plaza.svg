@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img">
+  <rect width="400" height="300" fill="#c9d6c2"/>
+
+  
+  <rect x="0" y="80" width="400" height="170" fill="#4b525c"/>
+  <rect x="0" y="80" width="400" height="2" fill="#3a404a"/>
+  <rect x="0" y="248" width="400" height="2" fill="#3a404a"/>
+  <rect x="0" y="80" width="400" height="4" fill="#f2f4f7"/>
+  <rect x="0" y="246" width="400" height="4" fill="#f2f4f7"/>
+  <rect x="240" y="146" width="56" height="38" rx="5" fill="#9aa5b1"/>
+  <rect x="240" y="146" width="56" height="10" rx="5" fill="#7b8794"/>
+  <rect x="252" y="160" width="32" height="16" rx="3" fill="#dbe7f3"/>
+  <g>
+    <rect x="296" y="108" width="90" height="9" rx="4" fill="#d32f2f"/>
+    <rect x="311" y="108" width="15" height="9" fill="#fff"/>
+    <rect x="341" y="108" width="15" height="9" fill="#fff"/>
+    <rect x="371" y="108" width="15" height="9" fill="#fff"/>
+  </g>
+  <g>
+    <rect x="296" y="212" width="90" height="9" rx="4" fill="#d32f2f"/>
+    <rect x="311" y="212" width="15" height="9" fill="#fff"/>
+    <rect x="341" y="212" width="15" height="9" fill="#fff"/>
+    <rect x="371" y="212" width="15" height="9" fill="#fff"/>
+  </g>
+  <text x="200" y="52" text-anchor="middle" font-family="system-ui, sans-serif" font-size="20" font-weight="800" fill="#16191d">PÉAGE</text>
+  
+  <g transform="translate(140 212) rotate(90)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#2563eb"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#bfdbfe"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#bfdbfe" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  <g transform="translate(140 212)">
+    <circle cx="0" cy="0" r="31" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.9"/>
+  </g>
+  
+  <rect x="12" y="271" width="192.8" height="24" rx="6" fill="#16191d" opacity="0.78"/>
+  <text x="22" y="288" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">Approaching a toll plaza</text>
+</svg>

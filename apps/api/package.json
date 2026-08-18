@@ -11,11 +11,13 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
-    "db:seed": "npx tsx prisma/seed.ts",
-    "postinstall": "prisma generate"
+    "db:seed": "tsx prisma/seed/index.ts",
+    "postinstall": "prisma generate",
+    "db:reset": "prisma migrate reset --force",
+    "typecheck": "tsc --noEmit"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed/index.ts"
   },
   "dependencies": {
     "@prisma/client": "6.0.0",

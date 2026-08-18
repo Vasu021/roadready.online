@@ -2,72 +2,130 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma";
 import { signToken } from "../lib/jwt";
+import {
+  badRequest,
+  conflict,
+  notFound,
+  optionalStr,
+  route,
+  str,
+  unauthorized,
+} from "../lib/http";
+import { requireAuth, type AuthRequest } from "../middleware/auth";
+import { toAuthUser } from "../lib/serialize";
 
 const router = Router();
 
+const BCRYPT_COST = 12;
+const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const withCountry = { selectedCountry: { select: { code: true } } } as const;
+
 // POST /api/auth/register
-router.post("/register", async (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
+router.post(
+  "/register",
+  route(async (req, res) => {
+    const email = str(req.body, "email").toLowerCase();
+    const password = str(req.body, "password");
+    const name = optionalStr(req.body, "name");
 
-  if (!email || !password) {
-    res.status(400).json({ error: "email and password are required" });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: "password must be at least 8 characters" });
-    return;
-  }
-
-  try {
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      res
-        .status(409)
-        .json({ error: "An account with that email already exists" });
-      return;
+    if (!EMAIL_PATTERN.test(email))
+      throw badRequest("Enter a valid email address");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      throw badRequest(
+        `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      );
     }
 
-    const hashed = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { email, password: hashed },
-    });
-    const token = signToken({ sub: user.id, email: user.email });
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw conflict("An account with that email already exists");
 
-    res.status(201).json({ token, user: { id: user.id, email: user.email } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Registration failed" });
-  }
-});
+    const user = await prisma.user.create({
+      data: {
+        email,
+        password: await bcrypt.hash(password, BCRYPT_COST),
+        name: name || null,
+      },
+      include: withCountry,
+    });
+
+    res.status(201).json({
+      token: signToken({ sub: user.id, email: user.email }),
+      user: toAuthUser(user),
+    });
+  }),
+);
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
+router.post(
+  "/login",
+  route(async (req, res) => {
+    const email = str(req.body, "email").toLowerCase();
+    const password = str(req.body, "password");
 
-  if (!email || !password) {
-    res.status(400).json({ error: "email and password are required" });
-    return;
-  }
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: withCountry,
+    });
 
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(401).json({ error: "Invalid email or password" });
-      return;
+    // Same message either way, so the endpoint cannot be used to enumerate
+    // which addresses have accounts.
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      throw unauthorized("Invalid email or password");
     }
 
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) {
-      res.status(401).json({ error: "Invalid email or password" });
-      return;
+    res.json({
+      token: signToken({ sub: user.id, email: user.email }),
+      user: toAuthUser(user),
+    });
+  }),
+);
+
+// GET /api/auth/me
+router.get(
+  "/me",
+  requireAuth,
+  route(async (req: AuthRequest, res) => {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId! },
+      include: withCountry,
+    });
+    if (!user) throw notFound("User not found");
+    res.json(toAuthUser(user));
+  }),
+);
+
+// PATCH /api/auth/me — update display name and/or selected country
+router.patch(
+  "/me",
+  requireAuth,
+  route(async (req: AuthRequest, res) => {
+    const name = optionalStr(req.body, "name");
+    const rawCountry = (req.body as Record<string, unknown> | null)
+      ?.countryCode;
+
+    let selectedCountryId: string | null | undefined;
+    if (rawCountry === null) {
+      selectedCountryId = null;
+    } else if (rawCountry !== undefined) {
+      const code = str(req.body, "countryCode").toUpperCase();
+      const country = await prisma.country.findUnique({ where: { code } });
+      if (!country) throw notFound("Country not found");
+      selectedCountryId = country.id;
     }
 
-    const token = signToken({ sub: user.id, email: user.email });
-    res.json({ token, user: { id: user.id, email: user.email } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Login failed" });
-  }
-});
+    const user = await prisma.user.update({
+      where: { id: req.userId! },
+      data: {
+        ...(name !== undefined && { name: name || null }),
+        ...(selectedCountryId !== undefined && { selectedCountryId }),
+      },
+      include: withCountry,
+    });
+
+    res.json(toAuthUser(user));
+  }),
+);
 
 export default router;

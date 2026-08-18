@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img">
+  <rect width="400" height="300" fill="#c9d6c2"/>
+
+  
+  <rect x="20" y="190" width="130" height="90" rx="3" fill="#9aa5b1"/>
+  <rect x="20" y="190" width="130" height="7" rx="3" fill="#7b8794"/>
+  <rect x="28" y="206" width="10" height="12" rx="2" fill="#dbe7f3" opacity="0.8"/>
+  <rect x="132" y="206" width="10" height="12" rx="2" fill="#dbe7f3" opacity="0.8"/>
+  
+  <rect x="250" y="190" width="130" height="90" rx="3" fill="#9aa5b1"/>
+  <rect x="250" y="190" width="130" height="7" rx="3" fill="#7b8794"/>
+  <rect x="258" y="206" width="10" height="12" rx="2" fill="#dbe7f3" opacity="0.8"/>
+  <rect x="362" y="206" width="10" height="12" rx="2" fill="#dbe7f3" opacity="0.8"/>
+  
+  <rect x="0" y="70" width="400" height="90" fill="#4b525c"/>
+  <rect x="0" y="70" width="400" height="2" fill="#3a404a"/>
+  <rect x="0" y="158" width="400" height="2" fill="#3a404a"/>
+  
+  <rect x="155" y="0" width="90" height="300" fill="#4b525c"/>
+  <rect x="155" y="0" width="2" height="300" fill="#3a404a"/>
+  <rect x="243" y="0" width="2" height="300" fill="#3a404a"/>
+  
+  <rect x="0" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="28" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="56" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="84" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="112" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="140" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  
+  <rect x="250" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="278" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="306" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="334" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="362" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  <rect x="390" y="113" width="16" height="4" rx="2" fill="#f2f4f7"/>
+  
+  <rect x="198" y="165" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="193" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="221" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="249" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  <rect x="198" y="277" width="4" height="16" rx="2" fill="#f2f4f7"/>
+  
+  <g transform="translate(200 240) rotate(0)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#2563eb"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#bfdbfe"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#bfdbfe" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  <g transform="translate(200 240)">
+    <circle cx="0" cy="0" r="31" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 5" opacity="0.9"/>
+  </g>
+  
+  <g transform="translate(320 92) rotate(270)">
+    <rect x="-14" y="-23" width="28" height="46" rx="7" fill="#e5484d"/>
+    <rect x="-11" y="-16" width="22" height="12" rx="3" fill="#fecdd3"/>
+    <rect x="-11" y="6" width="22" height="9" rx="3" fill="#fecdd3" opacity="0.65"/>
+    <rect x="-15" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="-14" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="-15" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    <rect x="11" y="8" width="4" height="10" rx="2" fill="#16191d" opacity="0.55"/>
+    
+  </g>
+  
+  <rect x="12" y="7" width="264.8" height="24" rx="6" fill="#16191d" opacity="0.78"/>
+  <text x="22" y="24" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#fff">You are joining from the side road</text>
+</svg>
