@@ -1,674 +1,373 @@
 # RoadReady — Developer Guide
 
-Everything you need to go from zero to a running local environment, contribute features, and add new scenarios.
+Everything you need to run the project, understand how it is put together, and
+add content. For what the product _is_, see the [README](./README.md).
+
+**Contents**
+
+1. [Setup](#1-setup)
+2. [Project structure](#2-project-structure)
+3. [How it works](#3-how-it-works)
+4. [Adding content](#4-adding-content)
+5. [Conventions](#5-conventions)
+6. [Troubleshooting](#6-troubleshooting)
 
 ---
 
-## Table of Contents
+## 1. Setup
 
-1. [Prerequisites](#1-prerequisites)
-2. [Cloning the repo](#2-cloning-the-repo)
-3. [Installing dependencies](#3-installing-dependencies)
-4. [Environment variables](#4-environment-variables)
-5. [Setting up the local database](#5-setting-up-the-local-database)
-6. [Running locally](#6-running-locally)
-7. [Project structure](#7-project-structure)
-8. [Auth architecture](#8-auth-architecture)
-9. [Git workflow](#9-git-workflow)
-10. [Adding a new scenario](#10-adding-a-new-scenario)
-11. [Common errors and fixes](#11-common-errors-and-fixes)
-
----
-
-## 1. Prerequisites
-
-| Tool           | Version     | Notes                                                                                 |
-| -------------- | ----------- | ------------------------------------------------------------------------------------- |
-| **Node.js**    | 20 or later | Includes npm 10+. Download from [nodejs.org](https://nodejs.org).                     |
-| **npm**        | 10 or later | Bundled with Node 20. This project uses **npm workspaces** — do not use pnpm or yarn. |
-| **PostgreSQL** | 14 or later | Local install or Docker. The API connects via `DATABASE_URL`.                         |
-| **Git**        | Any recent  | For cloning and branching.                                                            |
-
-Verify your setup:
-
-```bash
-node -v     # v20.x.x or higher
-npm -v      # 10.x.x or higher
-psql --version
-git --version
-```
-
----
-
-## 2. Cloning the repo
+**Requirements:** Node 20+, npm, and PostgreSQL (Docker is easiest).
 
 ```bash
 git clone https://github.com/Vasu021/roadready.online.git
 cd roadready.online
-```
-
----
-
-## 3. Installing dependencies
-
-Run this **once from the repo root**. npm workspaces installs dependencies for all three packages (`apps/web`, `apps/api`, `packages/shared`) in a single command.
-
-```bash
 npm install
 ```
 
-> Do not run `npm install` inside individual app directories — always install from the root so the workspace symlinks are set up correctly.
+### Environment
 
----
+Neither env file is committed. `apps/api/.env.example` is the reference.
 
-## 4. Environment variables
+```bash
+cp apps/api/.env.example apps/api/.env
+echo "VITE_API_URL=http://localhost:3001" > apps/web/.env.local
+```
 
-Neither file is committed to git. The `.env.example` in `apps/api/` is the reference template.
-
-### `apps/api/.env`
+`apps/api/.env`:
 
 ```env
-# PostgreSQL connection string
 DATABASE_URL=postgresql://roadready_user:roadready_pass@localhost:5432/roadready
-
-# Secret used to sign JWTs — use a long random string in production
-JWT_SECRET=your_jwt_secret_here
-
-# Port the Express API listens on
+JWT_SECRET=at_least_24_random_characters   # openssl rand -base64 48
 PORT=3001
+CORS_ORIGIN=http://localhost:5173          # comma-separated allowlist
+TRUST_PROXY=false                          # true behind a reverse proxy
 ```
 
-### `apps/web/.env.local`
+> `JWT_SECRET` has **no production fallback**. With `NODE_ENV=production` the API
+> refuses to start unless it is set and at least 24 characters long.
 
-```env
-# Base URL of the running API
-VITE_API_URL=http://localhost:3001
+### Database
+
+```bash
+docker run -d --name roadready-pg \
+  -e POSTGRES_USER=roadready_user -e POSTGRES_PASSWORD=roadready_pass \
+  -e POSTGRES_DB=roadready -p 5432:5432 postgres:16
+
+cd apps/api
+npx prisma migrate deploy   # apply migrations
+npm run db:seed             # seed + validate the German course
+cd ../..
 ```
 
-> The frontend does **not** talk to the database directly. All data flows through the Express API at `VITE_API_URL`.
+### Run
+
+```bash
+npm run dev          # web on :5173, api on :3001
+npm run dev:web      # frontend only
+npm run dev:api      # backend only
+npm run build        # build everything
+```
+
+Useful Prisma commands, from `apps/api`:
+
+```bash
+npx prisma studio          # browse the database at :5555
+npx prisma migrate dev     # create and apply a migration
+npx prisma generate        # regenerate the client after a schema change
+```
+
+> **Prisma is pinned to 6.0.0** in both the root and `apps/api`. Do not upgrade:
+> 7.x requires a driver adapter this project does not use.
 
 ---
 
-## 5. Setting up the local database
-
-### 5.1 Create the database and user
-
-Connect to PostgreSQL as a superuser and run:
-
-```sql
-CREATE USER roadready_user WITH PASSWORD 'roadready_pass';
-CREATE DATABASE roadready OWNER roadready_user;
-GRANT ALL ON SCHEMA public TO roadready_user;
-ALTER USER roadready_user CREATEDB;
-```
-
-> `CREATEDB` is required so Prisma can create the shadow database used during `migrate dev`.
-
-### 5.2 Apply the schema
-
-All Prisma commands run from `apps/api/`. Migrations are already committed — apply them with:
-
-```bash
-cd apps/api
-npx prisma migrate deploy
-```
-
-> During active development you can also use `npx prisma migrate dev` to create and apply new migrations interactively.
-
-This applies all committed migrations and creates the following tables:
-
-| Table                    | Description                                                    |
-| ------------------------ | -------------------------------------------------------------- |
-| `users`                  | Registered users (email + bcrypt password hash)                |
-| `countries`              | Country records (DE, FR, etc.) with active flag and HTML facts |
-| `scenario_categories`    | Named groups within a country (Basic Skills, Traffic Rules…)   |
-| `scenarios`              | Individual scenarios — slug, type (PRACTICE/TEST), order       |
-| `questions`              | MCQ questions linked to a scenario                             |
-| `options`                | Answer options for a question (one marked `is_correct`)        |
-| `scenario_attempts`      | One row per scenario run (mode, pass/fail, score, time)        |
-| `user_progress`          | Legacy best score/time per user+scenario (kept for compat)     |
-| `user_scenario_progress` | Current progress status per user+scenario                      |
-| `user_country_access`    | Which countries a user has unlocked                            |
-| `test_sessions`          | Full test session (score, grade, pass/fail)                    |
-| `test_session_answers`   | Per-question answer within a test session                      |
-| `_prisma_migrations`     | Prisma migration history                                       |
-
-### 5.3 Seed reference data
-
-After applying migrations, seed Germany and all its scenarios:
-
-```bash
-cd apps/api
-npm run db:seed
-```
-
-This inserts: Germany and France country records (each with HTML `facts`), 3 categories per country, 10 scenarios per country (9 PRACTICE + 1 TEST), and one MCQ question with 4 options per scenario.
-
-### 5.4 Generate the Prisma client
-
-```bash
-cd apps/api
-npx prisma generate
-```
-
-> This also runs automatically via the `postinstall` script whenever you run `npm install` from the root.
-
-### 5.5 Inspect the database (optional)
-
-```bash
-cd apps/api
-npm run db:studio    # opens Prisma Studio at http://localhost:5555
-```
-
----
-
-## 6. Running locally
-
-From the repo root, one command starts both the frontend and the API in parallel:
-
-```bash
-npm run dev
-```
-
-| Service           | URL                              | Description                  |
-| ----------------- | -------------------------------- | ---------------------------- |
-| Frontend (Vite)   | http://localhost:5173            | React app with HMR           |
-| Backend (Express) | http://localhost:3001            | REST API                     |
-| Health check      | http://localhost:3001/api/health | Returns `{ "status": "ok" }` |
-
-To run them separately:
-
-```bash
-npm run dev:web   # frontend only  → http://localhost:5173
-npm run dev:api   # backend only   → http://localhost:3001
-```
-
-> Vite is pinned to port **5173** with `strictPort: true`. If 5173 is busy the process will error rather than silently stealing the API's port. The API is always on **3001**.
-
----
-
-## 7. Project structure
+## 2. Project structure
 
 ```
 roadready.online/
 ├── apps/
-│   ├── web/                      # React + Vite frontend (port 5173)
+│   ├── web/                        # React + Vite frontend (:5173)
 │   │   └── src/
-│   │       ├── components/       # UI components
-│   │       │   ├── AuthModal.tsx
-│   │       │   ├── ChallengeOverlay.tsx  # key-press challenge popup
+│   │       ├── components/
+│   │       │   ├── signs/          # 136 SVG sign components + catalogue
+│   │       │   ├── AppShell.tsx    # Header, nav, toolbar slot, footer
+│   │       │   ├── QuestionCard.tsx# The MCQ renderer used by every quiz
 │   │       │   ├── ResultsScreen.tsx
-│   │       │   └── ScenarioHUD.tsx
-│   │       ├── pages/            # Route pages: Home, Simulation, Dashboard
-│   │       ├── simulation/       # All 3D + physics code
-│   │       │   ├── scene/
-│   │       │   │   ├── SimulationScene.tsx   # Canvas root, wires all scene elements
-│   │       │   │   ├── GermanCityRoad.tsx    # L-shaped road geometry for Germany
-│   │       │   │   ├── CityEnvironment.tsx   # Trees, buildings, sidewalks
-│   │       │   │   ├── FollowCamera.tsx      # Yaw-aware follow camera
-│   │       │   │   ├── TrafficLight.tsx      # Procedural traffic light, phase prop
-│   │       │   │   ├── Tree.tsx              # Procedural tree (3 variants)
-│   │       │   │   ├── Building.tsx          # Procedural building box
-│   │       │   │   ├── Ground.tsx
-│   │       │   │   └── Lighting.tsx
-│   │       │   ├── vehicles/
-│   │       │   │   ├── CarController.tsx     # Procedural car mesh + autopilot + physics
-│   │       │   │   ├── useCarPhysics.ts
-│   │       │   │   └── useCarControls.ts
-│   │       │   └── scenarios/
-│   │       │       ├── types.ts              # ScenarioDef, Waypoint, ChallengePoint
-│   │       │       ├── index.ts              # Scenario registry (slug → ScenarioDef)
-│   │       │       ├── ScenarioRunner.tsx    # Frame-by-frame checker, merges challenge ids
-│   │       │       ├── StopZone.tsx          # Visual AABB stop zone
-│   │       │       ├── basicControls.ts      # Germany – Basic Controls (autopilot, 2 challenges)
-│   │       │       ├── trafficLights.ts      # Germany – Traffic Lights (autopilot, 1 challenge)
-│   │       │       └── rules/                # Traffic rule helper functions
-│   │       ├── store/
-│   │       │   ├── gameStore.ts              # ScenarioPhase, CarState, DriveMode, ActiveChallenge
-│   │       │   └── userStore.ts
-│   │       └── utils/
-│   │           └── api.ts                    # Central fetch client (reads rr_token)
+│   │       │   └── ui.tsx          # Card, Badge, ProgressBar, ScoreRing, …
+│   │       ├── pages/              # Home, Dashboard, SignsLibrary,
+│   │       │                       # PracticeTests, TopicQuiz,
+│   │       │                       # ScenarioPractice, FinalTest
+│   │       ├── store/              # gameStore (quiz), userStore (session)
+│   │       └── utils/              # api client, jwt helpers, html sanitiser
 │   │
-│   └── api/                      # Node.js + Express backend (port 3001)
-│       ├── src/
-│       │   ├── index.ts
-│       │   ├── lib/              # prisma.ts (singleton), jwt.ts
-│       │   ├── middleware/       # auth.ts — JWT verification
-│       │   └── routes/           # auth, countries, scenarios, testSessions, users, progress
-│       └── prisma/
-│           ├── schema.prisma     # Database schema (Prisma 6.0.0) — 12 models
-│           ├── seed.ts
-│           └── migrations/
+│   └── api/                        # Express backend (:3001)
+│       ├── prisma/
+│       │   ├── schema.prisma       # 14 models
+│       │   ├── data/               # Seed content
+│       │   └── seed.ts             # Seeds and validates
+│       └── src/
+│           ├── config/finalTest.ts # Exam shape and grading
+│           ├── lib/                # prisma, jwt, validation
+│           ├── middleware/         # auth, rateLimit, errors
+│           └── routes/
 │
-└── packages/
-    └── shared/src/
-        └── types.ts              # ScenarioConfig, CarState, etc.
+└── packages/shared/                # Types shared by both apps
 ```
 
-**Key architectural decisions:**
-
-- **The car always drives itself** via an autopilot waypoint system. Users never steer — they only make decisions at challenge moments. See `SIMULATION_DESIGN.md` for the full architecture.
-- `apps/web/src/simulation/scenarios/` holds the **3D game logic** (waypoints, challenge triggers, checker). This runs entirely in the browser. Each file maps to a scenario `slug`.
-- **Scenario metadata and MCQ questions** are stored in the database and served by the API — not hardcoded in frontend files.
-- **Challenge IDs must match Objective IDs** in `ScenarioDef.config.objectives`. `resolveChallenge('correct')` uses the challenge ID to mark the matching objective done.
-- `packages/shared/src/types.ts` defines types used by both apps. Import them as `@roadready/shared`.
-- User identity is managed by our own `users` table (bcrypt + JWT). There is no external auth provider.
-- Prisma is pinned to **6.0.0** — do not upgrade to 7.x, which requires a driver adapter we don't use.
+There is **no 3D code**. The driving simulator (Three.js, Rapier, autopilot) was
+removed in the October 2026 rewrite; the product is now a theory course.
 
 ---
 
-## 8. Auth architecture
+## 3. How it works
 
-Authentication is fully self-contained — no third-party auth service.
+### The three loops
 
-### Opening the modal
+Passing a theory test is a recognition problem, so the product is built around
+three loops in order: **recognise** (sign library) → **drill** (topic tests with
+an explanation after every answer) → **prove** (one timed, graded exam).
+Practice never punishes a wrong answer. Only the final test grades.
 
-Call `setShowAuthModal(true, 'login')` to open on the Sign In tab, or `setShowAuthModal(true, 'register')` to open on the Create Account tab. `AuthModal` reads `authModalMode` from the store as its initial `useState` value on mount. The user can always switch tabs manually inside the modal.
-
-### Flow
+### Routes
 
 ```
-Register/Login
-  → POST /api/auth/register  or  POST /api/auth/login
-  → API bcrypt-hashes password, creates/verifies User row in DB
-  → API returns { token: "<JWT>", user: { id, email } }
-  → Frontend stores token in localStorage as "rr_token"
-
-Subsequent requests
-  → api.ts reads "rr_token" from localStorage
-  → Sets  Authorization: Bearer <token>  on every API request
-  → requireAuth middleware calls verifyToken(), sets req.userId + req.userEmail
-
-Session restore
-  → App.tsx reads "rr_token" from localStorage on mount
-  → Decodes payload with parseJwt() to get { sub, email }
-  → Restores userStore without an API call
-
-Logout
-  → userStore.logout() removes "rr_token" from localStorage
-  → userStore.user set to null
+/                 Home — three states (below)
+/dashboard        Hub: three sections + the exam
+/signs            Sign library (reference, no scoring)
+/practice         Topic list with progress
+/practice/:slug   One topic run
+/scenarios        Driving situations
+/final-test       Brief → timed exam → graded breakdown
 ```
 
-### Token details
+`Home.tsx` holds three conditional states — do not split them into routes:
+logged out → landing page; logged in without a country → country picker; country
+chosen → redirect to `/dashboard`. The selection is mirrored to `localStorage`
+(`rr_country`) so a refresh or deep link does not bounce the user back.
 
-- Signed with `JWT_SECRET` from `apps/api/.env`
-- 7-day expiry
-- Payload: `{ sub: userId, email }`
+### Content model
 
-### API endpoints
+Two kinds of question, one table. Exactly one foreign key is set per row:
 
-| Method | Path                                           | Auth | Description                                                                                       |
-| ------ | ---------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
-| POST   | `/api/auth/register`                           | —    | Create account, returns JWT                                                                       |
-| POST   | `/api/auth/login`                              | —    | Sign in, returns JWT                                                                              |
-| GET    | `/api/users/me`                                | ✓    | Current user profile + attempt count                                                              |
-| GET    | `/api/countries`                               | —    | Active countries with categories + scenario counts                                                |
-| GET    | `/api/countries/:code/facts`                   | —    | HTML facts string for a country                                                                   |
-| GET    | `/api/countries/:code/scenarios`               | —    | Scenarios grouped by category for a country                                                       |
-| POST   | `/api/user-country-access`                     | ✓    | Record that user accessed a country — body: `{ countryCode }`                                     |
-| GET    | `/api/scenarios`                               | —    | All active scenarios (flat list)                                                                  |
-| GET    | `/api/scenarios/:slug`                         | —    | Single scenario by slug                                                                           |
-| GET    | `/api/scenarios/:slug/questions`               | —    | Questions + shuffled options (`isCorrect` hidden)                                                 |
-| GET    | `/api/scenarios/progress/:userId/:countryCode` | ✓    | `UserScenarioProgress[]` for all scenarios in a country; creates `NOT_STARTED` rows on first call |
-| POST   | `/api/test-sessions`                           | ✓    | Create a test session for a country                                                               |
-| POST   | `/api/test-sessions/:id/answers`               | ✓    | Submit an answer — returns `{ isCorrect, explanation }`                                           |
-| PATCH  | `/api/test-sessions/:id/complete`              | ✓    | Finish session — computes score, grade (A/B/C/F), pass/fail                                       |
-| GET    | `/api/test-sessions/:id`                       | ✓    | Full session with per-question answer breakdown                                                   |
-| GET    | `/api/progress/:userId`                        | ✓    | All `ScenarioAttempt` rows for a user                                                             |
-| POST   | `/api/progress`                                | ✓    | Save attempt + upsert `UserProgress` + `UserScenarioProgress`                                     |
+| Kind              | Parent                 | Served by                                    |
+| ----------------- | ---------------------- | -------------------------------------------- |
+| Topic question    | `Question.topicTestId` | `GET /api/topic-tests/:code/:slug/questions` |
+| Driving situation | `Question.scenarioId`  | `GET /api/scenarios/:code`                   |
+
+Every question has four options, exactly one correct. The seed asserts this and
+fails loudly if it is ever violated.
+
+### Where the answer key lives
+
+This is deliberate, and the two modes differ:
+
+- **Practice** is scored on the client. The key comes from an auth-guarded
+  `…/answers` endpoint so the explanation appears instantly. A determined user
+  could read it from the network tab — an acceptable trade when there is nothing
+  to cheat for.
+- **The final test is scored on the server.** Its question payload never
+  includes `isCorrect`, the answer response reveals nothing, and the
+  per-question breakdown stays empty until the session has `completedAt` set —
+  so a running exam cannot be probed for answers.
+
+If that ever needs to change for practice, move topic scoring into a session
+like the final test rather than half-hiding the key.
+
+### The exam
+
+All of it is configured in `apps/api/src/config/finalTest.ts`:
+
+```ts
+questionCount: 30
+timeLimitMinutes: 45
+passRatio: 0.75              // grade B or better
+mix: { topic: 15, scenario: 10, sign: 5 }
+```
+
+Grades: A ≥ 90%, B ≥ 75%, C ≥ 60%, else F. The route draws the configured mix at
+random and tops it up from the remaining pool if a bucket is short, so the exam
+is always full length. Running out of time submits what has been answered;
+unanswered questions count as wrong.
+
+### The sign library
+
+Each sign is a self-contained React SVG component built from a shell in
+`primitives.tsx` — no image files, no CDN, no runtime fetches.
+
+```
+primitives.tsx   Shells (danger triangle, prohibition ring, blue circle, yellow
+                 diamond, info rectangle, plate), shared glyphs (car, truck,
+                 bicycle, pedestrian, motorcycle) and the official colours
+danger · priority · prohibition · mandatory · information
+additional (plates) · signals (lights) · markings (paint) · combinations
+index.ts         DE_SIGNS: SignMeta[] — the catalogue and its metadata
+```
+
+Every component takes the same props: `{ size?: number; className?: string }`,
+and draws inside a `0 0 100 100` viewBox so all signs scale together. Colours
+come from `SIGN_COLORS` — never hardcode a hex value in a sign.
+
+### Quiz state
+
+`gameStore` drives every quiz surface: `questions`, `currentQuestion`,
+`questionIndex`, `answers`, `quizScore`, plus `startQuiz` / `answerQuestion` /
+`nextQuestion` / `goToQuestion` / `resetQuiz`. Every quiz page calls `resetQuiz`
+on unmount.
+
+The final test keeps its selections in local component state instead, because
+the client is not told whether an answer is correct until grading.
+
+### Security
+
+Worth knowing before you touch the API:
+
+- `JWT_SECRET` is enforced in production; the JWT algorithm is pinned to HS256
+- CORS is an allowlist from `CORS_ORIGIN`
+- `/api/auth/*` is rate limited (20 / 15 min per IP), everything else 300 / min
+- JSON bodies are capped at 32 kb
+- Every URL parameter and body field goes through `lib/validation.ts` before it
+  reaches Prisma
+- `isCorrect` is never serialised by a question-serving endpoint
+- Ownership is checked on every user-scoped route
+- Login runs a bcrypt compare even when the user does not exist, so timing does
+  not reveal whether an email is registered
+- API-supplied HTML passes through `sanitizeHtml` before `dangerouslySetInnerHTML`
 
 ---
 
-## 9. Git workflow
+## 4. Adding content
 
-### Opening an issue
+None of this needs a new route or page.
 
-Use the templates under `.github/ISSUE_TEMPLATE/` — GitHub shows a picker when you click **New Issue**:
+### A topic test
 
-| Template             | Use when                                                               |
-| -------------------- | ---------------------------------------------------------------------- |
-| `bug_report.md`      | Something isn't working correctly                                      |
-| `feature_request.md` | Proposing a new feature or improvement                                 |
-| `task.md`            | Planned engineering work — new component, scenario module, or refactor |
-| `documentation.md`   | A doc is wrong, outdated, or missing something                         |
-| `question.md`        | Something unclear in the codebase or an open design decision           |
+Add a `SeedTopic` to `apps/api/prisma/data/germanyTopics.ts`:
 
-Blank issues are disabled. Check `TASKS.md` and `DEVELOPER_GUIDE.md` Section 11 (Common errors) before filing a bug.
-
-### Branch naming
-
-```
-feature/<description>   # New functionality
-fix/<description>       # Bug fix
-chore/<description>     # Tooling, deps, config
-docs/<description>      # Documentation only
-```
-
-Examples:
-
-```
-feature/roundabout-scenario
-fix/car-physics-lateral-drift
-chore/downgrade-prisma-6
-docs/add-deployment-guide
-```
-
-### Before Commits
-
-Run this Prettier command to format the code before staging:
-
-```bash
-npx prettier --write "**/*.{ts,tsx,json,md}"
-```
-
-### Commit messages
-
-Use [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat: add roundabout scenario with yield detection
-fix: correct lateral grip impulse calculation
-chore: pin prisma to 6.0.0
-docs: update developer guide for custom auth
-```
-
-**Note:** If the commit solves an issue, then add “Fixes #<issue_number>” at the end of the commit message.
-
-### Before pushing
-
-Run the TypeScript compiler from each app to catch errors before CI does:
-
-```bash
-cd apps/api && npx tsc --noEmit
-cd apps/web && npx tsc --noEmit
-```
-
-**Never commit `.env` files.** The `.env.example` files are safe and should stay committed.
-
-**Always commit migration files.** `apps/api/prisma/migrations/` tracks schema history — do not add it to `.gitignore`.
-
----
-
-## 10. Adding a new scenario
-
-A scenario has two parts: **database content** (metadata + MCQ questions, served by the API) and a **3D simulation module** (the autopilot path + challenge points that run in the browser). Both must be added. Read `SIMULATION_DESIGN.md` for the full architecture first.
-
-### Step 1 — Seed the scenario into the database
-
-Add an entry to the scenarios array in `apps/api/prisma/seed.ts`:
-
-```typescript
+```ts
 {
-  id: "scen-de-your-slug",           // unique stable ID
-  slug: "your-slug",                  // kebab-case, unique across all countries
-  name: "Your Scenario Name",
-  description: "One sentence shown in the scenario list.",
-  order: 11,                          // position within this country's scenario list
-  type: ScenarioType.PRACTICE,        // or ScenarioType.TEST
-  countryId: germany.id,
-  categoryId: trafficRulesDe.id,
-  question: {
-    text: "Your question text?",
-    explanation: "Why the correct answer is correct.",
-    options: [
-      { text: "Correct answer", correct: true },
-      { text: "Wrong answer A", correct: false },
-      { text: "Wrong answer B", correct: false },
-      { text: "Wrong answer C", correct: false },
-    ],
-  },
-},
-```
-
-Then apply: `cd apps/api && npm run db:seed` (seed uses upsert — safe to re-run).
-
-### Step 2 — Design the autopilot path
-
-Sketch waypoints on paper first. Key coordinate facts:
-
-- Car spawns at `(0, y, 40)` facing **-Z** (south)
-- Left turn = more negative X; right turn = more positive X
-- Speed in m/s: city road = 5–8, junction approach = 2–3, stop zone = 1–2
-
-### Step 3 — Create the 3D simulation module
-
-Create `apps/web/src/simulation/scenarios/your-slug.ts`:
-
-```typescript
-import type {
-  ScenarioDef,
-  ScenarioChecker,
-  Waypoint,
-  ChallengePoint,
-} from "./types";
-
-export const WAYPOINTS: Waypoint[] = [
-  { x: 0, z: 25, speed: 7 }, // accelerate from spawn
-  { x: 0, z: 5, speed: 4 }, // slow approaching challenge
-  { x: 0, z: -8, speed: 2 }, // crawl through zone
-  // add more waypoints as needed
-];
-
-// CRITICAL: challenge id MUST match the objective id below
-export const CHALLENGES: ChallengePoint[] = [
-  {
-    id: "your-challenge-id", // matches objective.id
-    triggerZ: 8, // fires when car.position.z <= 8 (travelling south)
-    // use triggerX instead for E-W travel: fires when car.position.x <= value
-    prompt: "What should you do here?",
-    instruction: "Press SPACE to stop",
-    correctKey: "Space", // KeyboardEvent.code value
-    correctKeyLabel: "SPACE",
-  },
-];
-
-const check: ScenarioChecker = (_carState, completed) => ({
-  newlyCompleted: [],
-  passed: completed["your-challenge-id"] === true,
-  failed: false,
-});
-
-const yourScenario: ScenarioDef = {
-  config: {
-    id: "your-slug",
-    name: "Your Scenario Name",
-    city: "Aachen",
-    country: "Germany",
-    difficulty: "beginner",
-    description: "One sentence description.",
-    timeLimit: 180,
-    objectives: [
-      // id MUST match the challenge id above
-      {
-        id: "your-challenge-id",
-        description: "Do the right thing",
-        completed: false,
-      },
-    ],
-  },
-  check,
-  driveMode: "auto",
-  waypoints: WAYPOINTS,
-  challenges: CHALLENGES,
-};
-
-export default yourScenario;
-```
-
-### Step 4 — Register the simulation module
-
-```typescript
-// apps/web/src/simulation/scenarios/index.ts
-import yourScenario from "./your-slug"; // add this
-
-const registry: Record<string, ScenarioDef> = {
-  "basic-controls": basicControls,
-  "traffic-lights": trafficLights,
-  "your-slug": yourScenario, // add this
-};
-```
-
-### Step 5 — Add scene elements (if needed)
-
-Add a component in `apps/web/src/simulation/scene/` and conditionally render it in `SimulationScene.tsx`:
-
-```typescript
-const isYourScenario = scenarioId === 'your-slug'
-// inside Canvas:
-{isYourScenario && <YourSceneComponent />}
-```
-
-Reuse `<Ground />`, `<Lighting />`, `<GermanCityRoad />`, `<CityEnvironment />` — they work for all Germany scenarios.
-
-### Checklist
-
-- [ ] `apps/api/prisma/seed.ts` — scenario + question + options added; seed re-run
-- [ ] `apps/web/src/simulation/scenarios/your-slug.ts` — waypoints, challenges, config, checker
-- [ ] `apps/web/src/simulation/scenarios/index.ts` — registered in registry
-- [ ] Challenge IDs match Objective IDs exactly
-- [ ] `npx tsc --noEmit` passes in both `apps/web` and `apps/api`
-
----
-
-## 11. Common errors and fixes
-
-### "PrismaClientInitializationError: PrismaClient needs to be constructed with valid options"
-
-**Cause:** Prisma 7 is installed. It requires a driver adapter that this project does not use.
-
-**Fix:** Prisma must be pinned to `6.0.0`. In `apps/api/package.json`:
-
-```json
-"@prisma/client": "6.0.0",
-"prisma": "6.0.0"
-```
-
-Then reinstall and regenerate:
-
-```bash
-rm -rf node_modules/.prisma node_modules/@prisma
-npm install
-cd apps/api && npx prisma generate
-```
-
----
-
-### "permission denied to create database" during `prisma migrate dev`
-
-**Cause:** The database user lacks `CREATEDB` privilege (needed for Prisma's shadow database).
-
-**Fix:** Grant the privilege as a superuser:
-
-```bash
-psql -U postgres -c "ALTER USER roadready_user CREATEDB;"
-# or if postgres role doesn't exist, use your OS username:
-psql -c "ALTER USER roadready_user CREATEDB;"
-```
-
----
-
-### "permission denied for schema public" during `prisma db push` or migrate
-
-**Cause:** PostgreSQL 15+ removed default `CREATE` privilege on the `public` schema.
-
-**Fix:**
-
-```bash
-psql -d roadready -c "GRANT ALL ON SCHEMA public TO roadready_user;"
-```
-
----
-
-### "P1001: Can't reach database server"
-
-**Cause:** PostgreSQL isn't running, or `DATABASE_URL` is wrong.
-
-**Fix:**
-
-1. Confirm PostgreSQL is running: `pg_isready`
-2. Verify `DATABASE_URL` in `apps/api/.env` matches your local user/password/db name.
-3. Test the connection directly: `psql -U roadready_user -d roadready`
-
----
-
-### Port 5173 already in use
-
-**Cause:** Another Vite process is running (Vite is set to `strictPort: true` — it won't silently move to another port).
-
-**Fix:**
-
-```bash
-lsof -ti:5173 | xargs kill
-```
-
----
-
-### Port 3001 already in use
-
-**Cause:** A previous API process is still running.
-
-**Fix:**
-
-```bash
-lsof -ti:3001 | xargs kill
-```
-
----
-
-### Routes return 404 after adding new routes to a route file
-
-**Cause:** The tsx process loaded the route file at startup and cached the old module. `tsx watch` sometimes misses file-change events on macOS, so the running server never reloaded.
-
-**Fix:** Kill the stale process and restart the API server:
-
-```bash
-lsof -ti:3001 | xargs kill
-npm run dev:api
-```
-
----
-
-### "File '../../packages/shared/src/index.ts' is not under rootDir"
-
-**Cause:** `tsconfig.json` in an app has `rootDir` set to `./src` instead of `../../`.
-
-**Fix:** In both `apps/api/tsconfig.json` and `apps/web/tsconfig.json`:
-
-```json
-{
-  "compilerOptions": {
-    "rootDir": "../../",
-    "outDir": "./dist"
-  },
-  "include": ["src", "../../packages/shared/src"]
+  slug: "de-your-topic",          // unique, country-prefixed
+  name: "Deutscher Titel",        // German name — primary label
+  nameEN: "English Title",        // English name — secondary label
+  description: "One sentence on what this covers.",
+  order: 13,
+  isSignTopic: false,             // true only for sign-recognition topics
+  questions: [
+    {
+      questionText: "What must you do here?",
+      explanation: "State the rule, not just the answer.",
+      options: [
+        { text: "The correct action", isCorrect: true },
+        { text: "A plausible mistake", isCorrect: false },
+        { text: "Another plausible mistake", isCorrect: false },
+        { text: "A third plausible mistake", isCorrect: false },
+      ],
+    },
+    // 5–10 questions per topic
+  ],
 }
 ```
 
----
+Then `cd apps/api && npm run db:seed`. The topic list, quiz page and exam pool
+all read from the database, so nothing else is needed.
 
-### Scenario shows as "Coming soon" after I added it
+**Writing questions:** exactly one unambiguously correct answer; three wrong
+options a real learner might actually pick, not filler; an explanation that
+states the underlying rule and cites the Zeichen number or StVO paragraph where
+it helps. Everything must be accurate to the current StVO.
 
-**Cause:** The scenario was added to the database (via seed) but has no matching simulation module in the frontend registry.
+### A driving situation
 
-**Fix:** Add the import and registry entry in `apps/web/src/simulation/scenarios/index.ts`. The scenario selector determines playability by checking whether a local simulation module exists for the slug — if it is not in the registry, it shows as locked.
+Add a `SeedScenario` to `apps/api/prisma/data/germanyScenarios.ts`. The
+`imagePrompt` describes the scene concretely — road layout, signs, other road
+users, light and weather — and its first two sentences appear on the card. When
+real artwork exists, fill `imageUrl` on the row and it is used instead, with no
+code change.
 
----
+### A sign
 
-### TypeScript: "Property 'X' does not exist on type 'PrismaClient'"
+1. Pick the file for its category and build the component from a shell:
 
-**Cause:** The Prisma client is out of sync with `schema.prisma` after a schema change.
-
-**Fix:**
-
-```bash
-cd apps/api
-npx prisma generate
+```tsx
+export function DangerYourSign(p: SignProps) {
+  return (
+    <DangerShell {...p}>
+      <rect x={46} y={36} width={8} height={30} fill={C.black} />
+    </DangerShell>
+  );
+}
 ```
 
+2. Add a `SignMeta` entry to `DE_SIGNS` in `signs/index.ts`: German name,
+   English name, category, what it means, what to do, Zeichen number.
+
+### Checklist
+
+- [ ] Content added under `apps/api/prisma/data/`
+- [ ] `npm run db:seed` run, validation passed
+- [ ] New signs registered in both the category file and `DE_SIGNS`
+- [ ] `npx prettier --write` and `npx tsc --noEmit` clean in both apps
+- [ ] `TASKS.md` updated
+
 ---
 
-### `npm run dev` starts only one app
+## 5. Conventions
 
-**Cause:** `concurrently` is not installed at the root.
+- **TypeScript only**, functional components with hooks, Zustand for state,
+  Tailwind for styling
+- **All API calls go through `apps/web/src/utils/api.ts`** — never `fetch` in a
+  component
+- Reuse the primitives in `components/ui.tsx` before writing new Tailwind
+- Signs are inline SVG components — never image files
+- Page controls that must stay visible go in `AppShell`'s `toolbar` slot, never
+  in a hand-positioned sticky element
+- Every page must work down to 375 px wide
+- Naming: components `PascalCase`; signs `<Category><Name>`
+  (`DangerChildren`); stores `camelCase` + `Store`; sign ids
+  `de-<category>-<name>`; topic slugs `de-<topic>`; situations `de-sc-<name>`
 
-**Fix:** Run `npm install` from the repo root (not from an app directory) to ensure root devDependencies are installed.
+**Design system:** dark `gray-950` base; `blue-600` primary, `green-500`
+correct, `red-500` wrong, `amber-400` the exam. Surfaces are
+`rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm`.
+
+**Accessibility:** quizzes are keyboard-operable (`A`–`D` / `1`–`4` select,
+`Enter` confirms then advances); modals handle `Escape` and take focus; sign
+SVGs are `aria-hidden` with the name on the card button;
+`prefers-reduced-motion` is respected.
+
+**Git:** branches `feature/…`, `fix/…`, `chore/…`; conventional commits
+(`feat:`, `fix:`, `chore:`, `docs:`); never commit `.env`; always commit
+migrations; run `npm run build` before pushing.
+
+---
+
+## 6. Troubleshooting
+
+**`PrismaClientInitializationError: PrismaClient needs to be constructed with valid options`**
+Prisma 7 got installed. Both the root and `apps/api` must pin `6.0.0`. Reinstall
+with the pinned version and run `npx prisma generate`.
+
+**`Property 'X' does not exist on type 'PrismaClient'`**
+The client is stale after a schema change. Run `npx prisma generate` in
+`apps/api`.
+
+**New content does not appear**
+The seed was not re-run, or it failed validation. Run `npm run db:seed` from
+`apps/api` and read the output: a line starting with `✖` names the offending
+question. Also check the topic's `isActive` and that its `countryCode` matches
+the country selected in the app.
+
+**The API will not start in production**
+Almost always `JWT_SECRET` missing or shorter than 24 characters. That is
+deliberate — set a real secret.
+
+**Browser requests fail with a CORS error**
+The frontend origin is not in `CORS_ORIGIN`. Add it (comma-separated) and
+restart the API.
+
+**`429 Too many requests` while testing login**
+The auth rate limiter allows 20 attempts per 15 minutes per IP. Restart the API
+to clear the in-memory window.
+
+**Port 5173 already in use**
+Vite runs with `strictPort`, so it fails rather than moving. Stop the other
+process; do not change the port.

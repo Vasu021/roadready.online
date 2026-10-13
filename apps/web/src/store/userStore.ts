@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { ProgressStatus } from "@roadready/shared";
 import { clearStoredToken } from "../utils/api";
 
 export interface AuthUser {
@@ -13,8 +14,42 @@ export interface SelectedCountry {
   flagEmoji: string;
 }
 
-export type ProgressStatus = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+export type { ProgressStatus };
 export type AuthModalMode = "login" | "register";
+
+const COUNTRY_KEY = "rr_country";
+
+/**
+ * The chosen country is remembered so a refresh or a deep link into /signs
+ * does not drop the user back on the country picker.
+ */
+function readStoredCountry(): SelectedCountry | null {
+  try {
+    const raw = localStorage.getItem(COUNTRY_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SelectedCountry>;
+    if (
+      typeof parsed.id === "string" &&
+      typeof parsed.code === "string" &&
+      typeof parsed.name === "string" &&
+      typeof parsed.flagEmoji === "string"
+    ) {
+      return parsed as SelectedCountry;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredCountry(country: SelectedCountry | null): void {
+  try {
+    if (country) localStorage.setItem(COUNTRY_KEY, JSON.stringify(country));
+    else localStorage.removeItem(COUNTRY_KEY);
+  } catch {
+    // Storage unavailable — the selection just won't survive a reload.
+  }
+}
 
 interface UserStore {
   user: AuthUser | null;
@@ -36,7 +71,7 @@ export const useUserStore = create<UserStore>((set) => ({
   user: null,
   showAuthModal: false,
   authModalMode: "login",
-  selectedCountry: null,
+  selectedCountry: readStoredCountry(),
   isPremium: false,
   scenarioProgress: {},
 
@@ -47,11 +82,15 @@ export const useUserStore = create<UserStore>((set) => ({
         ? { showAuthModal, authModalMode: mode }
         : { showAuthModal },
     ),
-  setSelectedCountry: (selectedCountry) => set({ selectedCountry }),
+  setSelectedCountry: (selectedCountry) => {
+    writeStoredCountry(selectedCountry);
+    set({ selectedCountry });
+  },
   setIsPremium: (isPremium) => set({ isPremium }),
   setScenarioProgress: (scenarioProgress) => set({ scenarioProgress }),
   logout: () => {
     clearStoredToken();
+    writeStoredCountry(null);
     set({
       user: null,
       selectedCountry: null,

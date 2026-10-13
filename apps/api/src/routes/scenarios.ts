@@ -2,58 +2,26 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
+import { parseCountryCode, parseId, shuffle } from "../lib/validation";
 
 const router = Router();
 
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
-// GET /api/scenarios
-router.get("/", async (_req, res) => {
-  try {
-    const scenarios = await prisma.scenario.findMany({
-      where: { isActive: true },
-      orderBy: [{ countryId: "asc" }, { order: "asc" }],
-      include: { _count: { select: { questions: true } } },
-    });
-
-    res.json(
-      scenarios.map((s) => ({
-        id: s.id,
-        slug: s.slug,
-        name: s.name,
-        description: s.description,
-        order: s.order,
-        isActive: s.isActive,
-        isPremium: s.isPremium,
-        type: s.type,
-        countryId: s.countryId,
-        categoryId: s.categoryId,
-        videoUrl: s.videoUrl,
-        questionCount: s._count.questions,
-      })),
-    );
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch scenarios" });
-  }
-});
-
-// GET /api/scenarios/progress/:userId/:countryCode — protected
-// Returns UserScenarioProgress[] for all active scenarios in that country for that user.
-// Creates NOT_STARTED rows if none exist yet.
+/**
+ * GET /api/scenarios/progress/:userId/:countryCode — protected
+ * Ensures a UserScenarioProgress row exists for every active scenario in the
+ * country, then returns them. Used when a user picks their country.
+ */
 router.get(
   "/progress/:userId/:countryCode",
   requireAuth,
   async (req: AuthRequest, res) => {
-    const { userId, countryCode } = req.params;
+    const { userId } = req.params;
+    const countryCode = parseCountryCode(req.params.countryCode);
 
+    if (!countryCode) {
+      res.status(400).json({ error: "Invalid country code" });
+      return;
+    }
     if (req.userId !== userId) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -61,7 +29,8 @@ router.get(
 
     try {
       const country = await prisma.country.findUnique({
-        where: { code: countryCode.toUpperCase() },
+        where: { code: countryCode },
+        select: { id: true },
       });
 
       if (!country) {
@@ -79,7 +48,6 @@ router.get(
         return;
       }
 
-      // Ensure a progress row exists for every active scenario
       await prisma.$transaction(
         activeScenarios.map((s) =>
           prisma.userScenarioProgress.upsert({
@@ -91,87 +59,134 @@ router.get(
       );
 
       const progress = await prisma.userScenarioProgress.findMany({
-        where: {
-          userId,
-          scenario: { countryId: country.id, isActive: true },
-        },
+        where: { userId, scenario: { countryId: country.id, isActive: true } },
         select: { scenarioId: true, status: true },
       });
 
       res.json(progress);
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch scenario progress:", err);
       res.status(500).json({ error: "Failed to fetch scenario progress" });
     }
   },
 );
 
-// GET /api/scenarios/:slug/questions — must come before /:slug to avoid shadowing
-router.get("/:slug/questions", async (req, res) => {
+/**
+ * GET /api/scenarios/:countryCode
+ * Every driving-situation question for a country. Options are shuffled and
+ * `isCorrect` is withheld — the answer comes from the /answer route.
+ */
+router.get("/:countryCode", async (req, res) => {
+  const countryCode = parseCountryCode(req.params.countryCode);
+  if (!countryCode) {
+    res.status(400).json({ error: "Invalid country code" });
+    return;
+  }
+
   try {
-    const scenario = await prisma.scenario.findUnique({
-      where: { slug: req.params.slug },
-      include: {
+    const scenarios = await prisma.scenario.findMany({
+      where: {
+        country: { code: countryCode },
+        isActive: true,
+        type: "PRACTICE",
+      },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        order: true,
+        imagePrompt: true,
+        imageUrl: true,
         questions: {
           orderBy: { order: "asc" },
-          include: {
-            options: {
-              select: { id: true, optionText: true, order: true },
-            },
+          take: 1,
+          select: {
+            id: true,
+            questionText: true,
+            order: true,
+            options: { select: { id: true, optionText: true, order: true } },
           },
         },
       },
     });
 
-    if (!scenario) {
-      res.status(404).json({ error: "Scenario not found" });
-      return;
-    }
-
     res.json(
-      scenario.questions.map((q) => ({
-        id: q.id,
-        questionText: q.questionText,
-        order: q.order,
-        options: shuffle(q.options),
-      })),
+      scenarios.map((s) => {
+        const q = s.questions[0];
+        return {
+          id: s.id,
+          slug: s.slug,
+          name: s.name,
+          description: s.description,
+          order: s.order,
+          imagePrompt: s.imagePrompt,
+          imageUrl: s.imageUrl,
+          question: q
+            ? {
+                id: q.id,
+                questionText: q.questionText,
+                order: q.order,
+                source: "scenario" as const,
+                sourceName: s.name,
+                imagePrompt: s.imagePrompt,
+                imageUrl: s.imageUrl,
+                options: shuffle(q.options),
+              }
+            : null,
+        };
+      }),
     );
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch questions" });
+    console.error("Failed to fetch scenarios:", err);
+    res.status(500).json({ error: "Failed to fetch scenarios" });
   }
 });
 
-// GET /api/scenarios/:slug
-router.get("/:slug", async (req, res) => {
+/**
+ * GET /api/scenarios/:countryCode/:id/answer — protected
+ * The answer key for one driving situation.
+ */
+router.get("/:countryCode/:id/answer", requireAuth, async (req, res) => {
+  const countryCode = parseCountryCode(req.params.countryCode);
+  const id = parseId(req.params.id);
+
+  if (!countryCode || !id) {
+    res.status(400).json({ error: "Invalid country code or scenario id" });
+    return;
+  }
+
   try {
-    const scenario = await prisma.scenario.findUnique({
-      where: { slug: req.params.slug },
-      include: { _count: { select: { questions: true } } },
+    const scenario = await prisma.scenario.findFirst({
+      where: { id, country: { code: countryCode }, isActive: true },
+      select: {
+        questions: {
+          orderBy: { order: "asc" },
+          take: 1,
+          select: {
+            id: true,
+            explanation: true,
+            options: { select: { id: true, isCorrect: true } },
+          },
+        },
+      },
     });
 
-    if (!scenario) {
-      res.status(404).json({ error: "Scenario not found" });
+    const question = scenario?.questions[0];
+    if (!question) {
+      res.status(404).json({ error: "Scenario question not found" });
       return;
     }
 
     res.json({
-      id: scenario.id,
-      slug: scenario.slug,
-      name: scenario.name,
-      description: scenario.description,
-      order: scenario.order,
-      isActive: scenario.isActive,
-      isPremium: scenario.isPremium,
-      type: scenario.type,
-      countryId: scenario.countryId,
-      categoryId: scenario.categoryId,
-      videoUrl: scenario.videoUrl,
-      questionCount: scenario._count.questions,
+      questionId: question.id,
+      correctOptionId: question.options.find((o) => o.isCorrect)?.id ?? "",
+      explanation: question.explanation,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch scenario" });
+    console.error("Failed to fetch scenario answer:", err);
+    res.status(500).json({ error: "Failed to fetch answer" });
   }
 });
 

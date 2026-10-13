@@ -1,370 +1,203 @@
+<div align="center">
+
 # 🚗 RoadReady
 
-> **Learn to drive. Anywhere. Anytime.**
-> A browser-based 3D driving simulation platform for learning country-specific traffic rules and real-world road scenarios.
+### Know every sign. Pass the theory test.
 
-🌐 **Website:** [roadready.online](https://roadready.online)
-📦 **Status:** In Development
-🗓️ **Started:** 2026
+**A free, browser-based way to learn the German driving theory test — the complete sign catalogue, topic-by-topic practice, and a full timed exam.**
 
----
+[![Website](https://img.shields.io/badge/web-roadready.online-2563eb)](https://roadready.online)
+[![Signs](https://img.shields.io/badge/signs-136-E2000F)](#-the-sign-library)
+[![Questions](https://img.shields.io/badge/questions-105-0055A4)](#-practice-by-topic)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-## 🧭 What is RoadReady?
+![RoadReady](docs/screenshots/landing.png)
 
-RoadReady is an **online 3D driving simulation platform** that allows users to practice driving in realistic, country-specific environments — directly in their browser. No downloads. No expensive driving lessons just to learn the basics.
-
-Users can select a **city**, choose a **scenario** (e.g. roundabout, Autobahn merge, priority road, school zone), and practice driving with real traffic rules enforced. The platform provides instant feedback, pass/fail scoring, and a structured learning path.
-
-### The Problem We Solve
-
-Getting a driving license in Germany (and many other countries) is expensive, stressful, and time-consuming:
-
-- A full German driving license costs between **€2,000 – €4,000**
-- A large portion of that cost is simply due to lack of **pre-practice** before getting in a real car
-- Existing apps only offer **multiple choice theory tests** — no practical simulation
-- Physical simulators exist in some driving schools but are **not accessible from home**
-- Millions of **internationals and immigrants** need to re-learn country-specific rules
-
-RoadReady fills this gap: an affordable, accessible, browser-based simulation that lets you practice before you ever sit in a real car.
+</div>
 
 ---
 
-## 🎯 Target Audience
+## What is RoadReady?
 
-- **Students and first-time drivers** preparing for their driving test
-- **Internationals and expats** learning traffic rules of a new country (e.g. moving to Germany)
-- **People converting foreign licenses** who need to pass a practical test
-- **Nervous drivers** who want more practice in specific scenarios before real road exposure
+Getting a German driving licence costs €2,000–€4,000, and the theory test is the
+first hurdle. Most apps just drill the official question catalogue at you.
+RoadReady teaches the **rule behind the answer** first.
 
----
+You learn the signs, drill each topic until the answers are automatic, then sit a
+full 30-question exam under real conditions — all in the browser, nothing to
+install.
 
-## 🌍 Roadmap: Cities & Countries
+**It's built for** people learning to drive in Germany, and especially for
+immigrants, expats and students doing it in a second language.
 
-RoadReady is designed to scale globally. We start small and expand city by city.
-
-### Phase 1 — Launch (MVP)
-
-- 🇩🇪 **Aachen, Germany** — First city. German traffic rules, road signs, Autobahn scenarios.
-- 🇫🇷 **France** — Second country. Priorité à droite, radar cameras, motorway rules.
-
-### Phase 2 — Germany Expansion
-
-- 🇩🇪 Berlin, Munich, Hamburg, Düsseldorf, Frankfurt
-
-### Phase 3 — Europe
-
-- 🇬🇧 UK — Left-hand traffic, roundabout rules
-- 🇳🇱 Netherlands, 🇦🇹 Austria
-
-### Phase 4 — Global
-
-- 🇺🇸 USA, 🇨🇦 Canada, 🇮🇳 India, 🇦🇺 Australia, and more
+> Germany is complete today. France is being written.
 
 ---
 
-## 🗺️ Core Features
+## ✨ What you can do
 
-### Working Now
+### 📚 Browse the complete sign catalogue
 
-- ✅ 3D browser-based driving simulation — no download required
-- ✅ Autopilot car — the car drives itself; users only make decisions at key moments
-- ✅ Key-press challenge system — simulation pauses, user must press the correct key (e.g. ← to turn, SPACE to stop)
-- ✅ Pass / fail per scenario — wrong choice fails the scenario; correct choice advances it
-- ✅ Progress saved to database after each scenario run
-- ✅ Procedural 3D city environment — L-shaped German road, trees, buildings, traffic lights
-- ✅ Multi-country DB: Germany 🇩🇪 and France 🇫🇷 — each with 9 practice + 1 test scenario seeded
-- ✅ Three-state UI: marketing landing page → country selector with facts → scenario list
-- ✅ Freemium gating: first 3 scenarios free per country; rest behind Premium (dev toggle)
-- ✅ User accounts and progress tracking (JWT auth, no third-party provider)
-- ✅ Two Germany simulation scenarios with full autopilot: Basic Controls, Traffic Lights
+Every German traffic sign, light signal, road marking and supplementary plate —
+**136 in total**, each with its German and English name, what it means, what you
+must actually do, and the StVO article it comes from.
 
-### In Progress / Next Up
+![Signs library](docs/screenshots/signs-library.png)
 
-- 🔨 MCQ pop-up overlay — transparent, draggable popup with A/B/C/D options; correct → continue simulation; wrong → explanation shown
-- 🔨 Practice vs Test mode — practice shows correct answer on wrong; test fails immediately
-- 🔨 More Germany simulation scenarios (Roundabout, Rechts vor Links, Pedestrian Crossing, etc.)
+Search by name, meaning or Zeichen number, filter by category, and tap any sign
+for the full explanation.
 
-### Planned Features
-
-- 🔜 Full test mode — all scenarios in sequence, graded (A/B/C/F) at the end
-- 🔜 AI traffic — other cars, pedestrians, cyclists
-- 🔜 Day/night and weather conditions
-- 🔜 Leaderboards and scoring
-- 🔜 Mobile support
-- 🔜 Multilingual UI (German, English, Turkish, Arabic, Hindi)
-- 🔜 More cities: Berlin, Munich, Hamburg
+<img src="docs/screenshots/sign-detail.png" width="560" alt="Sign detail showing the Kinder warning sign">
 
 ---
 
-## 🧩 Scenario Library
+### 📝 Practice by topic
 
-Scenarios are database-driven. Each pauses the car at a key moment and asks an MCQ question about the relevant rule.
+Twelve focused topics, from _Rechts vor Links_ to Autobahn rules. You get the
+explanation **after every answer**, and a wrong answer never ends the run — you
+keep going and keep learning.
 
-### 🇩🇪 Germany
+![Topic quiz with an explanation](docs/screenshots/topic-quiz.png)
 
-| Scenario                                 | Category      | Type     |
-| ---------------------------------------- | ------------- | -------- |
-| Basic Controls                           | Basic Skills  | PRACTICE |
-| Rechts vor Links — Right before Left     | Traffic Rules | PRACTICE |
-| Roundabout                               | Traffic Rules | PRACTICE |
-| Traffic Lights                           | Traffic Rules | PRACTICE |
-| Priority Road Signs (Vorfahrtstraße)     | Road Signs    | PRACTICE |
-| Vorfahrt — Priority at Next Intersection | Road Signs    | PRACTICE |
-| Emergency Vehicle                        | Traffic Rules | PRACTICE |
-| Pedestrian Crossing                      | Traffic Rules | PRACTICE |
-| Autobahn Rules                           | Traffic Rules | PRACTICE |
-| Full Test — Germany                      | Traffic Rules | TEST     |
+Your best score, last score and attempt count are tracked per topic.
 
-### 🇫🇷 France
-
-| Scenario                  | Category      | Type     |
-| ------------------------- | ------------- | -------- |
-| Basic Controls            | Basic Skills  | PRACTICE |
-| Priorité à droite         | Traffic Rules | PRACTICE |
-| Roundabout — French Style | Traffic Rules | PRACTICE |
-| Speed Limits              | Traffic Rules | PRACTICE |
-| Radar Cameras             | Traffic Rules | PRACTICE |
-| Motorway Rules            | Traffic Rules | PRACTICE |
-| Pedestrian Crossing       | Traffic Rules | PRACTICE |
-| Traffic Lights            | Traffic Rules | PRACTICE |
-| Parking Rules             | Basic Skills  | PRACTICE |
-| Full Test — France        | Traffic Rules | TEST     |
+![Practice topics](docs/screenshots/practice-topics.png)
 
 ---
 
-## 🛠️ Tech Stack
+### 🎬 Work through real situations
 
-### Frontend
+Eighteen illustrated driving situations — a T-junction with a give-way sign, a
+tram crossing, a jam on the Autobahn, fog on a country road. These test
+judgement, not just whether you can name a sign.
 
-| Technology                  | Purpose                                                |
-| --------------------------- | ------------------------------------------------------ |
-| **React** + **TypeScript**  | UI framework — menus, HUD, scenario selector, progress |
-| **React Three Fiber (R3F)** | Declarative React bindings for Three.js                |
-| **Three.js**                | 3D rendering engine (WebGL)                            |
-| **@react-three/drei**       | Helpers — cameras, lighting, controls, loaders         |
-| **Rapier.js**               | Physics engine — car movement, collisions, gravity     |
-| **Tailwind CSS**            | UI styling                                             |
-| **Zustand**                 | Global state management (game state, user session)     |
-
-### Backend
-
-| Technology                | Purpose                                               |
-| ------------------------- | ----------------------------------------------------- |
-| **Node.js** + **Express** | REST API server                                       |
-| **TypeScript**            | Type safety across the codebase                       |
-| **Prisma ORM**            | Type-safe database queries                            |
-| **PostgreSQL**            | Primary database (users, progress, scenarios, scores) |
-
-### Infrastructure & Services
-
-| Service        | Purpose                          | Cost                |
-| -------------- | -------------------------------- | ------------------- |
-| **Vercel**     | Frontend hosting + CDN           | Free                |
-| **Railway**    | Backend API + PostgreSQL hosting | Free tier           |
-| **Cloudflare** | DNS, DDoS protection, CDN        | Free                |
-| **Stripe**     | Payments and subscriptions       | Pay per transaction |
-
-### Map & Road Data
-
-| Technology              | Purpose                                              |
-| ----------------------- | ---------------------------------------------------- |
-| **OpenStreetMap (OSM)** | Free open-source road, lane, and intersection data   |
-| **Overpass API**        | Query specific city road geometry from OSM           |
-| **osm-to-geojson**      | Convert OSM data to usable GeoJSON for 3D generation |
-
-### Development Tools
-
-| Tool                      | Purpose                                           |
-| ------------------------- | ------------------------------------------------- |
-| **Vite**                  | Fast frontend build tool                          |
-| **ESLint** + **Prettier** | Code quality and formatting                       |
-| **Vitest**                | Unit testing                                      |
-| **GitHub Actions**        | CI/CD pipeline                                    |
-| **Docker**                | Containerized backend for consistent environments |
+![A driving situation](docs/screenshots/scenario-question.png)
 
 ---
 
-## 🏗️ Project Architecture
+### 🎓 Sit the full theory test
 
-```
-roadready/
-│
-├── apps/
-│   ├── web/                        # React frontend (Vercel)
-│   │   ├── src/
-│   │   │   ├── components/         # UI components (menus, HUD, modals)
-│   │   │   ├── simulation/         # 3D simulation engine
-│   │   │   │   ├── scene/          # Three.js scenes per city
-│   │   │   │   ├── vehicles/       # Car models + physics
-│   │   │   │   ├── roads/          # Road mesh generation from OSM
-│   │   │   │   ├── traffic/        # AI traffic, pedestrians, signals
-│   │   │   │   └── scenarios/      # Individual scenario logic
-│   │   │   ├── store/              # Zustand global state
-│   │   │   ├── hooks/              # Custom React hooks
-│   │   │   └── pages/              # Route pages
-│   │   └── public/
-│   │       ├── models/             # 3D car and object models (.glb)
-│   │       └── textures/           # Road, building, sign textures
-│   │
-│   └── api/                        # Node.js backend (Railway)
-│       ├── src/
-│       │   ├── routes/             # Express API routes
-│       │   ├── controllers/        # Business logic
-│       │   ├── middleware/         # Auth, validation, error handling
-│       │   └── prisma/             # Database schema and migrations
-│       └── Dockerfile
-│
-├── packages/
-│   ├── shared/                     # Shared TypeScript types
-│   └── scenario-engine/            # Scenario pass/fail logic (shared)
-│
-└── docs/                           # Documentation
-```
+30 mixed questions, 45 minutes on the clock, no feedback until you finish —
+exactly like the real thing.
+
+<img src="docs/screenshots/final-test-start.png" width="560" alt="Final test briefing">
+
+Afterwards you get a grade, a score, and a per-question breakdown showing what
+you answered, what was right, and why.
+
+![Final test results](docs/screenshots/final-test-results.png)
+
+| Grade | Score |
+| ----- | ----- |
+| **A** | 90%+  |
+| **B** | 75%+  |
+| **C** | 60%+  |
+| **F** | below |
+
+You pass at **75%** — grade B or better.
 
 ---
 
-## 🚀 Getting Started (Development)
+### 📱 Works on your phone
 
-### Prerequisites
-
-- Node.js 20+
-- npm or pnpm
-- Git
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/roadready.git
-cd roadready
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp apps/web/.env.example apps/web/.env.local
-cp apps/api/.env.example apps/api/.env
-
-# Start development servers
-npm run dev
-```
-
-### Environment Variables
-
-**Frontend (`apps/web/.env.local`)**
-
-```env
-VITE_API_URL=http://localhost:3001
-```
-
-**Backend (`apps/api/.env`)**
-
-```env
-DATABASE_URL=postgresql://roadready_user:roadready_pass@localhost:5432/roadready
-JWT_SECRET=your_jwt_secret_here
-PORT=3001
-```
-
-> See [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) for full setup instructions including local PostgreSQL configuration.
+<img src="docs/screenshots/mobile.png" width="300" alt="RoadReady on a phone">
 
 ---
 
-## 💰 Business Model
+## 📦 What's inside
 
-### Freemium SaaS
+| Content                          | Count                              |
+| -------------------------------- | ---------------------------------- |
+| Traffic signs, signals, markings | 136                                |
+| Topic tests                      | 12                                 |
+| Practice questions               | 105                                |
+| Illustrated driving situations   | 18                                 |
+| Countries                        | 🇩🇪 Germany (🇫🇷 France in progress) |
 
-| Plan               | Price        | Features                                              |
-| ------------------ | ------------ | ----------------------------------------------------- |
-| **Free**           | €0           | 3 scenarios/month, Aachen only, basic feedback        |
-| **Learner**        | €9.99/month  | Unlimited scenarios, 1 city, detailed feedback        |
-| **Pro**            | €19.99/month | All cities, all countries, leaderboards, certificates |
-| **School License** | €99/month    | Multiple student accounts, instructor dashboard       |
+Every sign is **drawn in code** as a vector graphic — nothing is a photo or a
+stock image, so they stay crisp at any size and load instantly.
 
-### Revenue Projections (Conservative)
+<details>
+<summary><b>The sign library in detail</b></summary>
 
-- 500 free users → 50 paid (10% conversion) = **€500/month** at month 6
-- 2,000 free users → 200 paid = **€2,000/month** at month 12
-- 10,000 free users → 1,000 paid = **€10,000/month** at year 2
+| Category                                | Count |
+| --------------------------------------- | ----- |
+| ⚠️ Danger signs (Gefahrzeichen)         | 27    |
+| 🔺 Priority signs (Vorfahrtzeichen)     | 8     |
+| ⛔ Prohibition signs (Verbotszeichen)   | 24    |
+| 🔵 Mandatory signs (Vorschriftzeichen)  | 16    |
+| ℹ️ Information signs (Richtzeichen)     | 19    |
+| 🏷️ Supplementary plates (Zusatzzeichen) | 11    |
+| 🚦 Light signals (Lichtzeichen)         | 12    |
+| 🛣️ Road markings                        | 13    |
+| 🔗 Sign + plate combinations            | 8     |
+
+The combinations matter: a 30 limit means something different with a _bei Nässe_
+plate under it, and a priority road that bends is the single most misread sign
+pairing on German roads.
+
+</details>
+
+<details>
+<summary><b>The twelve topics</b></summary>
+
+1. Gefahrzeichen — Danger Signs
+2. Vorfahrtszeichen — Priority Signs
+3. Verbotszeichen — Prohibition Signs
+4. Gebotszeichen — Mandatory Signs
+5. Richtzeichen — Information Signs
+6. Vorfahrtsregeln — Right of Way Rules
+7. Geschwindigkeit und Abstand — Speed Limits & Distances
+8. Lichtzeichen und Signale — Traffic Lights & Signals
+9. Autobahnregeln — Motorway Rules
+10. Fußgänger und Radfahrer — Pedestrians & Cyclists
+11. Notfälle und besondere Situationen — Emergency & Special Situations
+12. Parken und Halten — Parking & Stopping Rules
+
+</details>
 
 ---
 
-## 🌐 Domain & Hosting
+## 🗺️ Roadmap
 
-| Asset         | Details                                   |
-| ------------- | ----------------------------------------- |
-| **Domain**    | roadready.online                          |
-| **Registrar** | Namecheap                                 |
-| **SSL**       | PositiveSSL (Namecheap) + Vercel auto SSL |
-| **DNS**       | Cloudflare                                |
-| **Frontend**  | Vercel (roadready.online)                 |
-| **API**       | Railway (api.roadready.online)            |
-| **Database**  | Railway PostgreSQL (Frankfurt region)     |
-
----
-
-## 👨‍💻 About the Developer
-
-**Amlendu Shekhar**
-
-- 🎓 MSc Data Science — RWTH Aachen University, Germany
-- 💼 Software Engineer (Working Student) — trivago, Düsseldorf
-- 🔗 [LinkedIn](https://linkedin.com/in/amlendu-shekhar) | [GitHub](https://github.com/Vasu021)
-- 📧 amlendushekhar828@gmail.com
+- [x] Complete German sign catalogue
+- [x] Twelve topic tests with explanations
+- [x] Illustrated driving situations
+- [x] Timed, graded theory exam
+- [ ] Deeper question banks (15–20 per topic)
+- [ ] Sign-recognition mode — see the sign, name the rule
+- [ ] Review queue for the questions you keep missing
+- [ ] 🇫🇷 France, then more of Europe
+- [ ] German, Turkish and Arabic interface
 
 ---
 
-## 📄 License
+## 🚀 Getting started
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+Just open **[roadready.online](https://roadready.online)**, create a free
+account and pick your country.
+
+Want to run it yourself or contribute? See the
+**[Developer Guide](./DEVELOPER_GUIDE.md)**.
 
 ---
 
 ## 🤝 Contributing
 
-RoadReady is currently in early development. Contributions, ideas, and feedback are welcome!
+Corrections to the content are especially welcome — if a question, explanation
+or sign is wrong or out of date, please
+[open an issue](https://github.com/Vasu021/roadready.online/issues). Include the
+StVO reference where you can.
 
-### How to contribute
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/new-scenario`)
-3. Commit your changes using [Conventional Commits](https://www.conventionalcommits.org/) (`git commit -m 'feat: add Autobahn merge scenario'`)
-4. Push to the branch (`git push origin feature/new-scenario`)
-5. Open a Pull Request against `main`
-
-### Opening an Issue
-
-Use the issue templates under [`.github/ISSUE_TEMPLATE/`](./.github/ISSUE_TEMPLATE/) — GitHub will ask you to pick one when you click **New Issue**:
-
-| Template                     | Use when                                                            |
-| ---------------------------- | ------------------------------------------------------------------- |
-| **Bug report**               | Something isn't working correctly                                   |
-| **Feature request**          | Proposing a new feature or improvement                              |
-| **Task / Technical work**    | Planned engineering work (new component, scenario module, refactor) |
-| **Documentation update**     | A doc is wrong, outdated, or missing something                      |
-| **Question / Investigation** | Something unclear in the codebase or an open design decision        |
-
-Blank issues are disabled — please pick the template that fits best.
-
-### Pull Request template
-
-When you open a PR, GitHub will automatically fill in a template from [`.github/pull_request_template.md`](./.github/pull_request_template.md). Please complete all sections before requesting a review:
-
-| Section                        | What to write                                          |
-| ------------------------------ | ------------------------------------------------------ |
-| **Summary**                    | What the PR changes — one or two sentences             |
-| **Why is this change needed?** | The problem, feature, or bug it addresses              |
-| **Type of change**             | Check one box (bug fix, feature, refactor, docs, etc.) |
-| **How was this tested?**       | Steps you took to verify the change works locally      |
-| **Checklist**                  | Tick each item before marking the PR ready for review  |
-
-> For larger features, open a draft PR early so others can follow along before the work is complete.
-
-### Before opening a PR
-
-- Run `npx tsc --noEmit` in both `apps/api` and `apps/web` — the PR should have zero TypeScript errors
-- Make sure `npm run dev` starts cleanly with no console errors
-- Read [`DEVELOPER_GUIDE.md`](./DEVELOPER_GUIDE.md) for coding conventions, branch naming, and the scenario checklist
+Setup, project structure and conventions are in the
+[Developer Guide](./DEVELOPER_GUIDE.md).
 
 ---
 
-_Built with ❤️ in Aachen, Germany 🇩🇪_
+## 📄 License
+
+MIT — see [LICENSE](./LICENSE).
+
+> **Disclaimer:** RoadReady is independent study material based on the German
+> StVO. It is not affiliated with TÜV, DEKRA or any licensing authority, and it
+> is not legal advice. Always check the current official rules.

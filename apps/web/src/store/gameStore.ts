@@ -1,117 +1,110 @@
 import { create } from "zustand";
-import type { ScenarioConfig, CarState, Objective } from "@roadready/shared";
+import type { QuizQuestion, QuizAnswer, QuizMode } from "@roadready/shared";
 
-export type ScenarioPhase = "idle" | "running" | "passed" | "failed";
-export type DriveMode = "manual" | "auto";
+/** Lifecycle of a quiz run. */
+export type QuizPhase = "idle" | "running" | "completed";
 
-export interface ActiveChallenge {
-  id: string;
-  prompt: string;
-  instruction: string;
-  correctKey: string; // e.g. 'Space', 'ArrowLeft'
-  correctKeyLabel: string; // e.g. 'SPACE', '← LEFT'
-  result: "pending" | "correct" | "wrong";
-  wrongKeyLabel?: string;
+export interface ActiveQuiz {
+  slug: string;
+  name: string;
 }
 
 interface GameStore {
-  // ── Scenario ──────────────────────────────────────────────────────────────
-  activeScenario: ScenarioConfig | null;
-  scenarioPhase: ScenarioPhase;
-  objectives: Objective[];
-  elapsedSeconds: number;
-  // ── Car ───────────────────────────────────────────────────────────────────
-  carState: CarState | null;
-  isPaused: boolean;
-  driveMode: DriveMode;
-  // ── Challenges ────────────────────────────────────────────────────────────
-  activeChallenge: ActiveChallenge | null;
-  resolvedChallengeIds: Record<string, boolean>;
+  // ── Quiz lifecycle ────────────────────────────────────────────────────────
+  quizPhase: QuizPhase;
+  quizMode: QuizMode | null;
+  activeQuiz: ActiveQuiz | null;
+
+  // ── Questions ─────────────────────────────────────────────────────────────
+  questions: QuizQuestion[];
+  currentQuestion: QuizQuestion | null;
+  questionIndex: number;
+  totalQuestions: number;
+
+  // ── Answers ───────────────────────────────────────────────────────────────
+  answers: QuizAnswer[];
+  quizScore: number;
+  startedAt: number | null;
+
   // ── Actions ───────────────────────────────────────────────────────────────
-  startScenario: (scenario: ScenarioConfig) => void;
-  setScenarioPhase: (phase: ScenarioPhase) => void;
-  completeObjective: (id: string) => void;
-  setCarState: (state: CarState) => void;
-  setPaused: (paused: boolean) => void;
-  setElapsed: (seconds: number) => void;
-  resetScenario: () => void;
-  setDriveMode: (mode: DriveMode) => void;
-  triggerChallenge: (c: Omit<ActiveChallenge, "result">) => void;
-  resolveChallenge: (
-    result: "correct" | "wrong",
-    wrongKeyLabel?: string,
+  startQuiz: (
+    mode: QuizMode,
+    questions: QuizQuestion[],
+    quiz: ActiveQuiz,
   ) => void;
-  clearChallenge: () => void;
+  answerQuestion: (optionId: string, isCorrect: boolean) => void;
+  nextQuestion: () => void;
+  goToQuestion: (index: number) => void;
+  finishQuiz: () => void;
+  resetQuiz: () => void;
 }
 
-export const useGameStore = create<GameStore>((set) => ({
-  activeScenario: null,
-  scenarioPhase: "idle",
-  objectives: [],
-  elapsedSeconds: 0,
-  carState: null,
-  isPaused: false,
-  driveMode: "manual",
-  activeChallenge: null,
-  resolvedChallengeIds: {},
+const EMPTY = {
+  quizPhase: "idle" as QuizPhase,
+  quizMode: null,
+  activeQuiz: null,
+  questions: [],
+  currentQuestion: null,
+  questionIndex: 0,
+  totalQuestions: 0,
+  answers: [],
+  quizScore: 0,
+  startedAt: null,
+};
 
-  startScenario: (scenario) =>
+export const useGameStore = create<GameStore>((set, get) => ({
+  ...EMPTY,
+
+  startQuiz: (mode, questions, quiz) =>
     set({
-      activeScenario: scenario,
-      scenarioPhase: "running",
-      objectives: scenario.objectives.map((o) => ({ ...o, completed: false })),
-      elapsedSeconds: 0,
-      activeChallenge: null,
-      resolvedChallengeIds: {},
+      quizPhase: "running",
+      quizMode: mode,
+      activeQuiz: quiz,
+      questions,
+      currentQuestion: questions[0] ?? null,
+      questionIndex: 0,
+      totalQuestions: questions.length,
+      answers: [],
+      quizScore: 0,
+      startedAt: Date.now(),
     }),
 
-  setScenarioPhase: (scenarioPhase) => set({ scenarioPhase }),
+  answerQuestion: (optionId, isCorrect) => {
+    const { currentQuestion, answers } = get();
+    if (!currentQuestion) return;
 
-  completeObjective: (id) =>
-    set((s) => ({
-      objectives: s.objectives.map((o) =>
-        o.id === id ? { ...o, completed: true } : o,
-      ),
-    })),
+    // Re-answering the same question replaces the earlier answer.
+    const without = answers.filter((a) => a.questionId !== currentQuestion.id);
+    const next: QuizAnswer[] = [
+      ...without,
+      { questionId: currentQuestion.id, selectedOptionId: optionId, isCorrect },
+    ];
 
-  setCarState: (carState) => set({ carState }),
-  setPaused: (isPaused) => set({ isPaused }),
-  setElapsed: (elapsedSeconds) => set({ elapsedSeconds }),
-  setDriveMode: (driveMode) => set({ driveMode }),
+    set({ answers: next, quizScore: next.filter((a) => a.isCorrect).length });
+  },
 
-  triggerChallenge: (c) =>
-    set({ activeChallenge: { ...c, result: "pending" } }),
+  nextQuestion: () => {
+    const { questionIndex, questions } = get();
+    const nextIndex = questionIndex + 1;
 
-  resolveChallenge: (result, wrongKeyLabel) =>
-    set((s) => ({
-      activeChallenge: s.activeChallenge
-        ? { ...s.activeChallenge, result, wrongKeyLabel }
-        : null,
-      resolvedChallengeIds:
-        result === "correct" && s.activeChallenge
-          ? { ...s.resolvedChallengeIds, [s.activeChallenge.id]: true }
-          : s.resolvedChallengeIds,
-      // Also mark the matching objective as completed so ResultsScreen shows it
-      objectives:
-        result === "correct" && s.activeChallenge
-          ? s.objectives.map((o) =>
-              o.id === s.activeChallenge!.id ? { ...o, completed: true } : o,
-            )
-          : s.objectives,
-    })),
+    if (nextIndex >= questions.length) {
+      set({ quizPhase: "completed", currentQuestion: null });
+      return;
+    }
 
-  clearChallenge: () => set({ activeChallenge: null }),
+    set({
+      questionIndex: nextIndex,
+      currentQuestion: questions[nextIndex] ?? null,
+    });
+  },
 
-  resetScenario: () =>
-    set((s) => ({
-      scenarioPhase: "running",
-      elapsedSeconds: 0,
-      activeChallenge: null,
-      resolvedChallengeIds: {},
-      objectives:
-        s.activeScenario?.objectives.map((o) => ({
-          ...o,
-          completed: false,
-        })) ?? [],
-    })),
+  goToQuestion: (index) => {
+    const { questions } = get();
+    if (index < 0 || index >= questions.length) return;
+    set({ questionIndex: index, currentQuestion: questions[index] ?? null });
+  },
+
+  finishQuiz: () => set({ quizPhase: "completed", currentQuestion: null }),
+
+  resetQuiz: () => set({ ...EMPTY }),
 }));

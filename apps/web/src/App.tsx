@@ -4,63 +4,68 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import AuthModal from "./components/AuthModal";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { getStoredToken } from "./utils/api";
+import { getStoredToken, setUnauthorizedHandler } from "./utils/api";
+import { isExpired, parseJwt } from "./utils/jwt";
 import { useUserStore } from "./store/userStore";
 
-const Simulation = lazy(() => import("./pages/Simulation"));
+// Route-level code splitting keeps the landing page small.
+const SignsLibrary = lazy(() => import("./pages/SignsLibrary"));
+const PracticeTests = lazy(() => import("./pages/PracticeTests"));
+const TopicQuiz = lazy(() => import("./pages/TopicQuiz"));
+const ScenarioPractice = lazy(() => import("./pages/ScenarioPractice"));
+const FinalTest = lazy(() => import("./pages/FinalTest"));
 
 function PageLoader() {
   return (
     <div className="flex h-full items-center justify-center bg-gray-950">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-blue-500" />
     </div>
   );
-}
-
-function parseJwt(token: string): { sub: string; email: string } | null {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload;
-  } catch {
-    return null;
-  }
 }
 
 export default function App() {
   const setUser = useUserStore((s) => s.setUser);
   const showAuthModal = useUserStore((s) => s.showAuthModal);
 
-  // Restore session from localStorage token on app load
+  // Restore the session from the stored token, unless it has expired.
   useEffect(() => {
     const token = getStoredToken();
     if (!token) return;
+
     const payload = parseJwt(token);
-    if (payload?.sub && payload?.email) {
+    if (payload?.sub && payload.email && !isExpired(payload)) {
       setUser({ id: payload.sub, email: payload.email });
     }
   }, [setUser]);
+
+  // If the API ever rejects the token, sign out rather than leaving the UI in
+  // a half-authenticated state.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      const { user, logout, setShowAuthModal } = useUserStore.getState();
+      if (!user) return;
+      logout();
+      setShowAuthModal(true, "login");
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
+  const protect = (element: React.ReactNode) => (
+    <ProtectedRoute>{element}</ProtectedRoute>
+  );
 
   return (
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route
-            path="/simulation/:scenarioId"
-            element={
-              <ProtectedRoute>
-                <Simulation />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/dashboard" element={protect(<Dashboard />)} />
+          <Route path="/signs" element={protect(<SignsLibrary />)} />
+          <Route path="/practice" element={protect(<PracticeTests />)} />
+          <Route path="/practice/:slug" element={protect(<TopicQuiz />)} />
+          <Route path="/scenarios" element={protect(<ScenarioPractice />)} />
+          <Route path="/final-test" element={protect(<FinalTest />)} />
+          <Route path="*" element={<Home />} />
         </Routes>
       </Suspense>
       {showAuthModal && <AuthModal />}

@@ -1,48 +1,70 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
+import { parseCountryCode, parseId, parseBoundedInt } from "../lib/validation";
+import { FINAL_TEST, computeGrade } from "../config/finalTest";
 
 const router = Router();
 
-function computeGrade(pct: number): string {
-  if (pct >= 0.9) return "A";
-  if (pct >= 0.75) return "B";
-  if (pct >= 0.6) return "C";
-  return "F";
-}
-
-// POST /api/test-sessions
+/**
+ * POST /api/test-sessions
+ * Starts a final theory test. Accepts `countryCode` (preferred) or `countryId`,
+ * plus an optional `maxScore` — the number of questions actually served.
+ */
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { countryId } = req.body as { countryId?: string };
-  if (!countryId) {
-    res.status(400).json({ error: "countryId is required" });
+  const body = req.body as {
+    countryCode?: unknown;
+    countryId?: unknown;
+    maxScore?: unknown;
+  };
+
+  const countryCode = parseCountryCode(body.countryCode);
+  const countryId = parseId(body.countryId);
+  const maxScore =
+    body.maxScore === undefined
+      ? FINAL_TEST.questionCount
+      : parseBoundedInt(body.maxScore, 1, 200);
+
+  if ((!countryCode && !countryId) || maxScore === null) {
+    res.status(400).json({ error: "countryCode (or countryId) is required" });
     return;
   }
 
   try {
-    const maxScore = await prisma.question.count({
-      where: { scenario: { countryId, isActive: true } },
+    const country = await prisma.country.findFirst({
+      where: countryCode ? { code: countryCode } : { id: countryId! },
+      select: { id: true },
     });
 
+    if (!country) {
+      res.status(404).json({ error: "Country not found" });
+      return;
+    }
+
     const session = await prisma.testSession.create({
-      data: { userId: req.userId!, countryId, maxScore },
+      data: { userId: req.userId!, countryId: country.id, maxScore },
+      select: { id: true, startedAt: true, maxScore: true, countryId: true },
     });
 
     res.status(201).json(session);
   } catch (err) {
-    console.error(err);
+    console.error("Failed to create test session:", err);
     res.status(500).json({ error: "Failed to create test session" });
   }
 });
 
-// POST /api/test-sessions/:id/answers
+/**
+ * POST /api/test-sessions/:id/answers
+ * Records one answer. Grading happens here, server-side: the client never sees
+ * which option is correct until the session is completed.
+ */
 router.post("/:id/answers", requireAuth, async (req: AuthRequest, res) => {
-  const { questionId, selectedOptionId } = req.body as {
-    questionId?: string;
-    selectedOptionId?: string;
-  };
+  const sessionId = parseId(req.params.id);
+  const body = req.body as { questionId?: unknown; selectedOptionId?: unknown };
+  const questionId = parseId(body.questionId);
+  const selectedOptionId = parseId(body.selectedOptionId);
 
-  if (!questionId || !selectedOptionId) {
+  if (!sessionId || !questionId || !selectedOptionId) {
     res
       .status(400)
       .json({ error: "questionId and selectedOptionId are required" });
@@ -51,8 +73,10 @@ router.post("/:id/answers", requireAuth, async (req: AuthRequest, res) => {
 
   try {
     const session = await prisma.testSession.findUnique({
-      where: { id: req.params.id },
+      where: { id: sessionId },
+      select: { id: true, userId: true, completedAt: true },
     });
+
     if (!session) {
       res.status(404).json({ error: "Test session not found" });
       return;
@@ -68,7 +92,7 @@ router.post("/:id/answers", requireAuth, async (req: AuthRequest, res) => {
 
     const option = await prisma.option.findUnique({
       where: { id: selectedOptionId },
-      include: { question: { select: { explanation: true } } },
+      select: { id: true, questionId: true, isCorrect: true },
     });
 
     if (!option || option.questionId !== questionId) {
@@ -76,32 +100,47 @@ router.post("/:id/answers", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    const answer = await prisma.testSessionAnswer.create({
-      data: {
-        testSessionId: req.params.id,
+    // One answer per question per session: a change of mind overwrites.
+    const answer = await prisma.testSessionAnswer.upsert({
+      where: {
+        testSessionId_questionId: { testSessionId: sessionId, questionId },
+      },
+      create: {
+        testSessionId: sessionId,
         questionId,
         selectedOptionId,
         isCorrect: option.isCorrect,
       },
+      update: { selectedOptionId, isCorrect: option.isCorrect },
+      select: { id: true },
     });
 
-    res.status(201).json({
-      id: answer.id,
-      isCorrect: option.isCorrect,
-      explanation: option.question.explanation,
-    });
+    // No `isCorrect` in the response: the final test gives no live feedback.
+    res.status(201).json({ id: answer.id, recorded: true });
   } catch (err) {
-    console.error(err);
+    console.error("Failed to record answer:", err);
     res.status(500).json({ error: "Failed to record answer" });
   }
 });
 
-// PATCH /api/test-sessions/:id/complete
+/** PATCH /api/test-sessions/:id/complete — grades and closes the session. */
 router.patch("/:id/complete", requireAuth, async (req: AuthRequest, res) => {
+  const sessionId = parseId(req.params.id);
+  if (!sessionId) {
+    res.status(400).json({ error: "Invalid session id" });
+    return;
+  }
+
   try {
     const session = await prisma.testSession.findUnique({
-      where: { id: req.params.id },
-      include: { answers: { select: { isCorrect: true } } },
+      where: { id: sessionId },
+      select: {
+        id: true,
+        userId: true,
+        completedAt: true,
+        maxScore: true,
+        answers: { select: { isCorrect: true } },
+      },
     });
 
     if (!session) {
@@ -118,36 +157,65 @@ router.patch("/:id/complete", requireAuth, async (req: AuthRequest, res) => {
     }
 
     const totalScore = session.answers.filter((a) => a.isCorrect).length;
-    const pct = session.maxScore > 0 ? totalScore / session.maxScore : 0;
-    const passed = pct >= 0.75;
-    const grade = computeGrade(pct);
+    const ratio = session.maxScore > 0 ? totalScore / session.maxScore : 0;
 
     const completed = await prisma.testSession.update({
-      where: { id: req.params.id },
-      data: { completedAt: new Date(), totalScore, passed, grade },
+      where: { id: sessionId },
+      data: {
+        completedAt: new Date(),
+        totalScore,
+        passed: ratio >= FINAL_TEST.passRatio,
+        grade: computeGrade(ratio),
+      },
+      select: {
+        id: true,
+        totalScore: true,
+        maxScore: true,
+        passed: true,
+        grade: true,
+        completedAt: true,
+      },
     });
 
     res.json(completed);
   } catch (err) {
-    console.error(err);
+    console.error("Failed to complete test session:", err);
     res.status(500).json({ error: "Failed to complete test session" });
   }
 });
 
-// GET /api/test-sessions/:id
+/**
+ * GET /api/test-sessions/:id
+ * Full session. The per-question breakdown — including which option was
+ * correct — is only included once the session has been completed.
+ */
 router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
+  const sessionId = parseId(req.params.id);
+  if (!sessionId) {
+    res.status(400).json({ error: "Invalid session id" });
+    return;
+  }
+
   try {
     const session = await prisma.testSession.findUnique({
-      where: { id: req.params.id },
+      where: { id: sessionId },
       include: {
         country: { select: { code: true, name: true, flagEmoji: true } },
         answers: {
           orderBy: { answeredAt: "asc" },
           include: {
             question: {
-              select: { questionText: true, explanation: true, order: true },
+              select: {
+                id: true,
+                questionText: true,
+                explanation: true,
+                options: {
+                  select: { id: true, optionText: true, isCorrect: true },
+                  orderBy: { order: "asc" },
+                },
+              },
             },
-            selectedOption: { select: { optionText: true, isCorrect: true } },
+            selectedOption: { select: { id: true, optionText: true } },
           },
         },
       },
@@ -162,9 +230,40 @@ router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    res.json(session);
+    const isComplete = Boolean(session.completedAt);
+
+    res.json({
+      id: session.id,
+      country: session.country,
+      startedAt: session.startedAt,
+      completedAt: session.completedAt,
+      totalScore: session.totalScore,
+      maxScore: session.maxScore,
+      passed: session.passed,
+      grade: session.grade,
+      answeredCount: session.answers.length,
+      // Before completion this stays empty so a running test cannot be probed
+      // for the correct answers.
+      breakdown: isComplete
+        ? session.answers.map((a) => ({
+            questionId: a.question.id,
+            questionText: a.question.questionText,
+            explanation: a.question.explanation,
+            isCorrect: a.isCorrect,
+            selectedOptionId: a.selectedOption.id,
+            selectedOptionText: a.selectedOption.optionText,
+            correctOptionText:
+              a.question.options.find((o) => o.isCorrect)?.optionText ?? "",
+            options: a.question.options.map((o) => ({
+              id: o.id,
+              optionText: o.optionText,
+              isCorrect: o.isCorrect,
+            })),
+          }))
+        : [],
+    });
   } catch (err) {
-    console.error(err);
+    console.error("Failed to fetch test session:", err);
     res.status(500).json({ error: "Failed to fetch test session" });
   }
 });
