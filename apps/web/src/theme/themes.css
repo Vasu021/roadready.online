@@ -1,0 +1,215 @@
+/*
+ * Theme tokens. Every colour in the app resolves to one of these, so a theme is
+ * a block of custom properties and nothing else changes.
+ *
+ * Values are space-separated RGB channels so Tailwind can apply opacity:
+ * `bg-surface/60` becomes rgb(var(--surface) / 0.6).
+ *
+ * Traffic-sign colours are deliberately NOT themed — they are legally defined
+ * and a learner must memorise them exactly as they are.
+ */
+
+:root,
+:root[data-theme="study"] {
+  --ground: 20 22 26;
+  --surface: 29 32 37;
+  --raised: 38 42 48;
+  --ink: 232 230 227;
+  --muted: 160 164 172;
+  --faint: 112 117 126;
+  --line: 56 61 69;
+  --line-strong: 78 84 94;
+  --accent: 59 130 246;
+  --accent-ink: 255 255 255;
+  --accent-soft: 30 58 110;
+  --correct: 34 197 94;
+  --wrong: 239 68 68;
+  --warn: 234 179 8;
+  --premium: 251 191 36;
+  --sign-card: 244 244 245;
+  --shadow: 0 0 0;
+  --texture: none;
+}
+
+/* Warm desk: light oak ground with cream paper surfaces. The ground is light
+   because header and page text sit directly on it — a dark ground with dark
+   ink made everything outside a card unreadable. */
+:root[data-theme="wood"] {
+  --ground: 214 193 161;
+  --surface: 250 244 233;
+  --raised: 255 251 243;
+  --ink: 51 36 24;
+  --muted: 104 82 62;
+  --faint: 134 111 88;
+  --line: 206 186 158;
+  --line-strong: 168 142 110;
+  --accent: 166 109 42;
+  --accent-ink: 255 251 244;
+  --accent-soft: 236 215 184;
+  --correct: 46 106 48;
+  --wrong: 164 42 34;
+  --warn: 150 104 18;
+  --premium: 140 92 28;
+  --sign-card: 255 253 249;
+  --shadow: 59 40 26;
+  --texture: wood;
+}
+
+/* Classroom green chalkboard. */
+:root[data-theme="greenboard"] {
+  --ground: 32 56 46;
+  --surface: 46 74 61;
+  --raised: 56 88 73;
+  --ink: 244 241 232;
+  --muted: 196 212 200;
+  --faint: 150 174 158;
+  --line: 76 112 94;
+  --line-strong: 104 142 122;
+  --accent: 240 214 110;
+  --accent-ink: 32 56 46;
+  --accent-soft: 70 102 86;
+  --correct: 142 214 150;
+  --wrong: 240 150 140;
+  --warn: 240 214 110;
+  --premium: 240 214 110;
+  --sign-card: 246 244 236;
+  --shadow: 12 26 20;
+  --texture: chalk;
+}
+
+/* Slate blackboard. */
+:root[data-theme="blackboard"] {
+  --ground: 24 24 24;
+  --surface: 36 36 36;
+  --raised: 48 48 48;
+  --ink: 240 238 232;
+  --muted: 186 184 178;
+  --faint: 140 138 134;
+  --line: 70 70 70;
+  --line-strong: 98 98 98;
+  --accent: 245 243 237;
+  --accent-ink: 24 24 24;
+  --accent-soft: 64 64 64;
+  --correct: 150 214 158;
+  --wrong: 236 146 138;
+  --warn: 232 206 132;
+  --premium: 232 206 132;
+  --sign-card: 246 246 244;
+  --shadow: 0 0 0;
+  --texture: chalk;
+}
+
+/* Bright rooms and printing. */
+:root[data-theme="daylight"] {
+  --ground: 250 249 247;
+  --surface: 255 255 255;
+  --raised: 255 255 255;
+  --ink: 24 26 30;
+  --muted: 92 98 106;
+  --faint: 136 142 150;
+  --line: 222 224 228;
+  --line-strong: 190 194 200;
+  --accent: 37 99 235;
+  --accent-ink: 255 255 255;
+  --accent-soft: 219 234 254;
+  --correct: 22 150 62;
+  --wrong: 206 44 44;
+  --warn: 176 124 10;
+  --premium: 180 120 20;
+  --sign-card: 255 255 255;
+  --shadow: 30 35 45;
+  --texture: none;
+}
+
+/* WCAG AAA, for low vision. */
+:root[data-theme="contrast"] {
+  --ground: 0 0 0;
+  --surface: 0 0 0;
+  --raised: 20 20 20;
+  --ink: 255 255 255;
+  --muted: 235 235 235;
+  --faint: 200 200 200;
+  --line: 255 255 255;
+  --line-strong: 255 255 255;
+  --accent: 255 214 0;
+  --accent-ink: 0 0 0;
+  --accent-soft: 60 50 0;
+  --correct: 64 255 120;
+  --wrong: 255 110 100;
+  --warn: 255 214 0;
+  --premium: 255 214 0;
+  --sign-card: 255 255 255;
+  --shadow: 0 0 0;
+  --texture: none;
+}
+
+/* ── Texture layers ────────────────────────────────────────────────────────
+   Subtle and purely decorative; switched off for reduced motion and in the
+   high-contrast theme, where any pattern costs legibility. */
+
+[data-theme="wood"] body::before,
+[data-theme="greenboard"] body::before,
+[data-theme="blackboard"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.55;
+}
+
+[data-theme="wood"] body::before {
+  background-image:
+    repeating-linear-gradient(
+      93deg,
+      rgb(92 58 30 / 0.09) 0px,
+      rgb(92 58 30 / 0.09) 1px,
+      transparent 1px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      91deg,
+      rgb(62 38 18 / 0.07) 0px,
+      rgb(62 38 18 / 0.07) 2px,
+      transparent 2px,
+      transparent 19px
+    ),
+    repeating-linear-gradient(
+      88deg,
+      rgb(255 245 225 / 0.1) 0px,
+      rgb(255 245 225 / 0.1) 3px,
+      transparent 3px,
+      transparent 41px
+    );
+}
+
+[data-theme="greenboard"] body::before,
+[data-theme="blackboard"] body::before {
+  background-image:
+    radial-gradient(
+      circle at 20% 30%,
+      rgb(255 255 255 / 0.035) 0%,
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 75% 65%,
+      rgb(255 255 255 / 0.03) 0%,
+      transparent 40%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme] body::before {
+    display: none;
+  }
+}
+
+/* The chalk themes get a chalk face for headings only — charming for a few
+   words, unreadable for a paragraph. */
+[data-theme="greenboard"] h1,
+[data-theme="greenboard"] h2,
+[data-theme="blackboard"] h1,
+[data-theme="blackboard"] h2 {
+  font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive;
+  letter-spacing: 0.01em;
+}

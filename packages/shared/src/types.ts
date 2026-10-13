@@ -31,6 +31,10 @@ export interface QuizQuestion {
   /** Scenario situation text, present on scenario questions. */
   imagePrompt?: string | null;
   imageUrl?: string | null;
+  /** Scene description for questions that come with an illustration. */
+  sceneJson?: unknown;
+  /** Official weighting, 2 to 5 error points. */
+  errorPoints?: number;
   /** Human-readable topic or scenario name. */
   sourceName?: string;
 }
@@ -52,6 +56,8 @@ export interface ScenarioQuestionRow {
   order: number;
   imagePrompt: string | null;
   imageUrl: string | null;
+  /** Composable scene description, rendered to SVG by the client. */
+  sceneJson?: unknown;
   question: QuizQuestion | null;
 }
 
@@ -74,6 +80,62 @@ export interface QuizResult {
   grade: Grade;
   passed: boolean;
 }
+
+// ── Learning modules ─────────────────────────────────────────────────────────
+
+export interface ModuleSummary {
+  id: string;
+  slug: string;
+  order: number;
+  /** The official German lesson title from the FahrschAusbO. */
+  officialTitle: string;
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  isZusatzstoff: boolean;
+  lessonCount: number;
+  questionCount: number;
+  /** Present when the user is signed in. */
+  completedLessons?: number;
+  completedAt?: string | null;
+}
+
+export interface LessonRow {
+  id: string;
+  slug: string;
+  order: number;
+  title: string;
+  body: string;
+  keyPoints: string[];
+  sceneJson?: unknown;
+  signIds?: string[];
+}
+
+export interface ModuleDetail extends ModuleSummary {
+  intro: string;
+  lessons: LessonRow[];
+}
+
+// ── Locales ──────────────────────────────────────────────────────────────────
+
+/** The 13 languages the official German theory exam is offered in. */
+export const LOCALES = [
+  "en",
+  "de",
+  "tr",
+  "ar",
+  "ru",
+  "ro",
+  "pl",
+  "fr",
+  "it",
+  "es",
+  "pt",
+  "hr",
+  "el",
+] as const;
+
+export type Locale = (typeof LOCALES)[number];
 
 // ── Progress ─────────────────────────────────────────────────────────────────
 

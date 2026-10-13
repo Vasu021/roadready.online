@@ -1,26 +1,29 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useUserStore } from "../store/userStore";
+import { useT } from "../i18n";
+import type { TranslationKey } from "../i18n";
 import { PageBackdrop } from "./ui";
+import SettingsMenu from "./SettingsMenu";
+import { LogoMark } from "./brand/Logo";
 
-const NAV = [
-  { to: "/dashboard", label: "Dashboard", icon: "◆" },
-  { to: "/signs", label: "Signs", icon: "⚠" },
-  { to: "/practice", label: "Practice", icon: "✎" },
-  { to: "/scenarios", label: "Situations", icon: "⌖" },
-  { to: "/final-test", label: "Final Test", icon: "★" },
+const NAV: { to: string; labelKey: TranslationKey; icon: string }[] = [
+  { to: "/dashboard", labelKey: "nav.dashboard", icon: "◆" },
+  { to: "/learn", labelKey: "nav.learn", icon: "▤" },
+  { to: "/signs", labelKey: "nav.signs", icon: "⚠" },
+  { to: "/practice", labelKey: "nav.practice", icon: "✎" },
+  { to: "/scenarios", labelKey: "nav.scenarios", icon: "⌖" },
+  { to: "/final-test", labelKey: "nav.finalTest", icon: "★" },
 ];
 
 /** Wordmark used in the header and on the landing page. */
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-[13px] font-black text-white shadow-lg shadow-blue-600/20">
-        R
-      </span>
+      <LogoMark size={28} />
       {!compact && (
-        <span className="text-lg font-bold tracking-tight text-white">
-          Road<span className="text-blue-400">Ready</span>
+        <span className="text-lg font-bold tracking-tight text-ink">
+          Road<span className="text-accent">Ready</span>
         </span>
       )}
     </span>
@@ -44,16 +47,17 @@ export default function AppShell({
   toolbar?: ReactNode;
 }) {
   const { pathname } = useLocation();
+  const t = useT();
   const user = useUserStore((s) => s.user);
   const selectedCountry = useUserStore((s) => s.selectedCountry);
   const setSelectedCountry = useUserStore((s) => s.setSelectedCountry);
   const logout = useUserStore((s) => s.logout);
 
   return (
-    <div className="relative min-h-full bg-gray-950 text-white">
+    <div className="relative min-h-full bg-ground text-ink">
       <PageBackdrop />
 
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-gray-950/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-line bg-ground/80 backdrop-blur-xl">
         <div
           className={`mx-auto flex ${maxWidth} items-center justify-between gap-4 px-5 py-3.5 sm:px-8`}
         >
@@ -64,8 +68,8 @@ export default function AppShell({
             {selectedCountry && (
               <button
                 onClick={() => setSelectedCountry(null)}
-                title="Change country"
-                className="hidden items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:border-white/20 hover:text-white sm:flex"
+                title={t("nav.changeCountry")}
+                className="hidden items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted transition hover:border-line-strong hover:text-ink sm:flex"
               >
                 <span>{selectedCountry.flagEmoji}</span>
                 <span>{selectedCountry.name}</span>
@@ -73,17 +77,18 @@ export default function AppShell({
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user && (
-              <span className="hidden max-w-[12rem] truncate text-xs text-gray-500 lg:block">
+              <span className="hidden max-w-[10rem] truncate text-xs text-faint xl:block">
                 {user.email}
               </span>
             )}
+            <SettingsMenu />
             <button
               onClick={logout}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-300 transition hover:border-white/20 hover:bg-white/5 hover:text-white"
+              className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-muted transition hover:border-line-strong hover:bg-surface hover:text-ink"
             >
-              Sign out
+              {t("nav.signOut")}
             </button>
           </div>
         </div>
@@ -100,14 +105,14 @@ export default function AppShell({
                       to={item.to}
                       className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition ${
                         active
-                          ? "border-blue-500 text-white"
-                          : "border-transparent text-gray-400 hover:border-white/20 hover:text-gray-200"
+                          ? "border-accent text-ink"
+                          : "border-transparent text-muted hover:border-line-strong hover:text-muted"
                       }`}
                     >
                       <span className="text-[11px] opacity-70">
                         {item.icon}
                       </span>
-                      {item.label}
+                      {t(item.labelKey)}
                     </Link>
                   </li>
                 );
@@ -118,7 +123,7 @@ export default function AppShell({
 
         {toolbar && (
           <div
-            className={`mx-auto ${maxWidth} border-t border-white/10 px-5 py-3 sm:px-8`}
+            className={`mx-auto ${maxWidth} border-t border-line px-5 py-3 sm:px-8`}
           >
             {toolbar}
           </div>
@@ -131,9 +136,8 @@ export default function AppShell({
         {children}
       </main>
 
-      <footer className="relative border-t border-white/10 px-5 py-6 text-center text-xs text-gray-600 sm:px-8">
-        RoadReady — theory practice for German roads. Content follows the StVO;
-        it is study material, not legal advice.
+      <footer className="relative border-t border-line px-5 py-6 text-center text-xs text-faint sm:px-8">
+        {t("app.name")} — {t("app.disclaimer")}
       </footer>
     </div>
   );

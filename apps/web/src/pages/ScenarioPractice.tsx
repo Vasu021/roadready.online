@@ -3,12 +3,16 @@ import { Link, Navigate } from "react-router-dom";
 import type { QuestionAnswerKey, ScenarioQuestionRow } from "@roadready/shared";
 import { api } from "../utils/api";
 import { useUserStore } from "../store/userStore";
+import { useT } from "../i18n";
 import AppShell from "../components/AppShell";
 import QuestionCard from "../components/QuestionCard";
 import ScenarioIllustration from "../components/ScenarioIllustration";
+import SceneRenderer, { asScene } from "../components/scene/SceneRenderer";
+import SpeakButton from "../components/SpeakButton";
 import { Badge, Card, EmptyState, ErrorNote, Spinner } from "../components/ui";
 
 export default function ScenarioPractice() {
+  const t = useT();
   const selectedCountry = useUserStore((s) => s.selectedCountry);
   const code = selectedCountry?.code ?? null;
 
@@ -113,13 +117,14 @@ export default function ScenarioPractice() {
   return (
     <AppShell maxWidth="max-w-6xl">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-white">
-          Scenario Practice
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-          Real situations rather than isolated signs: a junction, a crossing, a
-          jam on the Autobahn. Read the scene, decide what you would do, then
-          check it against the rule.
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            {t("scenarios.heading")}
+          </h1>
+          <SpeakButton text={[t("scenarios.heading"), t("scenarios.intro")]} />
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          {t("scenarios.intro")}
         </p>
       </header>
 
@@ -137,22 +142,23 @@ export default function ScenarioPractice() {
       ) : scenarios.length === 0 ? (
         <EmptyState
           icon="🎬"
-          title={`No situations for ${selectedCountry.name} yet`}
-          body="Illustrated driving situations are available for Germany today; more countries are being written."
+          title={t("scenarios.none", { country: selectedCountry.name })}
+          body={t("dashboard.comingSoonBody")}
           action={
             <Link
               to="/dashboard"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent/85"
             >
-              Back to dashboard
+              {t("action.backToDashboard")}
             </Link>
           }
         />
       ) : (
         <>
-          <p className="mb-4 text-xs text-gray-500">
-            {scenarios.length} situations
-            {solvedCount > 0 && ` · ${solvedCount} answered correctly`}
+          <p className="mb-4 text-xs text-faint">
+            {t("scenarios.count", { count: scenarios.length })}
+            {solvedCount > 0 &&
+              ` · ${t("scenarios.answered", { count: solvedCount })}`}
           </p>
 
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -160,26 +166,34 @@ export default function ScenarioPractice() {
               <li key={scenario.id}>
                 <button
                   onClick={() => openScenario(i)}
-                  className="group h-full w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                  className="group h-full w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70 focus-visible:ring-offset-2 focus-visible:ring-offset-ground"
                 >
-                  <Card className="flex h-full flex-col overflow-hidden transition duration-200 group-hover:-translate-y-0.5 group-hover:border-white/25 group-hover:shadow-xl group-hover:shadow-black/30">
-                    <ScenarioIllustration
-                      imagePrompt={scenario.imagePrompt}
-                      imageUrl={scenario.imageUrl}
-                      compact
-                    />
+                  <Card className="flex h-full flex-col overflow-hidden transition duration-200 group-hover:-translate-y-0.5 group-hover:border-line-strong group-hover:shadow-xl group-hover:shadow-black/30">
+                    {asScene(scenario.sceneJson) ? (
+                      <SceneRenderer
+                        scene={asScene(scenario.sceneJson)!}
+                        width={400}
+                        className="w-full"
+                      />
+                    ) : (
+                      <ScenarioIllustration
+                        imagePrompt={scenario.imagePrompt}
+                        imageUrl={scenario.imageUrl}
+                        compact
+                      />
+                    )}
                     <div className="flex flex-1 flex-col px-5 py-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h2 className="text-sm font-semibold text-white">
+                        <h2 className="text-sm font-semibold text-ink">
                           {scenario.name}
                         </h2>
                         {solved[scenario.id] && <Badge tone="success">✓</Badge>}
                       </div>
-                      <p className="mt-1 text-xs leading-relaxed text-gray-400">
+                      <p className="mt-1 text-xs leading-relaxed text-muted">
                         {scenario.description}
                       </p>
-                      <p className="mt-3 text-xs font-medium text-blue-400">
-                        Open situation →
+                      <p className="mt-3 text-xs font-medium text-accent">
+                        {t("action.open")} →
                       </p>
                     </div>
                   </Card>
@@ -193,25 +207,28 @@ export default function ScenarioPractice() {
       {/* Situation modal */}
       {open && open.question && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center sm:p-6"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center sm:p-6"
           onClick={close}
           role="dialog"
           aria-modal="true"
           aria-label={open.name}
         >
           <div
-            className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-white/10 bg-gray-950 shadow-2xl sm:rounded-2xl"
+            className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-line bg-ground shadow-2xl sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-3.5">
-              <p className="text-xs uppercase tracking-widest text-gray-500">
-                Situation {(openIndex ?? 0) + 1} of {scenarios?.length ?? 0}
+            <div className="flex items-center justify-between gap-4 border-b border-line px-6 py-3.5">
+              <p className="text-xs uppercase tracking-widest text-faint">
+                {t("scenarios.situation", {
+                  current: (openIndex ?? 0) + 1,
+                  total: scenarios?.length ?? 0,
+                })}
               </p>
               <button
                 ref={closeRef}
                 onClick={close}
                 aria-label="Close"
-                className="rounded-lg border border-white/10 px-2.5 py-1 text-sm text-gray-400 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70"
+                className="rounded-lg border border-line px-2.5 py-1 text-sm text-muted transition hover:bg-raised hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
               >
                 ✕
               </button>
@@ -227,11 +244,24 @@ export default function ScenarioPractice() {
                 explanation={answerKey?.explanation}
                 illustration={
                   <div className="mb-5">
-                    <ScenarioIllustration
-                      imagePrompt={open.imagePrompt}
-                      imageUrl={open.imageUrl}
-                      name={open.name}
-                    />
+                    {asScene(open.sceneJson) ? (
+                      <figure>
+                        <SceneRenderer
+                          scene={asScene(open.sceneJson)!}
+                          width={460}
+                          className="mx-auto block"
+                        />
+                        <figcaption className="mt-2 text-xs leading-relaxed text-faint">
+                          {open.imagePrompt}
+                        </figcaption>
+                      </figure>
+                    ) : (
+                      <ScenarioIllustration
+                        imagePrompt={open.imagePrompt}
+                        imageUrl={open.imageUrl}
+                        name={open.name}
+                      />
+                    )}
                   </div>
                 }
               />
@@ -242,29 +272,29 @@ export default function ScenarioPractice() {
                 </div>
               )}
 
-              <div className="mt-6 flex items-center justify-end gap-3 border-t border-white/10 pt-5">
+              <div className="mt-6 flex items-center justify-end gap-3 border-t border-line pt-5">
                 {revealed ? (
                   <>
                     <button
                       onClick={close}
-                      className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                      className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface"
                     >
-                      Close
+                      {t("action.close")}
                     </button>
                     <button
                       onClick={goToNext}
-                      className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+                      className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-accent/85"
                     >
-                      Next situation →
+                      {t("scenarios.nextSituation")} →
                     </button>
                   </>
                 ) : (
                   <button
                     onClick={confirm}
                     disabled={!selected}
-                    className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-accent/85 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Confirm
+                    {t("action.confirm")}
                   </button>
                 )}
               </div>

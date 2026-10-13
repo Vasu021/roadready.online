@@ -1,11 +1,13 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
+import { parseBoundedInt, parseId, parseSlug } from "../lib/validation";
 
 const router = Router();
 
 // GET /api/progress/:userId
 router.get("/:userId", requireAuth, async (req: AuthRequest, res) => {
+  // A user may only read their own attempts, whatever id the URL carries.
   if (req.userId !== req.params.userId) {
     res.status(403).json({ error: "Forbidden" });
     return;
@@ -27,32 +29,50 @@ router.get("/:userId", requireAuth, async (req: AuthRequest, res) => {
 // Creates a ScenarioAttempt and upserts UserProgress + UserScenarioProgress in a transaction.
 // Accepts scenarioId as a scenario slug or DB id.
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { scenarioId, passed, score, timeSeconds, mode } = req.body as {
-    scenarioId: string;
-    passed: boolean;
-    score?: number;
-    timeSeconds?: number;
-    mode?: "PRACTICE" | "TEST";
+  const body = req.body as {
+    scenarioId?: unknown;
+    passed?: unknown;
+    score?: unknown;
+    timeSeconds?: unknown;
+    mode?: unknown;
   };
 
-  if (!scenarioId || passed === undefined) {
-    res.status(400).json({ error: "scenarioId and passed are required" });
+  // Accepts either a DB id or a slug, but it must look like one of the two —
+  // an unchecked string used to end up written straight into UserProgress.
+  const scenarioRef = parseId(body.scenarioId) ?? parseSlug(body.scenarioId);
+  const newScore = parseBoundedInt(body.score ?? 0, 0, 1000);
+  const newTime = parseBoundedInt(body.timeSeconds ?? 0, 0, 86_400);
+  const attemptMode = body.mode === undefined ? "PRACTICE" : body.mode;
+
+  if (
+    !scenarioRef ||
+    typeof body.passed !== "boolean" ||
+    newScore === null ||
+    newTime === null ||
+    (attemptMode !== "PRACTICE" && attemptMode !== "TEST")
+  ) {
+    res.status(400).json({ error: "Invalid progress payload" });
     return;
   }
 
   const userId = req.userId!;
-  const newScore = score ?? 0;
-  const newTime = timeSeconds ?? 0;
-  const attemptMode = mode ?? "PRACTICE";
+  const passed = body.passed;
   const now = new Date();
 
   try {
+    // The scenario must exist: progress against an arbitrary id is not progress.
+    const known = await prisma.scenario.findFirst({
+      where: { OR: [{ id: scenarioRef }, { slug: scenarioRef }] },
+      select: { id: true },
+    });
+
+    if (!known) {
+      res.status(404).json({ error: "Scenario not found" });
+      return;
+    }
+
     const attempt = await prisma.$transaction(async (tx) => {
-      // Resolve scenarioId: accept either a DB id or a slug
-      const scenario = await tx.scenario.findFirst({
-        where: { OR: [{ id: scenarioId }, { slug: scenarioId }] },
-      });
-      const resolvedId = scenario?.id ?? scenarioId;
+      const resolvedId = known.id;
 
       const attempt = await tx.scenarioAttempt.create({
         data: {
@@ -100,10 +120,10 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
         });
       }
 
-      // UserScenarioProgress upsert (only when scenario exists in DB)
-      if (scenario) {
+      // UserScenarioProgress — the model new code should read.
+      {
         const existingProgress = await tx.userScenarioProgress.findUnique({
-          where: { userId_scenarioId: { userId, scenarioId: scenario.id } },
+          where: { userId_scenarioId: { userId, scenarioId: resolvedId } },
         });
 
         const newStatus = passed ? "COMPLETED" : "IN_PROGRESS";
@@ -112,10 +132,10 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
           newStatus === "IN_PROGRESS";
 
         await tx.userScenarioProgress.upsert({
-          where: { userId_scenarioId: { userId, scenarioId: scenario.id } },
+          where: { userId_scenarioId: { userId, scenarioId: resolvedId } },
           create: {
             userId,
-            scenarioId: scenario.id,
+            scenarioId: resolvedId,
             status: newStatus,
             lastAttemptAt: now,
             bestScore: newScore,

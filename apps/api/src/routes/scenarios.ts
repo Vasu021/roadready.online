@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
 import type { AuthRequest } from "../middleware/auth";
 import { parseCountryCode, parseId, shuffle } from "../lib/validation";
+import { loadTranslations, parseLocale } from "../lib/i18n";
 
 const router = Router();
 
@@ -78,6 +79,7 @@ router.get(
  */
 router.get("/:countryCode", async (req, res) => {
   const countryCode = parseCountryCode(req.params.countryCode);
+  const locale = parseLocale(req.query.locale);
   if (!countryCode) {
     res.status(400).json({ error: "Invalid country code" });
     return;
@@ -99,6 +101,7 @@ router.get("/:countryCode", async (req, res) => {
         order: true,
         imagePrompt: true,
         imageUrl: true,
+        sceneJson: true,
         questions: {
           orderBy: { order: "asc" },
           take: 1,
@@ -106,33 +109,62 @@ router.get("/:countryCode", async (req, res) => {
             id: true,
             questionText: true,
             order: true,
+            errorPoints: true,
             options: { select: { id: true, optionText: true, order: true } },
           },
         },
       },
     });
 
+    const ts = await loadTranslations(
+      "scenario",
+      scenarios.map((row) => row.id),
+      locale,
+    );
+    const tq = await loadTranslations(
+      "question",
+      scenarios.flatMap((row) => row.questions.map((q) => q.id)),
+      locale,
+    );
+    const to = await loadTranslations(
+      "option",
+      scenarios.flatMap((row) =>
+        row.questions.flatMap((q) => q.options.map((o) => o.id)),
+      ),
+      locale,
+    );
+
     res.json(
       scenarios.map((s) => {
         const q = s.questions[0];
+        const name = ts(s.id, "name", s.name);
+
         return {
           id: s.id,
           slug: s.slug,
-          name: s.name,
-          description: s.description,
+          name,
+          description: ts(s.id, "description", s.description),
           order: s.order,
-          imagePrompt: s.imagePrompt,
+          imagePrompt: ts(s.id, "imagePrompt", s.imagePrompt ?? ""),
           imageUrl: s.imageUrl,
+          sceneJson: s.sceneJson ?? undefined,
           question: q
             ? {
                 id: q.id,
-                questionText: q.questionText,
+                questionText: tq(q.id, "questionText", q.questionText),
                 order: q.order,
+                errorPoints: q.errorPoints,
                 source: "scenario" as const,
-                sourceName: s.name,
-                imagePrompt: s.imagePrompt,
+                sourceName: name,
+                imagePrompt: ts(s.id, "imagePrompt", s.imagePrompt ?? ""),
                 imageUrl: s.imageUrl,
-                options: shuffle(q.options),
+                sceneJson: s.sceneJson ?? undefined,
+                options: shuffle(
+                  q.options.map((o) => ({
+                    ...o,
+                    optionText: to(o.id, "optionText", o.optionText),
+                  })),
+                ),
               }
             : null,
         };
@@ -151,6 +183,7 @@ router.get("/:countryCode", async (req, res) => {
 router.get("/:countryCode/:id/answer", requireAuth, async (req, res) => {
   const countryCode = parseCountryCode(req.params.countryCode);
   const id = parseId(req.params.id);
+  const locale = parseLocale(req.query.locale);
 
   if (!countryCode || !id) {
     res.status(400).json({ error: "Invalid country code or scenario id" });
@@ -179,10 +212,12 @@ router.get("/:countryCode/:id/answer", requireAuth, async (req, res) => {
       return;
     }
 
+    const te = await loadTranslations("question", [question.id], locale);
+
     res.json({
       questionId: question.id,
       correctOptionId: question.options.find((o) => o.isCorrect)?.id ?? "",
-      explanation: question.explanation,
+      explanation: te(question.id, "explanation", question.explanation),
     });
   } catch (err) {
     console.error("Failed to fetch scenario answer:", err);

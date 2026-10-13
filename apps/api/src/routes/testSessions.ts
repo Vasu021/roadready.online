@@ -2,7 +2,7 @@ import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
 import { parseCountryCode, parseId, parseBoundedInt } from "../lib/validation";
-import { FINAL_TEST, computeGrade } from "../config/finalTest";
+import { FINAL_TEST, gradeSession } from "../config/finalTest";
 
 const router = Router();
 
@@ -139,7 +139,12 @@ router.patch("/:id/complete", requireAuth, async (req: AuthRequest, res) => {
         userId: true,
         completedAt: true,
         maxScore: true,
-        answers: { select: { isCorrect: true } },
+        answers: {
+          select: {
+            isCorrect: true,
+            question: { select: { errorPoints: true } },
+          },
+        },
       },
     });
 
@@ -157,20 +162,33 @@ router.patch("/:id/complete", requireAuth, async (req: AuthRequest, res) => {
     }
 
     const totalScore = session.answers.filter((a) => a.isCorrect).length;
-    const ratio = session.maxScore > 0 ? totalScore / session.maxScore : 0;
+
+    // Unanswered questions count as wrong. We cannot know their individual
+    // weights once the session is over, so they are charged the average of 3.
+    const unanswered = Math.max(0, session.maxScore - session.answers.length);
+    const result = gradeSession(
+      session.answers
+        .filter((a) => !a.isCorrect)
+        .map((a) => ({ errorPoints: a.question.errorPoints })),
+      Array.from({ length: unanswered }, () => 3),
+    );
 
     const completed = await prisma.testSession.update({
       where: { id: sessionId },
       data: {
         completedAt: new Date(),
         totalScore,
-        passed: ratio >= FINAL_TEST.passRatio,
-        grade: computeGrade(ratio),
+        errorPoints: result.errorPoints,
+        failedByFivePointRule: result.failedByFivePointRule,
+        passed: result.passed,
+        grade: result.grade,
       },
       select: {
         id: true,
         totalScore: true,
         maxScore: true,
+        errorPoints: true,
+        failedByFivePointRule: true,
         passed: true,
         grade: true,
         completedAt: true,
@@ -209,6 +227,7 @@ router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
                 id: true,
                 questionText: true,
                 explanation: true,
+                errorPoints: true,
                 options: {
                   select: { id: true, optionText: true, isCorrect: true },
                   orderBy: { order: "asc" },
@@ -239,6 +258,9 @@ router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
       completedAt: session.completedAt,
       totalScore: session.totalScore,
       maxScore: session.maxScore,
+      errorPoints: session.errorPoints,
+      failedByFivePointRule: session.failedByFivePointRule,
+      maxErrorPoints: FINAL_TEST.maxErrorPoints,
       passed: session.passed,
       grade: session.grade,
       answeredCount: session.answers.length,
@@ -249,6 +271,7 @@ router.get("/:id", requireAuth, async (req: AuthRequest, res) => {
             questionId: a.question.id,
             questionText: a.question.questionText,
             explanation: a.question.explanation,
+            errorPoints: a.question.errorPoints,
             isCorrect: a.isCorrect,
             selectedOptionId: a.selectedOption.id,
             selectedOptionText: a.selectedOption.optionText,

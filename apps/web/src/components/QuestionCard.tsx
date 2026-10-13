@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { QuizQuestion } from "@roadready/shared";
+import { useT } from "../i18n";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -27,6 +28,7 @@ export default function QuestionCard({
   illustration,
   hideFeedback = false,
 }: QuestionCardProps) {
+  const t = useT();
   const feedback = revealed && !hideFeedback;
   const answeredCorrectly =
     feedback &&
@@ -35,23 +37,23 @@ export default function QuestionCard({
 
   function optionClasses(optionId: string): string {
     const base =
-      "group flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/70";
+      "group flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/70";
 
     if (feedback) {
       if (optionId === correctOptionId) {
-        return `${base} border-green-500/60 bg-green-500/10`;
+        return `${base} border-correct/60 bg-correct/10`;
       }
       if (optionId === selectedOptionId) {
-        return `${base} border-red-500/60 bg-red-500/10`;
+        return `${base} border-wrong/60 bg-wrong/10`;
       }
-      return `${base} border-white/5 bg-white/[0.02] opacity-55`;
+      return `${base} border-line/60 bg-surface/40 opacity-55`;
     }
 
     if (optionId === selectedOptionId) {
-      return `${base} border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-600/10`;
+      return `${base} border-accent bg-accent/10 shadow-lg shadow-accent/10`;
     }
 
-    return `${base} border-white/10 bg-white/5 hover:border-white/25 hover:bg-white/[0.08]`;
+    return `${base} border-line bg-surface hover:border-line-strong hover:bg-raised`;
   }
 
   function letterClasses(optionId: string): string {
@@ -59,20 +61,19 @@ export default function QuestionCard({
       "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold";
 
     if (feedback) {
-      if (optionId === correctOptionId)
-        return `${base} bg-green-500 text-white`;
-      if (optionId === selectedOptionId) return `${base} bg-red-500 text-white`;
-      return `${base} bg-white/10 text-gray-500`;
+      if (optionId === correctOptionId) return `${base} bg-correct text-ink`;
+      if (optionId === selectedOptionId) return `${base} bg-wrong text-ink`;
+      return `${base} bg-raised text-faint`;
     }
-    if (optionId === selectedOptionId) return `${base} bg-blue-500 text-white`;
-    return `${base} bg-white/10 text-gray-400 group-hover:bg-white/20 group-hover:text-gray-200`;
+    if (optionId === selectedOptionId) return `${base} bg-accent text-ink`;
+    return `${base} bg-raised text-muted group-hover:bg-line-strong group-hover:text-muted`;
   }
 
   return (
     <div>
       {illustration}
 
-      <h2 className="mt-1 text-lg font-semibold leading-snug text-white sm:text-xl">
+      <h2 className="mt-1 text-lg font-semibold leading-snug text-ink sm:text-xl">
         {question.questionText}
       </h2>
 
@@ -87,16 +88,16 @@ export default function QuestionCard({
             className={optionClasses(option.id)}
           >
             <span className={letterClasses(option.id)}>{LETTERS[i]}</span>
-            <span className="text-sm leading-relaxed text-gray-100">
+            <span className="text-sm leading-relaxed text-ink">
               {option.optionText}
             </span>
             {feedback && option.id === correctOptionId && (
-              <span className="ml-auto mt-0.5 shrink-0 text-green-400">✓</span>
+              <span className="ml-auto mt-0.5 shrink-0 text-correct">✓</span>
             )}
             {feedback &&
               option.id === selectedOptionId &&
               option.id !== correctOptionId && (
-                <span className="ml-auto mt-0.5 shrink-0 text-red-400">✕</span>
+                <span className="ml-auto mt-0.5 shrink-0 text-wrong">✕</span>
               )}
           </button>
         ))}
@@ -106,18 +107,18 @@ export default function QuestionCard({
         <div
           className={`mt-5 rounded-xl border px-5 py-4 ${
             answeredCorrectly
-              ? "border-green-500/30 bg-green-500/10"
-              : "border-red-500/30 bg-red-500/10"
+              ? "border-correct/30 bg-correct/10"
+              : "border-wrong/30 bg-wrong/10"
           }`}
         >
           <p
             className={`mb-1.5 text-sm font-semibold ${
-              answeredCorrectly ? "text-green-300" : "text-red-300"
+              answeredCorrectly ? "text-correct" : "text-wrong"
             }`}
           >
-            {answeredCorrectly ? "Correct" : "Not quite"}
+            {answeredCorrectly ? t("status.correct") : t("status.incorrect")}
           </p>
-          <p className="text-sm leading-relaxed text-gray-300">{explanation}</p>
+          <p className="text-sm leading-relaxed text-muted">{explanation}</p>
         </div>
       )}
     </div>

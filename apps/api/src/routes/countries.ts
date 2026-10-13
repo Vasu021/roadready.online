@@ -1,9 +1,18 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
+import { requireAuth } from "../middleware/auth";
+import { parseCountryCode } from "../lib/validation";
 
 const router = Router();
 
-// GET /api/countries
+/**
+ * This is the one router mounted without authentication, because the
+ * signed-out landing page needs the country list and its facts panel. Any
+ * route added here is public — anything that serves course content belongs in
+ * one of the protected routers instead.
+ */
+
+// GET /api/countries — public
 router.get("/", async (_req, res) => {
   try {
     const countries = await prisma.country.findMany({
@@ -42,11 +51,17 @@ router.get("/", async (_req, res) => {
   }
 });
 
-// GET /api/countries/:code/facts
+// GET /api/countries/:code/facts — public
 router.get("/:code/facts", async (req, res) => {
+  const code = parseCountryCode(req.params.code);
+  if (!code) {
+    res.status(400).json({ error: "Invalid country code" });
+    return;
+  }
+
   try {
     const country = await prisma.country.findUnique({
-      where: { code: req.params.code.toUpperCase() },
+      where: { code },
       select: { facts: true },
     });
 
@@ -62,11 +77,17 @@ router.get("/:code/facts", async (req, res) => {
   }
 });
 
-// GET /api/countries/:code/scenarios
-router.get("/:code/scenarios", async (req, res) => {
+// GET /api/countries/:code/scenarios — protected: this lists course content
+router.get("/:code/scenarios", requireAuth, async (req, res) => {
+  const code = parseCountryCode(req.params.code);
+  if (!code) {
+    res.status(400).json({ error: "Invalid country code" });
+    return;
+  }
+
   try {
     const country = await prisma.country.findUnique({
-      where: { code: req.params.code.toUpperCase() },
+      where: { code },
       include: {
         categories: {
           orderBy: { order: "asc" },

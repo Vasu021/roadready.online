@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import SignCard from "../components/SignCard";
+import SpeakButton from "../components/SpeakButton";
 import SignDetailModal from "../components/SignDetailModal";
 import { EmptyState } from "../components/ui";
 import {
@@ -12,10 +13,12 @@ import {
 } from "../components/signs";
 import type { SignCategory } from "../components/signs";
 import { useUserStore } from "../store/userStore";
+import { useT } from "../i18n";
 
 type Filter = SignCategory | "all";
 
 export default function SignsLibrary() {
+  const t = useT();
   const selectedCountry = useUserStore((s) => s.selectedCountry);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
@@ -57,14 +60,14 @@ export default function SignsLibrary() {
       <AppShell maxWidth="max-w-3xl">
         <EmptyState
           icon="🪧"
-          title={`No sign catalogue for ${selectedCountry.name} yet`}
-          body="The full German catalogue is available today. Other countries are being drawn and written — switch country from the header to browse it."
+          title={t("signs.noResults")}
+          body={t("dashboard.comingSoonBody")}
           action={
             <Link
               to="/dashboard"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent/85"
             >
-              Back to dashboard
+              {t("action.backToDashboard")}
             </Link>
           }
         />
@@ -80,10 +83,10 @@ export default function SignsLibrary() {
   const toolbar = (
     <div>
       <label className="relative block">
-        <span className="sr-only">Search signs</span>
+        <span className="sr-only">{t("signs.search")}</span>
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-500"
+          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-faint"
         >
           ⌕
         </span>
@@ -91,8 +94,8 @@ export default function SignsLibrary() {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search name, meaning or Zeichen number…"
-          className="w-full rounded-lg border border-white/10 bg-white/5 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/40"
+          placeholder={t("signs.search")}
+          className="w-full rounded-lg border border-line bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/40"
         />
       </label>
 
@@ -106,12 +109,12 @@ export default function SignsLibrary() {
               aria-pressed={active}
               className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 active
-                  ? "bg-blue-600 text-white"
-                  : "border border-white/10 bg-white/5 text-gray-300 hover:border-white/25 hover:text-white"
+                  ? "bg-accent text-ink"
+                  : "border border-line bg-surface text-muted hover:border-line-strong hover:text-ink"
               }`}
             >
-              {tab === "all" ? "All" : CATEGORY_LABELS[tab]}
-              <span className={active ? "text-blue-100/80" : "text-gray-500"}>
+              {tab === "all" ? t("signs.all") : CATEGORY_LABELS[tab]}
+              <span className={active ? "text-accent-ink/80" : "text-faint"}>
                 {counts.get(tab) ?? 0}
               </span>
             </button>
@@ -124,18 +127,19 @@ export default function SignsLibrary() {
   return (
     <AppShell maxWidth="max-w-6xl" toolbar={toolbar}>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          {selectedCountry.flagEmoji} German Traffic Signs
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-400">
-          Every sign, light signal, road marking and supplementary plate you
-          need for the theory test — including the combinations you actually
-          meet on a German road. Tap any card for the full meaning.
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+            {selectedCountry.flagEmoji} {t("signs.heading")}
+          </h1>
+          <SpeakButton text={[t("signs.heading"), t("signs.intro")]} />
+        </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
+          {t("signs.intro")}
         </p>
       </header>
 
       {filter !== "all" && (
-        <p className="mb-5 max-w-2xl border-l-2 border-blue-500/40 pl-4 text-sm leading-relaxed text-gray-400">
+        <p className="mb-5 max-w-2xl border-l-2 border-accent/40 pl-4 text-sm leading-relaxed text-muted">
           {CATEGORY_DESCRIPTIONS[filter]}
         </p>
       )}
@@ -143,27 +147,26 @@ export default function SignsLibrary() {
       {visible.length === 0 ? (
         <EmptyState
           icon="🔍"
-          title="No signs match that search"
-          body="Try a different word, or clear the filters to browse the whole catalogue."
+          title={t("signs.noResults")}
+          body={t("signs.noResultsBody")}
           action={
             <button
               onClick={() => {
                 setQuery("");
                 setFilter("all");
               }}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent/85"
             >
-              Clear filters
+              {t("action.clearFilters")}
             </button>
           }
         />
       ) : (
         <>
-          <p className="mb-3 text-xs text-gray-500">
-            {visible.length} {visible.length === 1 ? "sign" : "signs"}
-            {filter === "all" && query === "" && " in the full catalogue"}
+          <p className="mb-3 text-xs text-faint">
+            {t("signs.count", { count: visible.length })}
           </p>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <ul className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {visible.map((sign, i) => (
               <li key={sign.id}>
                 <SignCard sign={sign} onClick={() => setOpenIndex(i)} />

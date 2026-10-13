@@ -5,9 +5,12 @@ import { api } from "../utils/api";
 import type { TestSessionDetail } from "../utils/api";
 import { useGameStore } from "../store/gameStore";
 import { useUserStore } from "../store/userStore";
+import { useT } from "../i18n";
 import AppShell from "../components/AppShell";
 import QuestionCard from "../components/QuestionCard";
+import SpeakButton from "../components/SpeakButton";
 import ScenarioIllustration from "../components/ScenarioIllustration";
+import SceneRenderer, { asScene } from "../components/scene/SceneRenderer";
 import {
   Badge,
   Card,
@@ -33,13 +36,8 @@ function formatClock(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-const SOURCE_LABEL: Record<string, string> = {
-  topic: "Traffic rules",
-  sign: "Sign recognition",
-  scenario: "Driving situation",
-};
-
 export default function FinalTest() {
+  const t = useT();
   const selectedCountry = useUserStore((s) => s.selectedCountry);
   const code = selectedCountry?.code ?? null;
 
@@ -54,13 +52,11 @@ export default function FinalTest() {
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [result, setResult] = useState<TestSessionDetail | null>(null);
-
-  /** questionId → selected optionId, kept locally so answers can be revised. */
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [meta, setMeta] = useState({
     total: 30,
     timeLimitSeconds: 45 * 60,
-    passPercent: 75,
+    maxErrorPoints: 10,
   });
   const [secondsLeft, setSecondsLeft] = useState(0);
 
@@ -68,26 +64,26 @@ export default function FinalTest() {
 
   useEffect(() => () => resetQuiz(), [resetQuiz]);
 
-  const submit = useCallback(async (id: string) => {
-    if (submittingRef.current) return;
-    submittingRef.current = true;
-    setPhase("submitting");
-    try {
-      await api.testSessions.complete(id);
-      const detail = await api.testSessions.get(id);
-      setResult(detail);
-      setPhase("results");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not submit the test.",
-      );
-      setPhase("running");
-    } finally {
-      submittingRef.current = false;
-    }
-  }, []);
+  const submit = useCallback(
+    async (id: string) => {
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      setPhase("submitting");
+      try {
+        await api.testSessions.complete(id);
+        setResult(await api.testSessions.get(id));
+        setPhase("results");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : t("error.generic"));
+        setPhase("running");
+      } finally {
+        submittingRef.current = false;
+      }
+    },
+    [t],
+  );
 
-  // Countdown. Running out of time submits whatever has been answered.
+  // Countdown; running out submits whatever has been answered.
   useEffect(() => {
     if (phase !== "running" || !sessionId) return;
 
@@ -115,7 +111,7 @@ export default function FinalTest() {
     try {
       const test = await api.finalTest.questions(code);
       if (test.questions.length === 0) {
-        setError("There are no questions available for this country yet.");
+        setError(t("error.loadFailed"));
         setPhase("intro");
         return;
       }
@@ -125,19 +121,17 @@ export default function FinalTest() {
       setMeta({
         total: test.questions.length,
         timeLimitSeconds: test.timeLimitSeconds,
-        passPercent: test.passPercent,
+        maxErrorPoints: test.maxErrorPoints,
       });
       setSecondsLeft(test.timeLimitSeconds);
       setSessionId(session.id);
       startQuiz("final", test.questions, {
         slug: "final-test",
-        name: `Final Theory Test — ${test.country.name}`,
+        name: `${t("test.heading")} — ${test.country.name}`,
       });
       setPhase("running");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Could not start the test.",
-      );
+      setError(err instanceof Error ? err.message : t("error.generic"));
       setPhase("intro");
     }
   }
@@ -148,8 +142,7 @@ export default function FinalTest() {
     try {
       await api.testSessions.answer(sessionId, question.id, optionId);
     } catch {
-      // The answer stays selected locally; a later retry or the final submit
-      // will surface any real problem.
+      // The selection stays locally; the final submit surfaces real problems.
     }
   }
 
@@ -162,49 +155,57 @@ export default function FinalTest() {
 
   // ── Intro ─────────────────────────────────────────────────────────────────
   if (phase === "intro" || phase === "loading") {
+    const rules = [
+      t("test.rule1"),
+      t("test.rule2"),
+      t("test.rule3"),
+      t("test.rule4"),
+      t("test.rule5"),
+      t("test.rule6"),
+    ];
+
     return (
       <AppShell maxWidth="max-w-3xl">
         <Card className="overflow-hidden">
-          <div className="border-b border-white/10 bg-gradient-to-r from-amber-400/10 to-transparent px-7 py-8">
-            <span className="text-4xl">🎓</span>
-            <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Final Theory Test
-            </h1>
-            <p className="mt-2 text-sm text-gray-400">
-              {selectedCountry.flagEmoji} {selectedCountry.name} · mixed
-              questions from every topic
-            </p>
+          <div className="border-b border-line bg-gradient-to-r from-premium/10 to-transparent px-7 py-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <span className="text-4xl">🎓</span>
+                <h1 className="mt-3 text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+                  {t("test.heading")}
+                </h1>
+                <p className="mt-2 text-sm text-muted">
+                  {selectedCountry.flagEmoji} {selectedCountry.name} ·{" "}
+                  {t("test.subheading")}
+                </p>
+              </div>
+              <SpeakButton text={[t("test.heading"), ...rules]} />
+            </div>
           </div>
 
           <div className="px-7 py-7">
             <dl className="grid grid-cols-3 gap-4 text-center">
               {[
-                { k: "Questions", v: "30" },
-                { k: "Time limit", v: "45 min" },
-                { k: "To pass", v: "75%" },
+                { k: t("test.questions"), v: "30" },
+                { k: t("test.timeLimit"), v: "45 min" },
+                { k: t("test.toPass"), v: "≤ 10" },
               ].map((item) => (
                 <div
                   key={item.k}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-4"
+                  className="rounded-xl border border-line bg-surface px-3 py-4"
                 >
-                  <dd className="text-xl font-bold text-white">{item.v}</dd>
-                  <dt className="mt-0.5 text-xs uppercase tracking-wider text-gray-500">
+                  <dd className="text-xl font-bold text-ink">{item.v}</dd>
+                  <dt className="mt-0.5 text-xs uppercase tracking-wider text-faint">
                     {item.k}
                   </dt>
                 </div>
               ))}
             </dl>
 
-            <ul className="mt-6 space-y-2.5 text-sm text-gray-300">
-              {[
-                "Sign recognition, traffic rules and driving situations, mixed and shuffled.",
-                "No feedback during the test — you see the full breakdown at the end.",
-                "You can move back and change an answer while the clock runs.",
-                "Grades: A from 90%, B from 75%, C from 60%. B or above passes.",
-                "Running out of time submits the answers you have given.",
-              ].map((line) => (
+            <ul className="mt-6 space-y-2.5 text-sm text-muted">
+              {rules.map((line) => (
                 <li key={line} className="flex gap-2.5">
-                  <span className="mt-0.5 text-blue-400">•</span>
+                  <span className="mt-0.5 text-accent">•</span>
                   <span className="leading-relaxed">{line}</span>
                 </li>
               ))}
@@ -220,15 +221,15 @@ export default function FinalTest() {
               <button
                 onClick={begin}
                 disabled={phase === "loading"}
-                className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:opacity-60"
+                className="rounded-lg bg-premium px-5 py-2.5 text-sm font-semibold text-ground transition hover:opacity-90 disabled:opacity-60"
               >
-                {phase === "loading" ? "Preparing test…" : "Start test"}
+                {phase === "loading" ? t("test.preparing") : t("test.start")}
               </button>
               <Link
                 to="/dashboard"
-                className="rounded-lg border border-white/10 px-5 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                className="rounded-lg border border-line px-5 py-2.5 text-sm font-medium text-muted transition hover:bg-surface"
               >
-                Back to dashboard
+                {t("action.backToDashboard")}
               </Link>
             </div>
           </div>
@@ -253,21 +254,34 @@ export default function FinalTest() {
             />
             <div className="flex-1 text-center sm:text-left">
               <div className="flex items-center justify-center gap-2 sm:justify-start">
-                <span className="text-5xl font-black tracking-tight text-white">
+                <span className="text-5xl font-black tracking-tight text-ink">
                   {grade}
                 </span>
                 <Badge tone={GRADE_TONE[grade] ?? "neutral"}>
-                  {passed ? "Passed" : "Not passed"}
+                  {passed ? t("status.passed") : t("status.notPassed")}
                 </Badge>
               </div>
-              <h1 className="mt-2 text-xl font-bold text-white">
-                Final Theory Test — {result.country.name}
+              <h1 className="mt-2 text-xl font-bold text-ink">
+                {t("test.heading")} — {result.country.name}
               </h1>
-              <p className="mt-2 text-sm leading-relaxed text-gray-400">
-                {passed
-                  ? "That is a pass. Keep drilling the topics where you lost marks so the answers stay automatic on test day."
-                  : `You needed ${meta.passPercent}% to pass. Work through the explanations below, then run the topics that cost you the most marks.`}
+
+              <p className="mt-2 text-sm text-muted">
+                <span className="font-semibold text-ink">
+                  {result.errorPoints}
+                </span>{" "}
+                / {result.maxErrorPoints ?? meta.maxErrorPoints}{" "}
+                {t("test.errorPoints").toLowerCase()}
               </p>
+
+              <p className="mt-2 text-sm leading-relaxed text-muted">
+                {passed ? t("test.resultPassed") : t("test.resultFailed")}
+              </p>
+
+              {result.failedByFivePointRule && (
+                <p className="mt-2 text-sm font-medium text-wrong">
+                  {t("test.failedFivePoint")}
+                </p>
+              )}
 
               <div className="mt-5 flex flex-wrap justify-center gap-3 sm:justify-start">
                 <button
@@ -277,23 +291,23 @@ export default function FinalTest() {
                     setSessionId(null);
                     resetQuiz();
                   }}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:opacity-90"
                 >
-                  Try again
+                  {t("action.tryAgain")}
                 </button>
                 <Link
                   to="/dashboard"
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5"
+                  className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface"
                 >
-                  Back to dashboard
+                  {t("action.backToDashboard")}
                 </Link>
               </div>
             </div>
           </Card>
 
           <section>
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-              Question breakdown
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-faint">
+              {t("practice.breakdown")}
             </h2>
             <ol className="space-y-3">
               {result.breakdown.map((row, i) => (
@@ -302,25 +316,32 @@ export default function FinalTest() {
                     <span
                       className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
                         row.isCorrect
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-red-500/20 text-red-400"
+                          ? "bg-correct/20 text-correct"
+                          : "bg-wrong/20 text-wrong"
                       }`}
                     >
                       {row.isCorrect ? "✓" : "✕"}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium leading-snug text-white">
-                        <span className="text-gray-500">{i + 1}. </span>
-                        {row.questionText}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-medium leading-snug text-ink">
+                          <span className="text-faint">{i + 1}. </span>
+                          {row.questionText}
+                        </p>
+                        {!row.isCorrect && (
+                          <span className="shrink-0 rounded bg-wrong/20 px-1.5 py-0.5 text-[11px] font-semibold text-wrong">
+                            −{row.errorPoints}
+                          </span>
+                        )}
+                      </div>
                       <dl className="mt-2.5 space-y-1 text-sm">
                         <div className="flex gap-2">
-                          <dt className="shrink-0 text-gray-500">
-                            Your answer:
+                          <dt className="shrink-0 text-faint">
+                            {t("practice.yourAnswer")}
                           </dt>
                           <dd
                             className={
-                              row.isCorrect ? "text-green-300" : "text-red-300"
+                              row.isCorrect ? "text-correct" : "text-wrong"
                             }
                           >
                             {row.selectedOptionText}
@@ -328,14 +349,16 @@ export default function FinalTest() {
                         </div>
                         {!row.isCorrect && (
                           <div className="flex gap-2">
-                            <dt className="shrink-0 text-gray-500">Correct:</dt>
-                            <dd className="text-green-300">
+                            <dt className="shrink-0 text-faint">
+                              {t("practice.correctAnswer")}
+                            </dt>
+                            <dd className="text-correct">
                               {row.correctOptionText}
                             </dd>
                           </div>
                         )}
                       </dl>
-                      <p className="mt-2.5 border-l-2 border-white/10 pl-3 text-sm leading-relaxed text-gray-400">
+                      <p className="mt-2.5 border-l-2 border-line pl-3 text-sm leading-relaxed text-muted">
                         {row.explanation}
                       </p>
                     </div>
@@ -345,9 +368,10 @@ export default function FinalTest() {
             </ol>
 
             {result.answeredCount < result.maxScore && (
-              <p className="mt-4 text-sm text-gray-500">
-                {result.maxScore - result.answeredCount} question(s) were left
-                unanswered and counted as incorrect.
+              <p className="mt-4 text-sm text-faint">
+                {t("test.unanswered", {
+                  count: result.maxScore - result.answeredCount,
+                })}
               </p>
             )}
           </section>
@@ -356,11 +380,11 @@ export default function FinalTest() {
     );
   }
 
-  // ── Running / submitting ──────────────────────────────────────────────────
+  // ── Running ───────────────────────────────────────────────────────────────
   if (phase === "submitting") {
     return (
       <AppShell maxWidth="max-w-3xl" showNav={false}>
-        <Spinner label="Grading your test…" />
+        <Spinner label={t("test.grading")} />
       </AppShell>
     );
   }
@@ -368,39 +392,44 @@ export default function FinalTest() {
   if (!currentQuestion) {
     return (
       <AppShell maxWidth="max-w-3xl">
-        <ErrorNote message="The test could not be loaded." />
+        <ErrorNote message={t("error.loadFailed")} />
       </AppShell>
     );
   }
 
   const isLast = questionIndex + 1 >= questions.length;
   const lowTime = secondsLeft <= 300;
+  const scene = asScene(currentQuestion.sceneJson);
 
   return (
     <AppShell maxWidth="max-w-3xl" showNav={false}>
-      {/* Exam header */}
       <div className="mb-5">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-widest text-gray-500">
-              Final theory test
+            <p className="text-xs uppercase tracking-widest text-faint">
+              {t("test.heading")}
             </p>
-            <p className="mt-1 font-mono text-lg tabular-nums text-white">
-              Question {questionIndex + 1}{" "}
-              <span className="text-gray-600">/ {questions.length}</span>
+            <p className="mt-1 font-mono text-lg tabular-nums text-ink">
+              {t("test.questionNumber", {
+                current: questionIndex + 1,
+                total: questions.length,
+              })}
             </p>
           </div>
           <div className="text-right">
             <p
               className={`font-mono text-2xl font-bold tabular-nums ${
-                lowTime ? "text-red-400" : "text-white"
+                lowTime ? "text-wrong" : "text-ink"
               }`}
               aria-live="polite"
             >
               {formatClock(secondsLeft)}
             </p>
-            <p className="text-xs text-gray-500">
-              {answeredCount} of {questions.length} answered
+            <p className="text-xs text-faint">
+              {t("test.answeredCount", {
+                answered: answeredCount,
+                total: questions.length,
+              })}
             </p>
           </div>
         </div>
@@ -413,11 +442,21 @@ export default function FinalTest() {
       </div>
 
       <Card className="px-5 py-6 sm:px-7">
-        {currentQuestion.source && (
-          <Badge tone="info" className="mb-4">
-            {SOURCE_LABEL[currentQuestion.source] ?? currentQuestion.source}
-          </Badge>
-        )}
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {currentQuestion.errorPoints ? (
+            <Badge tone={currentQuestion.errorPoints >= 5 ? "danger" : "info"}>
+              {currentQuestion.errorPoints} {t("test.errorPoints")}
+            </Badge>
+          ) : (
+            <span />
+          )}
+          <SpeakButton
+            text={[
+              currentQuestion.questionText,
+              ...currentQuestion.options.map((o) => o.optionText),
+            ]}
+          />
+        </div>
 
         <QuestionCard
           question={currentQuestion}
@@ -426,7 +465,15 @@ export default function FinalTest() {
           hideFeedback
           onSelect={(optionId) => void choose(currentQuestion, optionId)}
           illustration={
-            currentQuestion.imagePrompt ? (
+            scene ? (
+              <div className="mb-5">
+                <SceneRenderer
+                  scene={scene}
+                  width={440}
+                  className="mx-auto block"
+                />
+              </div>
+            ) : currentQuestion.imagePrompt ? (
               <div className="mb-5">
                 <ScenarioIllustration
                   imagePrompt={currentQuestion.imagePrompt}
@@ -444,37 +491,36 @@ export default function FinalTest() {
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-white/10 pt-5">
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
           <button
             onClick={() => goToQuestion(questionIndex - 1)}
             disabled={questionIndex === 0}
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5 disabled:opacity-30"
+            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface disabled:opacity-30"
           >
-            ← Back
+            ← {t("action.back")}
           </button>
 
           {isLast ? (
             <button
               onClick={() => sessionId && void submit(sessionId)}
-              className="rounded-lg bg-amber-500 px-5 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-400"
+              className="rounded-lg bg-premium px-5 py-2.5 text-sm font-semibold text-ground transition hover:opacity-90"
             >
-              Finish and grade →
+              {t("test.finish")} →
             </button>
           ) : (
             <button
               onClick={() => goToQuestion(questionIndex + 1)}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
             >
-              Next →
+              {t("action.next")} →
             </button>
           )}
         </div>
       </Card>
 
-      {/* Question navigator */}
       <div className="mt-5">
-        <p className="mb-2 text-xs uppercase tracking-widest text-gray-500">
-          Jump to question
+        <p className="mb-2 text-xs uppercase tracking-widest text-faint">
+          {t("test.jumpTo")}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {questions.map((q, i) => {
@@ -484,13 +530,13 @@ export default function FinalTest() {
               <button
                 key={q.id}
                 onClick={() => goToQuestion(i)}
-                aria-label={`Question ${i + 1}${answered ? ", answered" : ""}`}
+                aria-label={`${i + 1}`}
                 className={`h-8 w-8 rounded-md text-xs font-medium tabular-nums transition ${
                   active
-                    ? "bg-blue-600 text-white"
+                    ? "bg-accent text-accent-ink"
                     : answered
-                      ? "bg-white/15 text-white hover:bg-white/25"
-                      : "border border-white/10 text-gray-500 hover:border-white/25 hover:text-gray-300"
+                      ? "bg-line-strong text-ink"
+                      : "border border-line text-faint hover:border-line-strong hover:text-muted"
                 }`}
               >
                 {i + 1}

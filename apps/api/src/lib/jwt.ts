@@ -8,18 +8,23 @@ const DEV_FALLBACK = "dev-only-insecure-secret-do-not-ship";
 /**
  * Resolves the signing secret.
  *
- * A hardcoded fallback would let anyone who has read this repository forge
- * tokens, so outside development a missing or trivially short JWT_SECRET is a
- * startup failure rather than a silent downgrade.
+ * The fallback below is published in this repository, so anyone could mint
+ * tokens for a server using it. It is therefore allowed only where NODE_ENV
+ * *explicitly* says this is a developer machine. An unset NODE_ENV is treated
+ * as a deployment and fails closed: a staging box that simply forgot the
+ * variable would otherwise accept forged sessions while looking healthy.
  */
 function resolveSecret(): string {
   const secret = process.env.JWT_SECRET;
-  const isProduction = process.env.NODE_ENV === "production";
+  const env = process.env.NODE_ENV;
+  const isLocal = env === "development" || env === "test";
 
   if (!secret || secret.length < MIN_SECRET_LENGTH) {
-    if (isProduction) {
+    if (!isLocal) {
       throw new Error(
-        `JWT_SECRET must be set to at least ${MIN_SECRET_LENGTH} characters in production.`,
+        `JWT_SECRET must be set to at least ${MIN_SECRET_LENGTH} characters ` +
+          `(NODE_ENV is ${env ?? "unset"}; the development fallback is only ` +
+          `available when NODE_ENV is "development" or "test").`,
       );
     }
     console.warn(

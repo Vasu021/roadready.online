@@ -46,16 +46,16 @@ export default function AuthModal() {
       onClick={() => setShowAuthModal(false)}
     >
       <div
-        className="w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-950 p-8 shadow-2xl"
+        className="w-full max-w-sm rounded-2xl border border-line bg-ground p-8 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="mb-6 flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white">
+            <h2 className="text-xl font-bold text-ink">
               {mode === "login" ? "Sign In" : "Create Account"}
             </h2>
-            <p className="mt-1 text-sm text-gray-400">
+            <p className="mt-1 text-sm text-muted">
               {mode === "login"
                 ? "Track your progress across sessions."
                 : "Save your results and track improvement."}
@@ -63,7 +63,7 @@ export default function AuthModal() {
           </div>
           <button
             onClick={() => setShowAuthModal(false)}
-            className="text-gray-600 transition hover:text-gray-300"
+            className="text-faint transition hover:text-muted"
             aria-label="Close"
           >
             ✕
@@ -72,7 +72,7 @@ export default function AuthModal() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">
+            <label className="mb-1.5 block text-xs font-medium text-muted">
               Email
             </label>
             <input
@@ -81,11 +81,11 @@ export default function AuthModal() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder-gray-600 focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">
+            <label className="mb-1.5 block text-xs font-medium text-muted">
               Password
             </label>
             <input
@@ -97,29 +97,29 @@ export default function AuthModal() {
               placeholder={
                 mode === "signup" ? "At least 8 characters" : "••••••••"
               }
-              className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3.5 py-2.5 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder-gray-600 focus:border-accent focus:outline-none"
             />
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-wrong">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:opacity-60"
+            className="w-full rounded-lg bg-accent py-2.5 text-sm font-semibold text-ink transition hover:bg-accent/85 disabled:opacity-60"
           >
             {loading ? "..." : mode === "login" ? "Sign In" : "Create Account"}
           </button>
         </form>
 
         {/* Mode toggle */}
-        <p className="mt-5 text-center text-sm text-gray-500">
+        <p className="mt-5 text-center text-sm text-faint">
           {mode === "login" ? (
             <>
               No account?{" "}
               <button
                 onClick={() => switchMode("signup")}
-                className="text-blue-400 hover:underline"
+                className="text-accent hover:underline"
               >
                 Sign up
               </button>
@@ -129,7 +129,7 @@ export default function AuthModal() {
               Already have one?{" "}
               <button
                 onClick={() => switchMode("login")}
-                className="text-blue-400 hover:underline"
+                className="text-accent hover:underline"
               >
                 Sign in
               </button>

@@ -5,12 +5,14 @@ import helmet from "helmet";
 import scenarioRoutes from "./routes/scenarios";
 import topicTestRoutes from "./routes/topicTests";
 import finalTestRoutes from "./routes/finalTest";
+import moduleRoutes from "./routes/modules";
 import countryRoutes from "./routes/countries";
 import testSessionRoutes from "./routes/testSessions";
 import userRoutes from "./routes/users";
 import progressRoutes from "./routes/progress";
 import authRoutes from "./routes/auth";
 import userCountryAccessRoutes from "./routes/userCountryAccess";
+import { requireAuth } from "./middleware/auth";
 import { rateLimit } from "./middleware/rateLimit";
 import { errorHandler, notFound } from "./middleware/errors";
 
@@ -67,15 +69,27 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", apiLimiter);
+
+// ── Public surface ───────────────────────────────────────────────────────────
+// Deliberately only two things: the credential endpoints, and the country list
+// and facts the signed-out landing page shows. Nothing else.
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/countries", countryRoutes);
-app.use("/api/scenarios", scenarioRoutes);
-app.use("/api/topic-tests", topicTestRoutes);
-app.use("/api/final-test", finalTestRoutes);
-app.use("/api/test-sessions", testSessionRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/progress", progressRoutes);
-app.use("/api/user-country-access", userCountryAccessRoutes);
+
+// ── Everything else requires a verified session ──────────────────────────────
+// Authentication is applied here, at the mount, rather than route by route.
+// A new route added to any of these files is therefore protected by default:
+// forgetting a `requireAuth` inside them cannot expose it. The course content
+// is the product, so it is not readable without an account — the frontend's
+// route guard is a convenience, never the boundary.
+app.use("/api/scenarios", requireAuth, scenarioRoutes);
+app.use("/api/modules", requireAuth, moduleRoutes);
+app.use("/api/topic-tests", requireAuth, topicTestRoutes);
+app.use("/api/final-test", requireAuth, finalTestRoutes);
+app.use("/api/test-sessions", requireAuth, testSessionRoutes);
+app.use("/api/users", requireAuth, userRoutes);
+app.use("/api/progress", requireAuth, progressRoutes);
+app.use("/api/user-country-access", requireAuth, userCountryAccessRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

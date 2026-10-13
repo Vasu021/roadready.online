@@ -7,6 +7,7 @@ import {
   parseBoundedInt,
   shuffle,
 } from "../lib/validation";
+import { loadTranslations, parseLocale } from "../lib/i18n";
 
 const router = Router();
 
@@ -86,6 +87,7 @@ router.post("/attempts", requireAuth, async (req: AuthRequest, res) => {
 /** GET /api/topic-tests/:countryCode — all active topics, in order. */
 router.get("/:countryCode", async (req, res) => {
   const countryCode = parseCountryCode(req.params.countryCode);
+  const locale = parseLocale(req.query.locale);
   if (!countryCode) {
     res.status(400).json({ error: "Invalid country code" });
     return;
@@ -107,13 +109,19 @@ router.get("/:countryCode", async (req, res) => {
       },
     });
 
+    const tr = await loadTranslations(
+      "topicTest",
+      topics.map((t) => t.id),
+      locale,
+    );
+
     res.json(
       topics.map((t) => ({
         id: t.id,
         slug: t.slug,
         name: t.name,
-        nameEN: t.nameEN,
-        description: t.description,
+        nameEN: tr(t.id, "nameEN", t.nameEN),
+        description: tr(t.id, "description", t.description),
         order: t.order,
         isSignTopic: t.isSignTopic,
         questionCount: t._count.questions,
@@ -205,6 +213,7 @@ router.get(
 router.get("/:countryCode/:slug/questions", async (req, res) => {
   const countryCode = parseCountryCode(req.params.countryCode);
   const slug = parseSlug(req.params.slug);
+  const locale = parseLocale(req.query.locale);
   if (!countryCode || !slug) {
     res.status(400).json({ error: "Invalid country code or topic slug" });
     return;
@@ -225,6 +234,7 @@ router.get("/:countryCode/:slug/questions", async (req, res) => {
             id: true,
             questionText: true,
             order: true,
+            errorPoints: true,
             options: { select: { id: true, optionText: true, order: true } },
           },
         },
@@ -236,6 +246,17 @@ router.get("/:countryCode/:slug/questions", async (req, res) => {
       return;
     }
 
+    const tq = await loadTranslations(
+      "question",
+      topic.questions.map((q) => q.id),
+      locale,
+    );
+    const to = await loadTranslations(
+      "option",
+      topic.questions.flatMap((q) => q.options.map((o) => o.id)),
+      locale,
+    );
+
     res.json({
       topic: {
         id: topic.id,
@@ -246,11 +267,17 @@ router.get("/:countryCode/:slug/questions", async (req, res) => {
       },
       questions: topic.questions.map((q) => ({
         id: q.id,
-        questionText: q.questionText,
+        questionText: tq(q.id, "questionText", q.questionText),
         order: q.order,
+        errorPoints: q.errorPoints,
         source: "topic" as const,
         sourceName: topic.nameEN,
-        options: shuffle(q.options),
+        options: shuffle(
+          q.options.map((o) => ({
+            ...o,
+            optionText: to(o.id, "optionText", o.optionText),
+          })),
+        ),
       })),
     });
   } catch (err) {
@@ -269,6 +296,7 @@ router.get(
   async (req, res) => {
     const countryCode = parseCountryCode(req.params.countryCode);
     const slug = parseSlug(req.params.slug);
+    const locale = parseLocale(req.query.locale);
     if (!countryCode || !slug) {
       res.status(400).json({ error: "Invalid country code or topic slug" });
       return;
@@ -294,11 +322,17 @@ router.get(
         return;
       }
 
+      const te = await loadTranslations(
+        "question",
+        topic.questions.map((q) => q.id),
+        locale,
+      );
+
       res.json(
         topic.questions.map((q) => ({
           questionId: q.id,
           correctOptionId: q.options.find((o) => o.isCorrect)?.id ?? "",
-          explanation: q.explanation,
+          explanation: te(q.id, "explanation", q.explanation),
         })),
       );
     } catch (err) {

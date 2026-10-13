@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { QuizAnswer, QuizQuestion } from "@roadready/shared";
 import type { QuestionAnswerKey } from "@roadready/shared";
 import { Card, ScoreRing } from "./ui";
+import { useT } from "../i18n";
 
 export interface ResultsScreenProps {
   title: string;
@@ -29,6 +30,7 @@ export default function ResultsScreen({
   backTo,
   backLabel,
 }: ResultsScreenProps) {
+  const t = useT();
   const score = answers.filter((a) => a.isCorrect).length;
   const total = questions.length;
   const ratio = total > 0 ? score / total : 0;
@@ -50,28 +52,26 @@ export default function ResultsScreen({
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <p
             className={`text-xs font-semibold uppercase tracking-widest ${
-              passed ? "text-green-400" : "text-red-400"
+              passed ? "text-correct" : "text-wrong"
             }`}
           >
-            {passed ? "Passed" : "Not passed"}
+            {passed ? t("status.passed") : t("status.notPassed")}
           </p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-ink">
             {title}
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-400">
-            {verdict}
-          </p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{verdict}</p>
 
           <div className="mt-5 flex flex-wrap justify-center gap-3 sm:justify-start">
             <button
               onClick={onRetry}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-ink transition hover:bg-accent/85"
             >
-              Retry
+              {t("action.retry")}
             </button>
             <Link
               to={backTo}
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+              className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-ink"
             >
               {backLabel}
             </Link>
@@ -80,8 +80,8 @@ export default function ResultsScreen({
       </Card>
 
       <section>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Question breakdown
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-faint">
+          {t("practice.breakdown")}
         </h2>
         <ol className="space-y-3">
           {questions.map((q, i) => {
@@ -99,39 +99,39 @@ export default function ResultsScreen({
                   <span
                     className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
                       correct
-                        ? "bg-green-500/20 text-green-400"
-                        : "bg-red-500/20 text-red-400"
+                        ? "bg-correct/20 text-correct"
+                        : "bg-wrong/20 text-wrong"
                     }`}
                   >
                     {correct ? "✓" : "✕"}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium leading-snug text-white">
-                      <span className="text-gray-500">{i + 1}. </span>
+                    <p className="text-sm font-medium leading-snug text-ink">
+                      <span className="text-faint">{i + 1}. </span>
                       {q.questionText}
                     </p>
 
                     <dl className="mt-2.5 space-y-1 text-sm">
                       <div className="flex gap-2">
-                        <dt className="shrink-0 text-gray-500">Your answer:</dt>
-                        <dd
-                          className={
-                            correct ? "text-green-300" : "text-red-300"
-                          }
-                        >
-                          {chosen?.optionText ?? "Not answered"}
+                        <dt className="shrink-0 text-faint">
+                          {t("practice.yourAnswer")}
+                        </dt>
+                        <dd className={correct ? "text-correct" : "text-wrong"}>
+                          {chosen?.optionText ?? t("practice.notAnswered")}
                         </dd>
                       </div>
                       {!correct && right && (
                         <div className="flex gap-2">
-                          <dt className="shrink-0 text-gray-500">Correct:</dt>
-                          <dd className="text-green-300">{right.optionText}</dd>
+                          <dt className="shrink-0 text-faint">
+                            {t("practice.correctAnswer")}
+                          </dt>
+                          <dd className="text-correct">{right.optionText}</dd>
                         </div>
                       )}
                     </dl>
 
                     {key?.explanation && (
-                      <p className="mt-2.5 border-l-2 border-white/10 pl-3 text-sm leading-relaxed text-gray-400">
+                      <p className="mt-2.5 border-l-2 border-line pl-3 text-sm leading-relaxed text-muted">
                         {key.explanation}
                       </p>
                     )}

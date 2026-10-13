@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { ProgressStatus } from "@roadready/shared";
 import { clearStoredToken } from "../utils/api";
+import { resetSessionCheck } from "../utils/session";
 
 export interface AuthUser {
   id: string;
@@ -90,6 +91,7 @@ export const useUserStore = create<UserStore>((set) => ({
   setScenarioProgress: (scenarioProgress) => set({ scenarioProgress }),
   logout: () => {
     clearStoredToken();
+    resetSessionCheck();
     writeStoredCountry(null);
     set({
       user: null,

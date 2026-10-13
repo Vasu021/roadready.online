@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { SEED_COUNTRIES } from "./data/countries";
 import { GERMANY_TOPICS } from "./data/germanyTopics";
 import { GERMANY_SCENARIOS } from "./data/germanyScenarios";
+import { GERMANY_MODULES } from "./data/modules";
+import { SCENES } from "./data/scenes";
 
 const prisma = new PrismaClient();
 
@@ -35,16 +37,14 @@ async function seedCountries() {
   return byCode;
 }
 
-/**
- * The platform moved from 3D simulation scenarios to theory content, so old
- * rows are cleared before seeding. Cascades remove their questions and options.
- */
+/** Content is rebuilt from the seed files on every run; cascades clean up. */
 async function clearOldContent() {
   const scenarios = await prisma.scenario.deleteMany({});
   const categories = await prisma.scenarioCategory.deleteMany({});
   const topics = await prisma.topicTest.deleteMany({});
+  const modules = await prisma.module.deleteMany({});
   console.log(
-    `  removed ${scenarios.count} scenarios, ${categories.count} categories, ${topics.count} topic tests`,
+    `  removed ${scenarios.count} scenarios, ${categories.count} categories, ${topics.count} topic tests, ${modules.count} modules`,
   );
 }
 
@@ -66,6 +66,7 @@ async function seedTopicTests(countryCode: string) {
           create: topic.questions.map((q, qi) => ({
             questionText: q.questionText,
             explanation: q.explanation,
+            errorPoints: q.errorPoints ?? 3,
             order: qi + 1,
             options: {
               create: q.options.map((o, oi) => ({
@@ -81,12 +82,71 @@ async function seedTopicTests(countryCode: string) {
     });
 
     questionCount += created._count.questions;
+  }
+
+  console.log(`  ${GERMANY_TOPICS.length} topics, ${questionCount} questions`);
+  return questionCount;
+}
+
+/**
+ * Learning modules: one per official lesson of the FahrschAusbO curriculum,
+ * each with its lessons and its own question pool.
+ */
+async function seedModules(countryCode: string) {
+  let lessonCount = 0;
+  let questionCount = 0;
+
+  for (const mod of GERMANY_MODULES) {
+    const created = await prisma.module.create({
+      data: {
+        countryCode,
+        slug: mod.slug,
+        order: mod.order,
+        officialTitle: mod.officialTitle,
+        title: mod.title,
+        summary: mod.summary,
+        intro: mod.intro,
+        estimatedMinutes: mod.estimatedMinutes,
+        isZusatzstoff: mod.isZusatzstoff ?? false,
+        isActive: true,
+        lessons: {
+          create: mod.lessons.map((lesson, li) => ({
+            slug: lesson.slug,
+            order: li + 1,
+            title: lesson.title,
+            body: lesson.body,
+            keyPoints: lesson.keyPoints,
+            signIds: lesson.signIds ?? undefined,
+            sceneJson: (lesson.scene as object | undefined) ?? undefined,
+          })),
+        },
+        questions: {
+          create: mod.questions.map((q, qi) => ({
+            questionText: q.questionText,
+            explanation: q.explanation,
+            errorPoints: q.errorPoints ?? 3,
+            order: qi + 1,
+            options: {
+              create: q.options.map((o, oi) => ({
+                optionText: o.text,
+                isCorrect: o.isCorrect,
+                order: oi + 1,
+              })),
+            },
+          })),
+        },
+      },
+      include: { _count: { select: { lessons: true, questions: true } } },
+    });
+
+    lessonCount += created._count.lessons;
+    questionCount += created._count.questions;
     console.log(
-      `  ${topic.order.toString().padStart(2)}. ${topic.nameEN} — ${created._count.questions} questions`,
+      `  ${String(mod.order).padStart(2)}. ${mod.title} — ${created._count.lessons} lessons, ${created._count.questions} questions`,
     );
   }
 
-  return questionCount;
+  return { lessonCount, questionCount };
 }
 
 async function seedScenarios(countryId: string) {
@@ -94,7 +154,12 @@ async function seedScenarios(countryId: string) {
     data: { countryId, name: SCENARIO_CATEGORY, order: 1 },
   });
 
+  let withScene = 0;
+
   for (const s of GERMANY_SCENARIOS) {
+    const scene = SCENES[s.slug];
+    if (scene) withScene += 1;
+
     await prisma.scenario.create({
       data: {
         countryId,
@@ -108,11 +173,13 @@ async function seedScenarios(countryId: string) {
         type: "PRACTICE",
         imagePrompt: s.imagePrompt,
         imageUrl: null,
+        sceneJson: (scene as object | undefined) ?? undefined,
         questions: {
           create: [
             {
               questionText: s.questionText,
               explanation: s.explanation,
+              errorPoints: 4,
               order: 1,
               options: {
                 create: s.options.map((o, oi) => ({
@@ -128,7 +195,9 @@ async function seedScenarios(countryId: string) {
     });
   }
 
-  console.log(`  ${GERMANY_SCENARIOS.length} driving situations`);
+  console.log(
+    `  ${GERMANY_SCENARIOS.length} driving situations, ${withScene} with a rendered scene`,
+  );
   return GERMANY_SCENARIOS.length;
 }
 
@@ -137,23 +206,37 @@ async function validateContent() {
 
   const questions = await prisma.question.findMany({
     select: {
-      id: true,
       questionText: true,
+      errorPoints: true,
       options: { select: { isCorrect: true } },
     },
   });
 
   for (const q of questions) {
+    const label = `"${q.questionText.slice(0, 48)}…"`;
     const correct = q.options.filter((o) => o.isCorrect).length;
+
     if (q.options.length !== 4) {
-      problems.push(
-        `"${q.questionText.slice(0, 50)}…" has ${q.options.length} options (expected 4)`,
-      );
+      problems.push(`${label} has ${q.options.length} options (expected 4)`);
     }
     if (correct !== 1) {
-      problems.push(
-        `"${q.questionText.slice(0, 50)}…" has ${correct} correct options (expected 1)`,
-      );
+      problems.push(`${label} has ${correct} correct options (expected 1)`);
+    }
+    if (q.errorPoints < 2 || q.errorPoints > 5) {
+      problems.push(`${label} has errorPoints ${q.errorPoints} (expected 2–5)`);
+    }
+  }
+
+  // Every lesson must belong to a module and carry at least one key point.
+  const lessons = await prisma.lesson.findMany({
+    select: { title: true, keyPoints: true, body: true },
+  });
+  for (const l of lessons) {
+    if (!Array.isArray(l.keyPoints) || l.keyPoints.length === 0) {
+      problems.push(`Lesson "${l.title}" has no key points`);
+    }
+    if (l.body.trim().length < 80) {
+      problems.push(`Lesson "${l.title}" has a suspiciously short body`);
     }
   }
 
@@ -165,8 +248,9 @@ async function validateContent() {
   }
 
   console.log(
-    `  ✓ ${questions.length} questions each have exactly 1 of 4 correct options`,
+    `  ✓ ${questions.length} questions valid (4 options, 1 correct, 2–5 error points)`,
   );
+  console.log(`  ✓ ${lessons.length} lessons have body text and key points`);
 }
 
 async function main() {
@@ -178,8 +262,12 @@ async function main() {
   console.log("\nClearing previous content:");
   await clearOldContent();
 
+  console.log("\nLearning modules (Germany):");
+  const { lessonCount, questionCount: moduleQuestions } =
+    await seedModules("DE");
+
   console.log("\nTopic tests (Germany):");
-  const questionCount = await seedTopicTests("DE");
+  const topicQuestions = await seedTopicTests("DE");
 
   console.log("\nDriving situations (Germany):");
   const scenarioCount = await seedScenarios(countryIds["DE"]);
@@ -188,7 +276,9 @@ async function main() {
   await validateContent();
 
   console.log(
-    `\nDone — ${GERMANY_TOPICS.length} topics, ${questionCount} topic questions, ${scenarioCount} driving situations.\n`,
+    `\nDone — ${GERMANY_MODULES.length} modules, ${lessonCount} lessons, ` +
+      `${moduleQuestions + topicQuestions + scenarioCount} questions, ` +
+      `${scenarioCount} driving situations.\n`,
   );
 }
 
