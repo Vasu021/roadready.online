@@ -82,6 +82,10 @@ export const de: Dictionary = {
   "learn.testYourself": "Zu diesem Modul testen",
   "learn.backToModules": "Alle Module",
   "learn.nextLesson": "Nächste Lektion",
+  "learn.nextModule": "Nächstes Modul",
+  "learn.previousModule": "Vorheriges Modul",
+  "learn.lastModule":
+    "Das war das letzte Modul. Mach die vollständige Theorieprüfung, wenn du bereit bist.",
   "learn.officialTitle": "Amtliche Lektion",
   "signs.heading": "Deutsche Verkehrszeichen",
   "signs.intro":

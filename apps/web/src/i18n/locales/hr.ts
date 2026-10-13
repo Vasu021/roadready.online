@@ -83,6 +83,10 @@ export const hr: Dictionary = {
   "learn.testYourself": "Provjeri znanje iz ovog modula",
   "learn.backToModules": "Svi moduli",
   "learn.nextLesson": "Sljedeća lekcija",
+  "learn.nextModule": "Sljedeći modul",
+  "learn.previousModule": "Prethodni modul",
+  "learn.lastModule":
+    "To je bio posljednji modul. Polaži cijeli teorijski ispit kada budeš spreman.",
   "learn.officialTitle": "Službena lekcija",
   "signs.heading": "Njemački prometni znakovi",
   "signs.intro":

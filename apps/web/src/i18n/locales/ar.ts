@@ -81,6 +81,10 @@ export const ar: Dictionary = {
   "learn.testYourself": "اختبر نفسك في هذه الوحدة",
   "learn.backToModules": "كل الوحدات",
   "learn.nextLesson": "الدرس التالي",
+  "learn.nextModule": "الوحدة التالية",
+  "learn.previousModule": "الوحدة السابقة",
+  "learn.lastModule":
+    "كانت تلك آخر وحدة. اجلس للاختبار النظري الكامل عندما تكون مستعداً.",
   "learn.officialTitle": "الدرس الرسمي",
   "signs.heading": "إشارات المرور الألمانية",
   "signs.intro":

@@ -81,6 +81,9 @@ export const tr: Dictionary = {
   "learn.testYourself": "Bu modülde kendini test et",
   "learn.backToModules": "Tüm modüller",
   "learn.nextLesson": "Sonraki ders",
+  "learn.nextModule": "Sonraki modül",
+  "learn.previousModule": "Önceki modül",
+  "learn.lastModule": "Bu son modüldü. Hazır olduğunda tam teori sınavına gir.",
   "learn.officialTitle": "Resmi ders",
   "signs.heading": "Alman Trafik İşaretleri",
   "signs.intro":

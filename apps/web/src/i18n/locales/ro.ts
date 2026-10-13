@@ -83,6 +83,10 @@ export const ro: Dictionary = {
   "learn.testYourself": "Testează-te la acest modul",
   "learn.backToModules": "Toate modulele",
   "learn.nextLesson": "Lecția următoare",
+  "learn.nextModule": "Modulul următor",
+  "learn.previousModule": "Modulul anterior",
+  "learn.lastModule":
+    "Acesta a fost ultimul modul. Dă examenul teoretic complet când ești pregătit.",
   "learn.officialTitle": "Lecție oficială",
   "signs.heading": "Indicatoare rutiere germane",
   "signs.intro":

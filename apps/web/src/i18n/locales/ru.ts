@@ -83,6 +83,10 @@ export const ru: Dictionary = {
   "learn.testYourself": "Проверить себя по модулю",
   "learn.backToModules": "Все модули",
   "learn.nextLesson": "Следующий урок",
+  "learn.nextModule": "Следующий модуль",
+  "learn.previousModule": "Предыдущий модуль",
+  "learn.lastModule":
+    "Это был последний модуль. Сдайте полный теоретический экзамен, когда будете готовы.",
   "learn.officialTitle": "Официальный урок",
   "signs.heading": "Немецкие дорожные знаки",
   "signs.intro":

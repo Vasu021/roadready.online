@@ -83,6 +83,10 @@ export const el: Dictionary = {
   "learn.testYourself": "Δοκίμασε τον εαυτό σου σε αυτή την ενότητα",
   "learn.backToModules": "Όλες οι ενότητες",
   "learn.nextLesson": "Επόμενο μάθημα",
+  "learn.nextModule": "Επόμενη ενότητα",
+  "learn.previousModule": "Προηγούμενη ενότητα",
+  "learn.lastModule":
+    "Αυτή ήταν η τελευταία ενότητα. Δώσε την πλήρη θεωρητική εξέταση όταν είσαι έτοιμος.",
   "learn.officialTitle": "Επίσημο μάθημα",
   "signs.heading": "Γερμανικές πινακίδες κυκλοφορίας",
   "signs.intro":

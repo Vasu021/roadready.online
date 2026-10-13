@@ -96,6 +96,10 @@ export const en = {
   "learn.testYourself": "Test yourself on this module",
   "learn.backToModules": "All modules",
   "learn.nextLesson": "Next lesson",
+  "learn.nextModule": "Next module",
+  "learn.previousModule": "Previous module",
+  "learn.lastModule":
+    "That was the last module. Sit the full theory test when you are ready.",
   "learn.officialTitle": "Official lesson",
 
   // ── Signs library ─────────────────────────────────────────────────────────

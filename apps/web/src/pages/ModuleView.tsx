@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import type { LessonRow, ModuleDetail } from "@roadready/shared";
+import type { LessonRow, ModuleDetail, ModuleSummary } from "@roadready/shared";
 import { api } from "../utils/api";
 import { useUserStore } from "../store/userStore";
 import { useT } from "../i18n";
@@ -20,6 +20,7 @@ export default function ModuleView() {
   const code = selectedCountry?.code ?? null;
 
   const [mod, setMod] = useState<Detail | null>(null);
+  const [siblings, setSiblings] = useState<ModuleSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
   const [read, setRead] = useState<string[]>([]);
@@ -52,6 +53,39 @@ export default function ModuleView() {
       cancelled = true;
     };
   }, [code, slug, reloadKey, t]);
+
+  // The module list gives us the order, and with it the next and previous
+  // module — so a finished module leads somewhere instead of dead-ending.
+  useEffect(() => {
+    if (!code) return;
+    let cancelled = false;
+
+    api.modules
+      .list(code)
+      .then((rows) => {
+        if (!cancelled) setSiblings(rows);
+      })
+      .catch(() => {
+        // Without the list we simply offer no module-to-module navigation.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  // Opening a different module should start at the top of the new one.
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [slug]);
+
+  const { previousModule, nextModule } = useMemo(() => {
+    const at = siblings.findIndex((m) => m.slug === slug);
+    return {
+      previousModule: at > 0 ? siblings[at - 1] : null,
+      nextModule: at >= 0 && at < siblings.length - 1 ? siblings[at + 1] : null,
+    };
+  }, [siblings, slug]);
 
   const lesson: LessonRow | undefined = mod?.lessons[index];
 
@@ -274,14 +308,30 @@ export default function ModuleView() {
               </button>
 
               {isLast ? (
-                <button
-                  onClick={() => void markRead()}
-                  className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
-                >
-                  {read.includes(lesson.id)
-                    ? t("action.markedRead")
-                    : t("action.markRead")}
-                </button>
+                read.includes(lesson.id) ? (
+                  nextModule ? (
+                    <Link
+                      to={`/learn/${nextModule.slug}`}
+                      className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
+                    >
+                      {t("learn.nextModule")} →
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/learn"
+                      className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
+                    >
+                      {t("learn.backToModules")} →
+                    </Link>
+                  )
+                ) : (
+                  <button
+                    onClick={() => void markRead()}
+                    className="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink transition hover:opacity-90"
+                  >
+                    {t("action.markRead")}
+                  </button>
+                )
               ) : (
                 <button
                   onClick={goNext}
@@ -299,15 +349,79 @@ export default function ModuleView() {
                 {t("learn.moduleComplete")}
               </h3>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                {t("learn.moduleCompleteBody")}
+                {nextModule
+                  ? t("learn.moduleCompleteBody")
+                  : t("learn.lastModule")}
               </p>
-              <Link
-                to={`/learn/${slug}/quiz`}
-                className="mt-4 inline-block rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:opacity-90"
-              >
-                {t("learn.testYourself")} →
-              </Link>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  to={`/learn/${slug}/quiz`}
+                  className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-ink transition hover:opacity-90"
+                >
+                  {t("learn.testYourself")} →
+                </Link>
+
+                {nextModule ? (
+                  <Link
+                    to={`/learn/${nextModule.slug}`}
+                    className="rounded-lg border border-line-strong px-4 py-2 text-sm font-medium text-ink transition hover:bg-raised"
+                  >
+                    {t("learn.nextModule")}: {nextModule.title} →
+                  </Link>
+                ) : (
+                  <Link
+                    to="/final-test"
+                    className="rounded-lg border border-premium/60 px-4 py-2 text-sm font-medium text-premium transition hover:bg-premium/10"
+                  >
+                    {t("nav.finalTest")} →
+                  </Link>
+                )}
+
+                <Link
+                  to="/learn"
+                  className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-muted transition hover:bg-surface hover:text-ink"
+                >
+                  {t("learn.backToModules")}
+                </Link>
+              </div>
             </Card>
+          )}
+          {(previousModule || nextModule) && (
+            <nav
+              aria-label={t("learn.heading")}
+              className="mt-5 flex flex-wrap items-stretch justify-between gap-3"
+            >
+              {previousModule ? (
+                <Link
+                  to={`/learn/${previousModule.slug}`}
+                  className="group min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 py-3 transition hover:border-line-strong hover:bg-raised"
+                >
+                  <span className="block text-[11px] uppercase tracking-widest text-faint">
+                    ← {t("learn.previousModule")}
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-ink">
+                    {previousModule.title}
+                  </span>
+                </Link>
+              ) : (
+                <span className="flex-1" />
+              )}
+
+              {nextModule && (
+                <Link
+                  to={`/learn/${nextModule.slug}`}
+                  className="group min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-right transition hover:border-line-strong hover:bg-raised"
+                >
+                  <span className="block text-[11px] uppercase tracking-widest text-faint">
+                    {t("learn.nextModule")} →
+                  </span>
+                  <span className="mt-0.5 block truncate text-sm font-medium text-ink">
+                    {nextModule.title}
+                  </span>
+                </Link>
+              )}
+            </nav>
           )}
         </article>
       </div>
