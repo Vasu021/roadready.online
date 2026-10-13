@@ -166,7 +166,7 @@ export default function SignsLibrary() {
           <p className="mb-3 text-xs text-faint">
             {t("signs.count", { count: visible.length })}
           </p>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <ul className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {visible.map((sign, i) => (
               <li key={sign.id}>
                 <SignCard sign={sign} onClick={() => setOpenIndex(i)} />

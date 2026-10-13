@@ -87,12 +87,12 @@ export function DangerDoubleCurve(p: SignProps) {
 export function DangerSteepDescent(p: SignProps) {
   return (
     <DangerShell {...p}>
-      <path d="M26 78 L76 54 V78 Z" fill={C.black} />
+      <path d="M26 78 L76 56 V78 Z" fill={C.black} />
       <text
         x={50}
-        y={46}
+        y={50}
         textAnchor="middle"
-        fontSize={14}
+        fontSize={12}
         fontWeight="700"
         fill={C.black}
         fontFamily="system-ui, sans-serif"
@@ -106,12 +106,12 @@ export function DangerSteepDescent(p: SignProps) {
 export function DangerSteepAscent(p: SignProps) {
   return (
     <DangerShell {...p}>
-      <path d="M76 78 L26 54 V78 Z" fill={C.black} />
+      <path d="M76 78 L26 56 V78 Z" fill={C.black} />
       <text
         x={50}
-        y={46}
+        y={50}
         textAnchor="middle"
-        fontSize={14}
+        fontSize={12}
         fontWeight="700"
         fill={C.black}
         fontFamily="system-ui, sans-serif"
