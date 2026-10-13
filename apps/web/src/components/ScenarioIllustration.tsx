@@ -19,7 +19,7 @@ export default function ScenarioIllustration({
       <img
         src={imageUrl}
         alt={name ?? "Driving situation"}
-        className="w-full rounded-xl border border-white/10 object-cover"
+        className="w-full rounded-xl border border-line object-cover"
       />
     );
   }
@@ -32,7 +32,7 @@ export default function ScenarioIllustration({
 
   return (
     <figure
-      className={`relative overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-slate-800/80 to-slate-900 ${
+      className={`relative overflow-hidden rounded-xl border border-line bg-gradient-to-b from-raised to-surface ${
         compact ? "p-4" : "p-5"
       }`}
     >
@@ -68,15 +68,15 @@ export default function ScenarioIllustration({
       </div>
 
       <div className="relative">
-        <span className="inline-flex items-center gap-1.5 rounded-md bg-white/10 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-gray-300">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-raised px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-muted">
           🚗 Driving situation
         </span>
         {name && (
-          <h3 className="mt-2.5 text-base font-semibold text-white">{name}</h3>
+          <h3 className="mt-2.5 text-base font-semibold text-ink">{name}</h3>
         )}
-        <p className="mt-1.5 text-sm leading-relaxed text-gray-300">{lead}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted">{lead}</p>
         {!compact && rest && (
-          <p className="mt-1.5 text-sm leading-relaxed text-gray-400">{rest}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">{rest}</p>
         )}
       </div>
     </figure>

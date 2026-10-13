@@ -7,12 +7,15 @@ import { useUserStore } from "../store/userStore";
 import AppShell from "../components/AppShell";
 import QuestionCard from "../components/QuestionCard";
 import ResultsScreen from "../components/ResultsScreen";
+import SpeakButton from "../components/SpeakButton";
 import { Card, ErrorNote, ProgressBar, Spinner } from "../components/ui";
+import { useT } from "../i18n";
 
 const PASS_RATIO = 0.75;
 
 export default function TopicQuiz() {
   const { slug = "" } = useParams();
+  const t = useT();
   const selectedCountry = useUserStore((s) => s.selectedCountry);
   const code = selectedCountry?.code ?? null;
 
@@ -152,7 +155,7 @@ export default function TopicQuiz() {
   if (loading) {
     return (
       <AppShell maxWidth="max-w-3xl">
-        <Spinner label="Loading questions…" />
+        <Spinner label={t("status.loading")} />
       </AppShell>
     );
   }
@@ -163,9 +166,9 @@ export default function TopicQuiz() {
         <ErrorNote message={error} onRetry={() => setReloadKey((k) => k + 1)} />
         <Link
           to="/practice"
-          className="mt-5 inline-block text-sm text-blue-400 hover:underline"
+          className="mt-5 inline-block text-sm text-accent hover:underline"
         >
-          ← Back to topics
+          ← {t("practice.backToTopics")}
         </Link>
       </AppShell>
     );
@@ -185,7 +188,7 @@ export default function TopicQuiz() {
             setReloadKey((k) => k + 1);
           }}
           backTo="/practice"
-          backLabel="Back to topics"
+          backLabel={t("practice.backToTopics")}
         />
       </AppShell>
     );
@@ -194,7 +197,7 @@ export default function TopicQuiz() {
   if (!currentQuestion) {
     return (
       <AppShell maxWidth="max-w-3xl">
-        <ErrorNote message="This topic has no questions yet." />
+        <ErrorNote message={t("error.loadFailed")} />
       </AppShell>
     );
   }
@@ -210,20 +213,22 @@ export default function TopicQuiz() {
           <div className="min-w-0">
             <Link
               to="/practice"
-              className="text-xs text-gray-500 transition hover:text-gray-300"
+              className="text-xs text-faint transition hover:text-muted"
             >
-              ← All topics
+              ← {t("practice.backToTopics")}
             </Link>
-            <h1 className="mt-1 truncate text-xl font-bold tracking-tight text-white">
+            <h1 className="mt-1 truncate text-xl font-bold tracking-tight text-ink">
               {activeQuiz?.name}
             </h1>
           </div>
           <div className="shrink-0 text-right">
-            <p className="font-mono text-sm tabular-nums text-gray-300">
+            <p className="font-mono text-sm tabular-nums text-muted">
               {questionIndex + 1}{" "}
-              <span className="text-gray-600">/ {totalQuestions}</span>
+              <span className="text-faint">/ {totalQuestions}</span>
             </p>
-            <p className="text-xs text-gray-500">{score} correct</p>
+            <p className="text-xs text-faint">
+              {t("practice.correctCount", { count: score })}
+            </p>
           </div>
         </div>
         <ProgressBar
@@ -234,6 +239,16 @@ export default function TopicQuiz() {
       </div>
 
       <Card className="px-5 py-6 sm:px-7">
+        <div className="mb-3 flex justify-end">
+          <SpeakButton
+            text={[
+              currentQuestion.questionText,
+              ...currentQuestion.options.map((o) => o.optionText),
+              ...(revealed && key?.explanation ? [key.explanation] : []),
+            ]}
+          />
+        </div>
+
         <QuestionCard
           question={currentQuestion}
           selectedOptionId={selected}
@@ -243,25 +258,29 @@ export default function TopicQuiz() {
           explanation={key?.explanation}
         />
 
-        <div className="mt-6 flex items-center justify-between gap-4 border-t border-white/10 pt-5">
-          <p className="hidden text-xs text-gray-600 sm:block">
-            Keys: A–D to choose · Enter to {revealed ? "continue" : "confirm"}
+        <div className="mt-6 flex items-center justify-between gap-4 border-t border-line pt-5">
+          <p className="hidden text-xs text-faint sm:block">
+            {t("practice.keyHint", {
+              action: revealed ? t("action.continue") : t("action.confirm"),
+            })}
           </p>
 
           {revealed ? (
             <button
               onClick={advance}
-              className="ml-auto rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500"
+              className="ml-auto rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-accent/85"
             >
-              {questionIndex + 1 >= totalQuestions ? "See results →" : "Next →"}
+              {questionIndex + 1 >= totalQuestions
+                ? `${t("action.seeResults")} →`
+                : `${t("action.next")} →`}
             </button>
           ) : (
             <button
               onClick={confirm}
               disabled={!selected}
-              className="ml-auto rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
+              className="ml-auto rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-accent/85 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Confirm
+              {t("action.confirm")}
             </button>
           )}
         </div>

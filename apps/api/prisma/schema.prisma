@@ -28,10 +28,15 @@ model User {
   email     String   @unique
   password  String
   name      String?
+  /// Preferred content language, one of the 13 the official exam supports.
+  locale    String   @default("en")
+  /// Preferred visual theme (study, wood, greenboard, blackboard, daylight, contrast).
+  theme     String   @default("study")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   attempts         ScenarioAttempt[]
+  moduleProgress   UserModuleProgress[]
   progress         UserProgress[]
   countryAccess    UserCountryAccess[]
   scenarioProgress UserScenarioProgress[]
@@ -125,6 +130,8 @@ model Scenario {
   videoUrl    String?      @map("video_url")
   imagePrompt String?      @map("image_prompt")
   imageUrl    String?      @map("image_url")
+  /// Composable scene description rendered to SVG by the client.
+  sceneJson   Json?        @map("scene_json")
   createdAt   DateTime     @default(now()) @map("created_at")
 
   country          Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
@@ -142,18 +149,23 @@ model Question {
   id           String   @id @default(cuid())
   scenarioId   String?  @map("scenario_id")
   topicTestId  String?  @map("topic_test_id")
+  moduleId     String?  @map("module_id")
   questionText String   @map("question_text")
   order        Int
   explanation  String
+  /// Official weighting: a question is worth 2 to 5 error points when wrong.
+  errorPoints  Int      @default(3) @map("error_points")
   createdAt    DateTime @default(now()) @map("created_at")
 
   scenario           Scenario?           @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
   topicTest          TopicTest?          @relation(fields: [topicTestId], references: [id], onDelete: Cascade)
+  module             Module?             @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   options            Option[]
   testSessionAnswers TestSessionAnswer[]
 
   @@index([scenarioId])
   @@index([topicTestId])
+  @@index([moduleId])
   @@map("questions")
 }
 
@@ -248,6 +260,10 @@ model TestSession {
   completedAt DateTime? @map("completed_at")
   totalScore  Int       @default(0) @map("total_score")
   maxScore    Int       @map("max_score")
+  /// Error points accumulated; the official rule allows at most 10.
+  errorPoints Int       @default(0) @map("error_points")
+  /// True when two 5-point questions were wrong, which fails regardless of total.
+  failedByFivePointRule Boolean @default(false) @map("failed_by_five_point_rule")
   passed      Boolean?
   grade       String?
 
@@ -272,4 +288,95 @@ model TestSessionAnswer {
 
   @@unique([testSessionId, questionId])
   @@map("test_session_answers")
+}
+
+
+// ── Learning modules ─────────────────────────────────────────────────────────
+// One module per lesson of the legally mandated curriculum (FahrschAusbO,
+// Anlage 1 for the Grundstoff and Anlage 2.2 for the class-B Zusatzstoff).
+model Module {
+  id               String   @id @default(cuid())
+  countryCode      String   @map("country_code")
+  slug             String   @unique
+  order            Int
+  /// The official German lesson title from the FahrschAusbO.
+  officialTitle    String   @map("official_title")
+  /// Our display title in the base locale (English).
+  title            String
+  summary          String
+  /// Why this module matters, shown above the lesson list.
+  intro            String
+  estimatedMinutes Int      @default(20) @map("estimated_minutes")
+  /// Lessons 13 and 14 are the class-B Zusatzstoff rather than Grundstoff.
+  isZusatzstoff    Boolean  @default(false) @map("is_zusatzstoff")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  lessons   Lesson[]
+  questions Question[]
+  progress  UserModuleProgress[]
+
+  @@index([countryCode])
+  @@map("modules")
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  moduleId  String   @map("module_id")
+  slug      String   @unique
+  order     Int
+  title     String
+  /// Lesson body in a restricted markdown subset.
+  body      String
+  /// JSON array of short "remember this" lines.
+  keyPoints Json     @map("key_points")
+  /// Optional scene rendered beside the text.
+  sceneJson Json?    @map("scene_json")
+  /// JSON array of sign ids rendered as a strip under the body.
+  signIds   Json?    @map("sign_ids")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model UserModuleProgress {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  moduleId           String    @map("module_id")
+  /// JSON array of lesson ids the user has marked read.
+  completedLessonIds Json      @map("completed_lesson_ids")
+  lastLessonId       String?   @map("last_lesson_id")
+  completedAt        DateTime? @map("completed_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+  @@map("user_module_progress")
+}
+
+// ── Translations ─────────────────────────────────────────────────────────────
+// One generic table for every translatable database field. Adding a language
+// is inserting rows; no schema change and no per-entity translation table.
+// Interface strings and sign text live in the frontend locale files instead.
+model Translation {
+  id         String   @id @default(cuid())
+  /// "module" | "lesson" | "question" | "option" | "scenario" | "topicTest" | "country"
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  /// The field on that entity, e.g. "title", "body", "questionText".
+  field      String
+  locale     String
+  value      String
+  /// Machine-translated rows are served but flagged until a human confirms them.
+  isMachine  Boolean  @default(true) @map("is_machine")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([entityType, entityId, field, locale])
+  @@index([entityType, locale])
+  @@map("translations")
 }

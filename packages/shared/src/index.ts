@@ -1,4 +1,10 @@
+export { LOCALES } from "./types";
+
 export type {
+  Locale,
+  ModuleSummary,
+  ModuleDetail,
+  LessonRow,
   ScenarioType,
   TopicTestSummary,
   QuizOption,
@@ -14,3 +20,14 @@ export type {
   TopicAttemptSummary,
   UserProgress,
 } from "./types";
+
+export type {
+  RoadLayout,
+  ActorKind,
+  SceneSlot,
+  SceneActor,
+  SceneSign,
+  SceneAnnotation,
+  SceneCondition,
+  SceneSpec,
+} from "./scene";

@@ -5,19 +5,24 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#eff6ff',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-        },
-        surface: {
-          900: '#0a0a0f',
-          800: '#12121a',
-          700: '#1a1a26',
-          600: '#242433',
-        },
+        // Every colour resolves to a theme token. Channels are stored as
+        // "r g b" so Tailwind's opacity modifiers keep working.
+        ground: 'rgb(var(--ground) / <alpha-value>)',
+        surface: 'rgb(var(--surface) / <alpha-value>)',
+        raised: 'rgb(var(--raised) / <alpha-value>)',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        faint: 'rgb(var(--faint) / <alpha-value>)',
+        line: 'rgb(var(--line) / <alpha-value>)',
+        'line-strong': 'rgb(var(--line-strong) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        'accent-ink': 'rgb(var(--accent-ink) / <alpha-value>)',
+        'accent-soft': 'rgb(var(--accent-soft) / <alpha-value>)',
+        correct: 'rgb(var(--correct) / <alpha-value>)',
+        wrong: 'rgb(var(--wrong) / <alpha-value>)',
+        warn: 'rgb(var(--warn) / <alpha-value>)',
+        premium: 'rgb(var(--premium) / <alpha-value>)',
+        'sign-card': 'rgb(var(--sign-card) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

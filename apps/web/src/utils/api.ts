@@ -5,6 +5,9 @@ import type {
   TopicAttemptSummary,
   TopicTestSummary,
   ProgressStatus,
+  ModuleSummary,
+  ModuleDetail,
+  Locale,
 } from "@roadready/shared";
 
 const BASE =
@@ -35,6 +38,22 @@ export function clearStoredToken(): void {
   } catch {
     // Nothing to clean up if storage is unavailable.
   }
+}
+
+/**
+ * The active content language. Set by the i18n provider so every content
+ * request carries it without each caller remembering to.
+ */
+let activeLocale: Locale = "en";
+
+export function setApiLocale(locale: Locale): void {
+  activeLocale = locale;
+}
+
+/** Appends the active locale to a content path. */
+function localised(path: string): string {
+  if (activeLocale === "en") return path;
+  return path + (path.includes("?") ? "&" : "?") + `locale=${activeLocale}`;
 }
 
 let onUnauthorized: (() => void) | null = null;
@@ -122,7 +141,8 @@ export interface FinalTestResponse {
   country: { id: string; code: string; name: string; flagEmoji: string };
   total: number;
   timeLimitSeconds: number;
-  passPercent: number;
+  maxErrorPoints: number;
+  totalErrorPoints: number;
   questions: QuizQuestion[];
 }
 
@@ -137,6 +157,8 @@ export interface TestSessionResult {
   id: string;
   totalScore: number;
   maxScore: number;
+  errorPoints: number;
+  failedByFivePointRule: boolean;
   passed: boolean | null;
   grade: string | null;
   completedAt: string | null;
@@ -146,6 +168,7 @@ export interface TestSessionBreakdownRow {
   questionId: string;
   questionText: string;
   explanation: string;
+  errorPoints: number;
   isCorrect: boolean;
   selectedOptionId: string;
   selectedOptionText: string;
@@ -156,6 +179,7 @@ export interface TestSessionBreakdownRow {
 export interface TestSessionDetail extends TestSessionResult {
   country: { code: string; name: string; flagEmoji: string };
   answeredCount: number;
+  maxErrorPoints: number;
   breakdown: TestSessionBreakdownRow[];
 }
 
@@ -200,18 +224,64 @@ export const api = {
       ),
   },
 
-  topicTests: {
+  modules: {
     list: (countryCode: string) =>
-      request<TopicTestSummary[]>(
-        `/api/topic-tests/${encodeURIComponent(countryCode)}`,
+      request<ModuleSummary[]>(
+        localised(`/api/modules/${encodeURIComponent(countryCode)}`),
+      ),
+    get: (countryCode: string, slug: string) =>
+      request<ModuleDetail & { completedLessonIds: string[] }>(
+        localised(
+          `/api/modules/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}`,
+        ),
       ),
     questions: (countryCode: string, slug: string) =>
-      request<TopicQuestionsResponse>(
-        `/api/topic-tests/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions`,
+      request<{
+        module: {
+          id: string;
+          slug: string;
+          title: string;
+          officialTitle: string;
+        };
+        questions: QuizQuestion[];
+      }>(
+        localised(
+          `/api/modules/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions`,
+        ),
       ),
     answers: (countryCode: string, slug: string) =>
       request<QuestionAnswerKey[]>(
-        `/api/topic-tests/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions/answers`,
+        localised(
+          `/api/modules/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions/answers`,
+        ),
+      ),
+    markLessonRead: (moduleId: string, lessonId: string) =>
+      request<{
+        completedLessons: number;
+        totalLessons: number;
+        completedAt: string | null;
+      }>("/api/modules/progress", {
+        method: "POST",
+        body: JSON.stringify({ moduleId, lessonId }),
+      }),
+  },
+
+  topicTests: {
+    list: (countryCode: string) =>
+      request<TopicTestSummary[]>(
+        localised(`/api/topic-tests/${encodeURIComponent(countryCode)}`),
+      ),
+    questions: (countryCode: string, slug: string) =>
+      request<TopicQuestionsResponse>(
+        localised(
+          `/api/topic-tests/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions`,
+        ),
+      ),
+    answers: (countryCode: string, slug: string) =>
+      request<QuestionAnswerKey[]>(
+        localised(
+          `/api/topic-tests/${encodeURIComponent(countryCode)}/${encodeURIComponent(slug)}/questions/answers`,
+        ),
       ),
     attempts: (countryCode: string) =>
       request<TopicAttemptSummary[]>(
@@ -227,11 +297,13 @@ export const api = {
   scenarios: {
     list: (countryCode: string) =>
       request<ScenarioQuestionRow[]>(
-        `/api/scenarios/${encodeURIComponent(countryCode)}`,
+        localised(`/api/scenarios/${encodeURIComponent(countryCode)}`),
       ),
     answer: (countryCode: string, scenarioId: string) =>
       request<QuestionAnswerKey>(
-        `/api/scenarios/${encodeURIComponent(countryCode)}/${encodeURIComponent(scenarioId)}/answer`,
+        localised(
+          `/api/scenarios/${encodeURIComponent(countryCode)}/${encodeURIComponent(scenarioId)}/answer`,
+        ),
       ),
     progress: (userId: string, countryCode: string) =>
       request<ScenarioProgressRow[]>(
@@ -242,7 +314,25 @@ export const api = {
   finalTest: {
     questions: (countryCode: string) =>
       request<FinalTestResponse>(
-        `/api/final-test/${encodeURIComponent(countryCode)}/questions`,
+        localised(
+          `/api/final-test/${encodeURIComponent(countryCode)}/questions`,
+        ),
+      ),
+  },
+
+  users: {
+    me: () =>
+      request<{
+        id: string;
+        email: string;
+        locale: string;
+        theme: string;
+        totalAttempts: number;
+      }>("/api/users/me"),
+    savePreferences: (prefs: { locale?: string; theme?: string }) =>
+      request<{ id: string; email: string; locale: string; theme: string }>(
+        "/api/users/me/preferences",
+        { method: "PATCH", body: JSON.stringify(prefs) },
       ),
   },
 
