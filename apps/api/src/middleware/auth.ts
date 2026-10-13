@@ -27,25 +27,3 @@ export function requireAuth(
     res.status(401).json({ error: "Invalid or expired token" });
   }
 }
-
-/**
- * Attaches the user when a valid token is present, but never rejects. Used by
- * public content routes that show progress to signed-in readers.
- */
-export function optionalAuth(
-  req: AuthRequest,
-  _res: Response,
-  next: NextFunction,
-): void {
-  const header = req.headers.authorization;
-  if (header?.startsWith("Bearer ")) {
-    try {
-      const payload = verifyToken(header.slice(7));
-      req.userId = payload.sub;
-      req.userEmail = payload.email;
-    } catch {
-      // An invalid token simply means "not signed in" here.
-    }
-  }
-  next();
-}

@@ -6,6 +6,7 @@ import AuthModal from "./components/AuthModal";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { getStoredToken, setUnauthorizedHandler } from "./utils/api";
 import { isExpired, parseJwt } from "./utils/jwt";
+import { verifySession } from "./utils/session";
 import { useUserStore } from "./store/userStore";
 import { I18nProvider } from "./i18n";
 import { ThemeProvider } from "./theme";
@@ -32,7 +33,10 @@ export default function App() {
   const setUser = useUserStore((s) => s.setUser);
   const showAuthModal = useUserStore((s) => s.showAuthModal);
 
-  // Restore the session from the stored token, unless it has expired.
+  // Restore the session from the stored token, unless it has expired. The
+  // token's claims are only a first guess at who this is — they are not
+  // signature-checked here — so the API is asked to confirm, and an identity
+  // it does not recognise is dropped rather than left showing in the header.
   useEffect(() => {
     const token = getStoredToken();
     if (!token) return;
@@ -41,6 +45,15 @@ export default function App() {
     if (payload?.sub && payload.email && !isExpired(payload)) {
       setUser({ id: payload.sub, email: payload.email });
     }
+
+    let cancelled = false;
+    verifySession().then((result) => {
+      if (!cancelled && result === "denied") useUserStore.getState().logout();
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [setUser]);
 
   // If the API ever rejects the token, sign out rather than leaving the UI in

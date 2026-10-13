@@ -77,15 +77,16 @@ apps/api/prisma/data/
 | GET    | `/api/health`                                      | —    | `{ status: "ok" }`                           |
 | POST   | `/api/auth/register` · `/api/auth/login`           | —    | bcrypt 12, rate limited, email normalised    |
 | GET    | `/api/countries` · `/api/countries/:code/facts`    | —    | Facts are HTML, sanitised before render      |
-| GET    | `/api/modules/:code`                               | opt  | Curriculum + progress when signed in         |
-| GET    | `/api/modules/:code/:slug`                         | opt  | One module with all lessons                  |
-| GET    | `/api/modules/:code/:slug/questions`               | —    | Module quiz pool, **no** `isCorrect`         |
+| GET    | `/api/countries/:code/scenarios`                   | ✓    | Legacy listing; it is course content         |
+| GET    | `/api/modules/:code`                               | ✓    | Curriculum + the caller's progress           |
+| GET    | `/api/modules/:code/:slug`                         | ✓    | One module with all lessons                  |
+| GET    | `/api/modules/:code/:slug/questions`               | ✓    | Module quiz pool, **no** `isCorrect`         |
 | GET    | `/api/modules/:code/:slug/questions/answers`       | ✓    | Answer key for client-side scoring           |
 | POST   | `/api/modules/progress`                            | ✓    | Marks one lesson read                        |
-| GET    | `/api/topic-tests/:code` · `…/attempts`            | — ✓  | Topics; per-topic best/last score            |
-| GET    | `/api/topic-tests/:code/:slug/questions[/answers]` | — ✓  | Same split as modules                        |
+| GET    | `/api/topic-tests/:code` · `…/attempts`            | ✓    | Topics; per-topic best/last score            |
+| GET    | `/api/topic-tests/:code/:slug/questions[/answers]` | ✓    | Same split as modules                        |
 | POST   | `/api/topic-tests/attempts`                        | ✓    | Records a finished topic run                 |
-| GET    | `/api/scenarios/:code`                             | —    | Situations incl. `sceneJson`                 |
+| GET    | `/api/scenarios/:code`                             | ✓    | Situations incl. `sceneJson`                 |
 | GET    | `/api/scenarios/:code/:id/answer`                  | ✓    | Answer key for one situation                 |
 | GET    | `/api/final-test/:code/questions`                  | ✓    | 30 mixed questions with `errorPoints`        |
 | POST   | `/api/test-sessions` · `…/:id/answers`             | ✓    | Graded server-side; response reveals nothing |
@@ -93,6 +94,24 @@ apps/api/prisma/data/
 | GET    | `/api/test-sessions/:id`                           | ✓    | Breakdown only after completion              |
 | GET    | `/api/users/me` · PATCH `…/me/preferences`         | ✓    | Profile; locale + theme                      |
 | POST   | `/api/user-country-access`                         | ✓    | Records the chosen country                   |
+
+**The public surface is exactly three things:** `/api/health`, `/api/countries`
+and `/api/countries/:code/facts` — what the signed-out landing page needs.
+Everything else is course content or user data and requires a session.
+
+Authentication is applied **at the mount in `index.ts`**, not route by route:
+
+```ts
+app.use("/api/countries", countryRoutes); // public
+app.use("/api/modules", requireAuth, moduleRoutes); // and so on
+```
+
+So a new route added to a protected router is protected by default — forgetting
+a `requireAuth` inside the file cannot expose it. If you add a genuinely public
+endpoint it must go in `countries.ts` (or a new router mounted without the
+guard), and that is a decision to make deliberately. There is no `optionalAuth`
+helper any more; it was removed because "attach the user but never reject" is
+how content endpoints end up public by accident.
 
 Every content endpoint accepts `?locale=` and falls back field by field to the
 base English text. `apps/web/src/utils/api.ts` appends it automatically.
@@ -157,18 +176,47 @@ line-strong accent accent-ink correct wrong warn premium sign-card`.
 
 ## Security invariants — do not regress
 
-- `JWT_SECRET` has no production fallback (API refuses to boot without ≥ 24
-  chars); JWT algorithm pinned to HS256
-- CORS is an allowlist from `CORS_ORIGIN`
-- `/api/auth/*` rate limited 20 / 15 min; everything else 300 / min
-- JSON bodies capped at 32 kb
-- Every URL param and body field parsed via `lib/validation.ts` before Prisma
-- Ownership checked on every user-scoped route
-- Login runs a bcrypt compare even when no user exists (timing)
+**Authorisation**
+
+- Course content and user data are **never** served without a verified session —
+  see the mount-level guards above. The frontend's `ProtectedRoute` is a
+  convenience, not the boundary
+- `ProtectedRoute` confirms the session against `/api/users/me` before rendering
+  (`utils/session.ts`, cached per token). It must not decide on the token's own
+  claims: the payload is base64, so anyone can write a convincing one into
+  `localStorage`
+- Ownership is checked on every user-scoped route — a test session, progress row
+  or attempt is only readable by the user it belongs to, whatever id the URL
+  carries
+- `isCorrect` must never be serialised by a question-serving endpoint
 - The final test is graded server-side; its breakdown is withheld until the
   session is completed
+
+**Authentication**
+
+- JWT algorithm pinned to HS256, so an `alg: none` token cannot be accepted
+- `JWT_SECRET` must be ≥ 24 characters. The development fallback is only
+  available when `NODE_ENV` is explicitly `development` or `test` — an **unset**
+  `NODE_ENV` fails closed, so a deploy that forgets the variable refuses to boot
+  rather than accepting forged sessions. `npm run dev:api` sets it
+- Login runs a bcrypt compare even when no user exists (timing)
+- `/api/auth/*` rate limited 20 / 15 min; everything else 300 / min
+
+**Input**
+
+- Every URL param and body field parsed via `lib/validation.ts` before Prisma
+- JSON bodies capped at 32 kb
+- CORS is an allowlist from `CORS_ORIGIN`
 - API HTML passes through `sanitizeHtml` before `dangerouslySetInnerHTML`
 - Never commit `.env`
+
+`npm run smoke` asserts all of the above — the access-control, forged-token and
+cross-user sections exist to catch a regression here. Run it after any change to
+a route, to middleware, or to `ProtectedRoute`.
+
+**Known and accepted:** the sign catalogue and its SVGs ship inside the frontend
+bundle, so that content is readable by anyone who downloads the JS. Everything
+served from the database is not.
 
 ## Before you finish
 

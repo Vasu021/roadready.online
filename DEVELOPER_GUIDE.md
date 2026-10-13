@@ -46,8 +46,11 @@ CORS_ORIGIN=http://localhost:5173          # comma-separated allowlist
 TRUST_PROXY=false                          # true behind a reverse proxy
 ```
 
-> `JWT_SECRET` has **no production fallback**. With `NODE_ENV=production` the API
-> refuses to start unless it is set and at least 24 characters long.
+> `JWT_SECRET` has **no production fallback**. The insecure development secret
+> is only used when `NODE_ENV` is explicitly `development` or `test`; with it
+> unset or set to anything else, the API refuses to start unless `JWT_SECRET` is
+> present and at least 24 characters. `npm run dev:api` sets
+> `NODE_ENV=development` for you — if you run `tsx` directly, set it yourself.
 
 > **Prisma is pinned to 6.0.0** in both the root and `apps/api`. Do not upgrade:
 > 7.x requires a driver adapter this project does not use.
@@ -118,6 +121,32 @@ never punishes a wrong answer; only the final test grades.
 /scenarios             Driving situations
 /final-test            Brief → timed exam → graded breakdown
 ```
+
+### Who can see what
+
+The API is the security boundary, not the frontend.
+
+- **Public:** `/api/health`, `/api/countries`, `/api/countries/:code/facts` —
+  exactly what the signed-out landing page renders, and nothing more.
+- **Everything else needs a session.** Lessons, questions, signs topics,
+  situations, the exam and all user data are behind `requireAuth`.
+
+The guard is applied where the routers are mounted in `apps/api/src/index.ts`,
+not inside each route file, so a route added to a protected router is protected
+whether or not its author remembered to say so. There is no `optionalAuth`
+helper — it was removed, because a middleware that attaches a user but never
+rejects is how a content endpoint quietly becomes public.
+
+On the frontend, `ProtectedRoute` keeps signed-out visitors off those pages, but
+it does **not** trust the token in `localStorage`: a JWT payload is just base64,
+so anyone can write `{"sub":"…","exp":<next year>}` into it. `utils/session.ts`
+asks `/api/users/me` whether the session is real, caches the answer per token,
+and a rejected token is discarded rather than left showing an identity in the
+header. A network failure is not treated as a rejection — only a 401 is.
+
+When adding a route, the question to answer is not "should I add
+`requireAuth`?" but "does this belong in a protected router?" — the answer is
+yes unless a signed-out visitor genuinely needs it.
 
 ### Content model
 
@@ -327,7 +356,8 @@ pre-generated audio files; that decision is not made yet.
 
 `scripts/smoke-test.mjs` exercises the whole backend with no dependencies:
 content counts, lesson progress, i18n fallback, exam composition, error-point
-grading in both directions, the module quiz, preferences and the auth guards.
+grading in both directions, the module quiz, preferences, and — at length —
+access control.
 
 ```bash
 npm run dev     # one terminal
@@ -336,7 +366,20 @@ npm run smoke   # another
 
 It answers a full exam correctly (expecting 0 error points, grade A, passed),
 then answers six questions wrong (expecting over 10 points and a fail), so a
-regression in grading shows up immediately. 38 assertions, all green.
+regression in grading shows up immediately.
+
+The last four sections are the ones to watch when touching routes or middleware:
+
+- **access control** — every protected path returns 401 with no token, and the
+  three public paths still return 200
+- **forged tokens** — a made-up signature, an `alg: none` downgrade and plain
+  garbage are all rejected
+- **cross-user access** — one account cannot read, answer in, or complete
+  another account's test session or progress
+- **input validation** — bad country codes, slug traversal and out-of-range
+  progress payloads are refused
+
+64 assertions, all green.
 
 ### UI verification
 
@@ -353,7 +396,10 @@ no extension, no Playwright:
 ```
 
 Seed `localStorage` with `rr_token`, `rr_country`, `rr_locale` and `rr_theme` to
-land directly on an authenticated page in a given language and theme. Capture at
+land directly on an authenticated page in a given language and theme. The token
+has to be a real one (register through the API first) — since `ProtectedRoute`
+verifies the session, a hand-made token now lands you back on `/`, which is the
+point. Capture at
 least: one lesson in every theme, the dashboard in German, Turkish and Arabic,
 and one mobile width. Check the console-error count is zero.
 

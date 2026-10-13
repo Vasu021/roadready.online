@@ -1,10 +1,6 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
-import {
-  optionalAuth,
-  requireAuth,
-  type AuthRequest,
-} from "../middleware/auth";
+import { requireAuth, type AuthRequest } from "../middleware/auth";
 import {
   parseCountryCode,
   parseSlug,
@@ -20,7 +16,7 @@ const router = Router();
  * The curriculum: every active module with lesson and question counts, and —
  * when signed in — how far the user has read.
  */
-router.get("/:countryCode", optionalAuth, async (req: AuthRequest, res) => {
+router.get("/:countryCode", requireAuth, async (req: AuthRequest, res) => {
   const countryCode = parseCountryCode(req.params.countryCode);
   const locale = parseLocale(req.query.locale);
 
@@ -98,7 +94,7 @@ router.get("/:countryCode", optionalAuth, async (req: AuthRequest, res) => {
 /** GET /api/modules/:countryCode/:slug — one module with all of its lessons. */
 router.get(
   "/:countryCode/:slug",
-  optionalAuth,
+  requireAuth,
   async (req: AuthRequest, res) => {
     const countryCode = parseCountryCode(req.params.countryCode);
     const slug = parseSlug(req.params.slug);

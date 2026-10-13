@@ -66,6 +66,17 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
   onUnauthorized = handler;
 }
 
+/** An error carrying the HTTP status, so callers can act on 401 specifically. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getStoredToken();
   const headers: Record<string, string> = {
@@ -88,7 +99,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       clearStoredToken();
       onUnauthorized?.();
     }
-    throw new Error(errorMsg);
+    throw new ApiError(errorMsg, res.status);
   }
 
   return res.json() as Promise<T>;

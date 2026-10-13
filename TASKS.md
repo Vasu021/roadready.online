@@ -70,12 +70,41 @@ server-side exam grading, HTML sanitising).
 - New logo: the yellow Vorfahrtstraße diamond with a road through it, plus a
   monochrome variant and three alternates kept for comparison
 
+**Access control (October 2026 audit)**
+
+Found: every learning endpoint — modules, lessons, module and topic questions,
+all 18 situations with their options — answered requests carrying **no token at
+all**. The frontend's route guard was the only thing gating the course, and it
+decided on an unverified JWT payload, which anyone can hand-write into
+`localStorage`.
+
+- Authentication moved to the router mounts in `index.ts`: only `/api/health`,
+  `/api/countries` and `/api/countries/:code/facts` are public now, and a new
+  route in a protected router is protected by default
+- `optionalAuth` deleted — nothing used it, and it invited exactly this bug
+- `ProtectedRoute` now confirms the session with `/api/users/me`
+  (`utils/session.ts`, cached per token) instead of trusting the token's claims;
+  a rejected token is discarded rather than left showing in the header
+- `ApiError` carries the HTTP status, so a 401 and an unreachable server are no
+  longer treated the same
+- `POST /api/progress` validates its payload: the scenario must exist, `passed`
+  must be a boolean, score and time are bounded, `mode` must be a real enum value
+- The development JWT secret now requires `NODE_ENV=development` or `test`; an
+  unset `NODE_ENV` fails closed, so a deploy that forgets it cannot quietly
+  accept forged tokens
+- `/api/countries/:code` params validated like every other route
+
 **Verified**
 
-- 39 API assertions green (modules, progress, i18n fallback, exam composition,
-  error-point grading both ways, preferences, auth guards)
+- 64 API assertions green — adds access control on every protected path, forged
+  and `alg: none` tokens, cross-user reads of sessions and progress, and
+  progress-payload validation, alongside the existing content, i18n, exam
+  composition, error-point grading and preference checks
 - Headless-browser pass over every page, all six themes, German/Turkish/Arabic
   and mobile: zero console errors, zero exceptions
+- Route gating re-checked in the browser: with a forged token and with no token,
+  all six protected routes redirect and render no content; with a real session
+  all six render normally
 - `tsc --noEmit` and `vite build` clean in both apps; seed validator passes
 
 ---
@@ -121,6 +150,8 @@ The plan set volume targets that are only partly met. Current counts:
 - [ ] Stripe checkout + webhook; replace the dev `isPremium` toggle
 - [ ] Decide the free/premium split
 - [ ] Move the rate limiter to Redis before running more than one API instance
+- [ ] Refresh tokens / shorter JWT lifetime — 7 days with no revocation means a
+      stolen token stays valid until it expires
 - [ ] Vitest for the quiz store, validators, exam mix and `gradeSession`
 - [ ] CI: typecheck + build + seed validation on every PR
 - [ ] Deploy: Vercel (web) + Railway (API) with managed PostgreSQL
@@ -131,3 +162,6 @@ The plan set volume targets that are only partly met. Current counts:
 - `Sign` exists in the schema but is intentionally not seeded — signs render from code
 - Module quizzes do not record attempts; lesson progress is the module's progress
 - `errorPoints` for unanswered final-test questions is charged a flat 3
+- The sign catalogue ships inside the frontend bundle, so that content is
+  readable by anyone who downloads the JS. Everything served from the database
+  is not

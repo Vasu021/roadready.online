@@ -59,7 +59,7 @@ ok("register returns a token", typeof token === "string" && token.length > 100);
 
 // ── Learning modules ─────────────────────────────────────────────────────────
 section("learning modules");
-const modules = await call("/api/modules/DE");
+const modules = await call("/api/modules/DE", { token });
 ok("14 modules", modules.length === 14);
 ok("92 lessons", modules.reduce((n, m) => n + m.lessonCount, 0) === 92);
 ok(
@@ -121,15 +121,16 @@ ok(
 section("i18n");
 ok(
   "locale parameter accepted",
-  (await call("/api/modules/DE?locale=de")).length === 14,
+  (await call("/api/modules/DE?locale=de", { token })).length === 14,
 );
 ok(
   "unknown locale falls back",
-  (await call("/api/modules/DE?locale=zz")).length === 14,
+  (await call("/api/modules/DE?locale=zz", { token })).length === 14,
 );
 ok(
   "untranslated fields fall back to the base text",
-  (await call("/api/modules/DE?locale=tr"))[0].title === modules[0].title,
+  (await call("/api/modules/DE?locale=tr", { token }))[0].title ===
+    modules[0].title,
 );
 
 // ── Final test ───────────────────────────────────────────────────────────────
@@ -158,7 +159,7 @@ for (const m of modules) {
     keys.set(k.questionId, k.correctOptionId);
   }
 }
-for (const t of await call("/api/topic-tests/DE")) {
+for (const t of await call("/api/topic-tests/DE", { token })) {
   for (const k of await call(
     `/api/topic-tests/DE/${t.slug}/questions/answers`,
     { token },
@@ -166,7 +167,7 @@ for (const t of await call("/api/topic-tests/DE")) {
     keys.set(k.questionId, k.correctOptionId);
   }
 }
-for (const s of await call("/api/scenarios/DE")) {
+for (const s of await call("/api/scenarios/DE", { token })) {
   const k = await call(`/api/scenarios/DE/${s.id}/answer`, { token });
   keys.set(k.questionId, k.correctOptionId);
 }
@@ -221,7 +222,9 @@ ok("breakdown is complete", breakdown.breakdown.length === 30);
 
 // ── Module quiz ──────────────────────────────────────────────────────────────
 section("module quiz");
-const quiz = await call("/api/modules/DE/de-m05-right-of-way/questions");
+const quiz = await call("/api/modules/DE/de-m05-right-of-way/questions", {
+  token,
+});
 ok("module serves its own pool", quiz.questions.length === 16);
 ok("no answer key in the payload", !JSON.stringify(quiz).includes("isCorrect"));
 ok(
@@ -255,8 +258,33 @@ ok(
   })) === 400,
 );
 
-// ── Security guards ──────────────────────────────────────────────────────────
-section("security guards");
+// ── Access control ───────────────────────────────────────────────────────────
+section("access control");
+
+// The public surface is deliberately tiny. Everything else is the product.
+const PUBLIC = ["/api/health", "/api/countries", "/api/countries/DE/facts"];
+for (const path of PUBLIC) {
+  ok(`public: ${path}`, (await status(path)) === 200);
+}
+
+// Changing the URL must not be a way in. Each of these serves course content
+// or user data and must refuse a request that carries no session.
+const PROTECTED = [
+  "/api/countries/DE/scenarios",
+  "/api/modules/DE",
+  `/api/modules/DE/${modules[0].slug}`,
+  `/api/modules/DE/${modules[0].slug}/questions`,
+  `/api/modules/DE/${modules[0].slug}/questions/answers`,
+  "/api/topic-tests/DE",
+  "/api/topic-tests/DE/attempts",
+  "/api/scenarios/DE",
+  "/api/final-test/DE/questions",
+  "/api/users/me",
+];
+for (const path of PROTECTED) {
+  ok(`needs auth: ${path}`, (await status(path)) === 401);
+}
+
 ok(
   "module progress needs auth",
   (await status("/api/modules/progress", {
@@ -265,23 +293,147 @@ ok(
   })) === 401,
 );
 ok(
-  "final test needs auth",
-  (await status("/api/final-test/DE/questions")) === 401,
-);
-ok(
   "preferences need auth",
   (await status("/api/users/me/preferences", {
     method: "PATCH",
     body: { theme: "wood" },
   })) === 401,
 );
+
+// ── Forged tokens ────────────────────────────────────────────────────────────
+section("forged tokens");
+
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+const claims = {
+  sub: "caaaaaaaaaaaaaaaaaaaaaaa",
+  email: "attacker@test.local",
+  exp: Math.floor(Date.now() / 1000) + 86_400,
+};
+
+// Right shape, far-future expiry, signature made up. Decoding the payload
+// would accept this; verifying the signature must not.
+const unsigned = `${b64({ alg: "HS256", typ: "JWT" })}.${b64(claims)}.bm90LWEtc2lnbmF0dXJl`;
+ok(
+  "forged signature rejected",
+  (await status("/api/users/me", { token: unsigned })) === 401,
+);
+
+// The classic downgrade: claim the token needs no signature at all.
+const algNone = `${b64({ alg: "none", typ: "JWT" })}.${b64(claims)}.`;
+ok(
+  "alg:none rejected",
+  (await status("/api/users/me", { token: algNone })) === 401,
+);
+ok(
+  "forged token cannot read content",
+  (await status("/api/modules/DE", { token: unsigned })) === 401,
+);
+ok(
+  "garbage token rejected",
+  (await status("/api/users/me", { token: "x.y.z" })) === 401,
+);
+
+// ── One user, one account ────────────────────────────────────────────────────
+section("cross-user access");
+
+const victim = await call("/api/auth/register", {
+  method: "POST",
+  body: { email: `victim${Date.now()}@test.local`, password: "StrongPass123" },
+});
+const attacker = await call("/api/auth/register", {
+  method: "POST",
+  body: { email: `rogue${Date.now()}@test.local`, password: "StrongPass123" },
+});
+
+const victimSession = await call("/api/test-sessions", {
+  method: "POST",
+  token: victim.token,
+  body: { countryCode: "DE", maxScore: 30 },
+});
+
+ok(
+  "cannot read another user's test session",
+  (await status(`/api/test-sessions/${victimSession.id}`, {
+    token: attacker.token,
+  })) === 403,
+);
+ok(
+  "cannot answer in another user's test session",
+  (await status(`/api/test-sessions/${victimSession.id}/answers`, {
+    method: "POST",
+    token: attacker.token,
+    body: { questionId: "a".repeat(25), selectedOptionId: "b".repeat(25) },
+  })) === 403,
+);
+ok(
+  "cannot complete another user's test session",
+  (await status(`/api/test-sessions/${victimSession.id}/complete`, {
+    method: "PATCH",
+    token: attacker.token,
+  })) === 403,
+);
+ok(
+  "cannot read another user's progress",
+  (await status(`/api/progress/${victim.user.id}`, {
+    token: attacker.token,
+  })) === 403,
+);
+ok(
+  "cannot read another user's scenario progress",
+  (await status(`/api/scenarios/progress/${victim.user.id}/DE`, {
+    token: attacker.token,
+  })) === 403,
+);
+ok(
+  "can read own progress",
+  (await status(`/api/progress/${victim.user.id}`, {
+    token: victim.token,
+  })) === 200,
+);
+
+// ── Input validation ─────────────────────────────────────────────────────────
+section("input validation");
 ok(
   "malformed country code rejected",
-  (await status("/api/modules/XXX")) === 400,
+  (await status("/api/modules/XXX", { token })) === 400,
 );
 ok(
   "path traversal in a slug rejected",
-  [400, 404].includes(await status("/api/modules/DE/../../etc")),
+  [400, 404].includes(await status("/api/modules/DE/../../etc", { token })),
+);
+ok(
+  "progress for an unknown scenario rejected",
+  [400, 404].includes(
+    await status("/api/progress", {
+      method: "POST",
+      token,
+      body: { scenarioId: "no-such-scenario", passed: true, score: 1 },
+    }),
+  ),
+);
+ok(
+  "progress with a non-boolean result rejected",
+  (await status("/api/progress", {
+    method: "POST",
+    token,
+    body: { scenarioId: "rechts-vor-links", passed: "yes" },
+  })) === 400,
+);
+ok(
+  "progress with an out-of-range score rejected",
+  (await status("/api/progress", {
+    method: "POST",
+    token,
+    body: { scenarioId: "rechts-vor-links", passed: true, score: 999999 },
+  })) === 400,
+);
+ok(
+  "progress with an unknown mode rejected",
+  (await status("/api/progress", {
+    method: "POST",
+    token,
+    body: { scenarioId: "rechts-vor-links", passed: true, mode: "ADMIN" },
+  })) === 400,
 );
 
 console.log(`\n${passed} passed, ${failed} failed\n`);
