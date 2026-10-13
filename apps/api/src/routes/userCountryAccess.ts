@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../lib/prisma";
 import { requireAuth } from "../middleware/auth";
+import { parseCountryCode } from "../lib/validation";
 import type { AuthRequest } from "../middleware/auth";
 
 const router = Router();
@@ -9,16 +10,19 @@ const router = Router();
 // Body: { countryCode: string }
 // Upserts a UserCountryAccess row for the authenticated user + country
 router.post("/", requireAuth, async (req: AuthRequest, res) => {
-  const { countryCode } = req.body as { countryCode?: string };
+  const countryCode = parseCountryCode(
+    (req.body as { countryCode?: unknown }).countryCode,
+  );
 
-  if (!countryCode || typeof countryCode !== "string") {
-    res.status(400).json({ error: "countryCode is required" });
+  if (!countryCode) {
+    res.status(400).json({ error: "A valid countryCode is required" });
     return;
   }
 
   try {
     const country = await prisma.country.findUnique({
-      where: { code: countryCode.toUpperCase() },
+      where: { code: countryCode },
+      select: { id: true },
     });
 
     if (!country) {
@@ -40,7 +44,7 @@ router.post("/", requireAuth, async (req: AuthRequest, res) => {
 
     res.json({ alreadyExisted: existing !== null });
   } catch (err) {
-    console.error(err);
+    console.error("Failed to record country access:", err);
     res.status(500).json({ error: "Failed to record country access" });
   }
 });

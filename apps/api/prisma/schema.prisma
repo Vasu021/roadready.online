@@ -69,6 +69,48 @@ model ScenarioCategory {
   @@map("scenario_categories")
 }
 
+// ── Reference library ────────────────────────────────────────────────────────
+// Traffic signs are rendered from code (apps/web/src/components/signs), so this
+// table is metadata-only: it exists so server-side features (search, sign-based
+// question generation, admin tooling) have something to join against. It is not
+// seeded by default.
+model Sign {
+  id          String   @id @default(cuid())
+  countryCode String   @map("country_code")
+  signKey     String   @unique @map("sign_key")
+  nameDE      String   @map("name_de")
+  nameEN      String   @map("name_en")
+  category    String
+  description String
+  explanation String
+  legalBasis  String?  @map("legal_basis")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("signs")
+}
+
+// ── Topic-wise practice tests ────────────────────────────────────────────────
+model TopicTest {
+  id          String   @id @default(cuid())
+  countryCode String   @map("country_code")
+  slug        String   @unique
+  name        String
+  nameEN      String   @map("name_en")
+  description String
+  order       Int
+  isActive    Boolean  @default(true) @map("is_active")
+  /// Sign-recognition topics feed the sign block of the final theory test.
+  isSignTopic Boolean  @default(false) @map("is_sign_topic")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  questions Question[]
+  attempts  ScenarioAttempt[]
+
+  @@map("topic_tests")
+}
+
+// A Scenario is now a single driving-situation question (image + MCQ), not a
+// 3D simulation. `type` still distinguishes PRACTICE scenarios from the TEST row.
 model Scenario {
   id          String       @id @default(cuid())
   countryId   String       @map("country_id")
@@ -81,6 +123,8 @@ model Scenario {
   isPremium   Boolean      @default(false) @map("is_premium")
   type        ScenarioType
   videoUrl    String?      @map("video_url")
+  imagePrompt String?      @map("image_prompt")
+  imageUrl    String?      @map("image_url")
   createdAt   DateTime     @default(now()) @map("created_at")
 
   country          Country                @relation(fields: [countryId], references: [id], onDelete: Cascade)
@@ -92,18 +136,24 @@ model Scenario {
   @@map("scenarios")
 }
 
+// A Question belongs to EITHER a TopicTest (topic-wise practice) or a Scenario
+// (driving-situation practice). Exactly one of the two FKs is set.
 model Question {
   id           String   @id @default(cuid())
-  scenarioId   String   @map("scenario_id")
+  scenarioId   String?  @map("scenario_id")
+  topicTestId  String?  @map("topic_test_id")
   questionText String   @map("question_text")
   order        Int
   explanation  String
   createdAt    DateTime @default(now()) @map("created_at")
 
-  scenario           Scenario            @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  scenario           Scenario?           @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  topicTest          TopicTest?          @relation(fields: [topicTestId], references: [id], onDelete: Cascade)
   options            Option[]
   testSessionAnswers TestSessionAnswer[]
 
+  @@index([scenarioId])
+  @@index([topicTestId])
   @@map("questions")
 }
 
@@ -151,7 +201,7 @@ model UserScenarioProgress {
 }
 
 // Legacy progress model — kept for backwards compat with existing API routes.
-// New code should use UserScenarioProgress.
+// New code should use UserScenarioProgress / ScenarioAttempt.
 model UserProgress {
   id              String    @id @default(cuid())
   userId          String    @map("user_id")
@@ -168,19 +218,25 @@ model UserProgress {
   @@map("user_progress")
 }
 
+// One finished practice run — of a TopicTest (topicTestId set) or of a single
+// Scenario question (scenarioId set).
 model ScenarioAttempt {
-  id          String      @id @default(cuid())
-  userId      String      @map("user_id")
-  scenarioId  String      @map("scenario_id")
-  mode        AttemptMode @default(PRACTICE)
-  passed      Boolean
-  score       Int         @default(0)
-  timeSeconds Int         @map("time_seconds")
-  completedAt DateTime    @default(now()) @map("completed_at")
+  id             String      @id @default(cuid())
+  userId         String      @map("user_id")
+  scenarioId     String?     @map("scenario_id")
+  topicTestId    String?     @map("topic_test_id")
+  mode           AttemptMode @default(PRACTICE)
+  passed         Boolean
+  score          Int         @default(0)
+  totalQuestions Int?        @map("total_questions")
+  timeSeconds    Int         @map("time_seconds")
+  completedAt    DateTime    @default(now()) @map("completed_at")
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  scenario Scenario? @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario  Scenario?  @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  topicTest TopicTest? @relation(fields: [topicTestId], references: [id], onDelete: SetNull)
 
+  @@index([userId])
   @@map("scenario_attempts")
 }
 
@@ -214,5 +270,6 @@ model TestSessionAnswer {
   question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
   selectedOption Option      @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
 
+  @@unique([testSessionId, questionId])
   @@map("test_session_answers")
 }

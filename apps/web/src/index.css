@@ -14,3 +14,50 @@ body,
   width: 100%;
   height: 100%;
 }
+
+/* Smooth in-page anchors and a consistent dark scrollbar. */
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(37 99 235 / 0.35);
+}
+
+/* Keep the dark theme consistent in both scrollbar implementations. */
+* {
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.15);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
