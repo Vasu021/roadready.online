@@ -51,15 +51,24 @@ export default function SettingsMenu() {
         title={`${t("settings.language")} · ${t("settings.theme")}`}
       >
         <span className="uppercase">{locale}</span>
-        <span
+        <svg
           aria-hidden="true"
-          className="h-3 w-3 rounded-full border border-line-strong"
-          style={{ background: THEME_META[theme].swatch[0] }}
-        />
+          viewBox="0 0 10 6"
+          className={`h-1.5 w-2.5 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          <path
+            d="M1 1l4 4 4-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-60 rounded-xl border border-line bg-surface p-3 shadow-2xl backdrop-blur-xl">
+        <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-line bg-surface p-3 shadow-2xl backdrop-blur-xl">
           <section>
             <h3 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-widest text-faint">
               {t("settings.language")}
@@ -102,7 +111,7 @@ export default function SettingsMenu() {
                         setTheme(id);
                         persist({ theme: id });
                       }}
-                      className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left text-xs transition ${
+                      className={`flex h-9 w-full items-center gap-2 rounded-lg border px-2 text-left text-xs transition ${
                         theme === id
                           ? "border-accent bg-accent/10 text-ink"
                           : "border-line text-muted hover:border-line-strong hover:text-ink"
@@ -118,7 +127,7 @@ export default function SettingsMenu() {
                           style={{ background: meta.swatch[1] }}
                         />
                       </span>
-                      {t(meta.labelKey)}
+                      <span className="truncate">{t(meta.labelKey)}</span>
                     </button>
                   </li>
                 );

@@ -203,10 +203,10 @@ export const en = {
   "settings.theme": "Theme",
   "theme.study": "Study",
   "theme.wood": "Wood",
-  "theme.greenboard": "Green board",
-  "theme.blackboard": "Blackboard",
+  "theme.greenboard": "Green",
+  "theme.blackboard": "Black",
   "theme.daylight": "Daylight",
-  "theme.contrast": "High contrast",
+  "theme.contrast": "Contrast",
 
   // ── Errors ────────────────────────────────────────────────────────────────
   "error.generic": "Something went wrong. Please try again.",
